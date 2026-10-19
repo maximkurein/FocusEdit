@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>FocusEdit</string>
+    <key>CFBundleDisplayName</key>
+    <string>FocusEdit</string>
+    <key>CFBundleExecutable</key>
+    <string>FocusEdit</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.example.focusedit</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.3</string>
+    <key>CFBundleVersion</key>
+    <string>3</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Plain Text</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>txt</string></array>
+            <key>LSItemContentTypes</key>
+            <array><string>public.plain-text</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>NSDocumentClass</key>
+            <string>FocusEdit.FocusDocument</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Markdown</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>md</string>
+                <string>markdown</string>
+                <string>mdown</string>
+                <string>mkd</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>NSDocumentClass</key>
+            <string>FocusEdit.FocusDocument</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Fountain Script</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>fountain</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>NSDocumentClass</key>
+            <string>FocusEdit.FocusDocument</string>
+        </dict>
+    </array>
+</dict>
+</plist>
