@@ -1,7 +1,8 @@
 #!/bin/bash
 # Install a DMG built by ./package.sh into /Applications, so the Dock shows the new icon.
-#   ./install.sh          install .build/dist/FocusEdit-<version>.dmg
-#   ./install.sh <dmg>    install that DMG
+#   ./install.sh                  install .build/dist/FocusEdit-<version>.dmg
+#   ./install.sh <dmg>            install that DMG
+#   ./install.sh --make-default   also make it the default app for .txt and .rtf
 #
 # Quits a running FocusEdit, moves the installed copy to the Trash (nothing is deleted), copies the
 # new one, re-registers it with Launch Services, makes it forget older copies in the Trash and
@@ -9,12 +10,18 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-case "${1:-}" in
-  -h | --help)
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
-    exit 0
-    ;;
-esac
+make_default=false
+dmg_arg=""
+for arg in "$@"; do
+  case "$arg" in
+    -h | --help)
+      sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    --make-default) make_default=true ;;
+    *) dmg_arg=$arg ;;
+  esac
+done
 
 fail() {
   echo "install failed: $1" >&2
@@ -22,7 +29,7 @@ fail() {
 }
 
 version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)
-dmg=${1:-.build/dist/FocusEdit-$version.dmg}
+dmg=${dmg_arg:-.build/dist/FocusEdit-$version.dmg}
 [ -f "$dmg" ] || fail "no DMG at $dmg; run ./package.sh first"
 app=/Applications/FocusEdit.app
 lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
@@ -51,10 +58,20 @@ codesign --verify --deep --strict "$app" || fail "the installed app's signature 
 
 touch "$app"
 "$lsregister" -f "$app"
+# Spotlight indexes a new copy only eventually; macOS 26's Apps list relies on it.
+mdimport "$app" 2>/dev/null || true
 # A copy Launch Services never registered answers -10814 (not found): nothing to forget.
 for stale in "$HOME"/.Trash/FocusEdit*.app; do
   [ -d "$stale" ] && { "$lsregister" -u "$stale" >/dev/null 2>&1 || true; }
 done
+# Development builds (same name, same icon) must not compete with the installed copy
+# in "Open With" and Spotlight.
+for dev in .build/FocusEdit.app windows/src-tauri/target/*/bundle/macos/FocusEdit.app; do
+  [ -d "$dev" ] && { "$lsregister" -u "$PWD/$dev" >/dev/null 2>&1 || true; }
+done
+if $make_default; then
+  "$app/Contents/MacOS/FocusEdit" --make-default || fail "could not make FocusEdit the default editor"
+fi
 killall Dock
 open "$app"
 echo "Installed FocusEdit $(plist CFBundleShortVersionString "$app") (build $(plist CFBundleVersion "$app")) and restarted the Dock."

@@ -10,6 +10,7 @@ enum SelfTest {
         syntax()
         completion()
         editing()
+        rtf()
         print(failures == 0 ? "\nAll self-tests passed." : "\n\(failures) self-test(s) FAILED.")
         return failures == 0 ? 0 : 1
     }
@@ -62,6 +63,49 @@ enum SelfTest {
         fn.update(text: "INT. HOUSE - DAY\n\nMARGARET\nHello.\n\nMARGARET (V.O.)\nAgain.\n")
         check("fountain scene heading", fn.suffix(forPrefix: "IN", linePrefix: "IN"), "T. ")
         check("fountain character cue", fn.suffix(forPrefix: "MAR", linePrefix: "MAR"), "GARET")
+    }
+
+    // MARK: RTF ↔ Markdown
+
+    private static func rtf() {
+        print("RTF:")
+        let markdown = """
+            # Title
+            ## Section
+            Some **bold**, *italic*, ***both***, ~~gone~~, a [link](https://example.com) and `code`.
+            - one
+            - two
+                - nested
+            1. first
+            2. second
+            > a quote
+            plain line
+            """
+        do {
+            let data = try RTFMarkdown.rtf(fromMarkdown: markdown)
+            check("writes RTF", String(decoding: data.prefix(5), as: UTF8.self), "{\\rtf")
+            let back = try RTFMarkdown.markdown(fromRTF: data)
+            let expected = markdown.components(separatedBy: "\n")
+            let actual = back.markdown.components(separatedBy: "\n")
+            for (i, line) in expected.enumerated() {
+                check("round trip: \(line)", i < actual.count ? actual[i] : nil, line)
+            }
+            check("round trip loses nothing", back.lostFormatting.joined(separator: ", "), "")
+
+            // Colours and other fonts can't survive as Markdown: the import says so.
+            let coloured = NSAttributedString(string: "red words", attributes: [
+                .foregroundColor: NSColor.systemRed, .font: NSFont(name: "Helvetica", size: 12)!,
+            ])
+            let rtfData = try coloured.data(from: NSRange(location: 0, length: coloured.length),
+                                            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+            let imported = try RTFMarkdown.markdown(fromRTF: rtfData)
+            check("coloured text is kept", imported.markdown, "red words")
+            check("colour loss is reported", imported.lostFormatting.joined(separator: ", "), "colours")
+        } catch {
+            failures += 1
+            print("  FAIL  RTF conversion threw: \(error)")
+        }
+        check("rtf opens as Markdown", "\(DocumentKind(fileExtension: "RTF"))", "markdown")
     }
 
     // MARK: Text view writing aids

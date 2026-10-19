@@ -72,7 +72,10 @@ swift build                 # → .build/debug/FocusEdit
 ```bash
 ./install.sh            # поставить .build/dist/FocusEdit-X.Y.Z.dmg
 ./install.sh <dmg>      # поставить другой DMG
+./install.sh --make-default   # и сделать FocusEdit программой по умолчанию для .txt и .rtf
 ```
+
+Программу по умолчанию можно назначить и позже: в приложении **FocusEdit ▸ Make Default Editor for .txt and .rtf** или `/Applications/FocusEdit.app/Contents/MacOS/FocusEdit --make-default`. Назначается только копия из `/Applications` — иначе `.txt` привязался бы к сборке в `.build/`, которая пропадает при пересборке.
 
 `install.sh` закрывает запущенный FocusEdit (если есть несохранённые изменения, приложение спросит, сохранить ли, — ответьте и запустите `install.sh` ещё раз), перекладывает прежнюю копию в Корзину (ничего не удаляет), копирует новую из DMG и проверяет её подпись, заново регистрирует в Launch Services, «забывает» копии в Корзине, перезапускает Dock и открывает приложение. Без этого Dock может показывать старую или пустую иконку из кэша.
 
@@ -161,6 +164,14 @@ open "$TMP/icon_256x256.png"   # вне лаборатории
 **`package failed: swift build failed`** — первая строка с `error:` уже напечатана; полный журнал — `.build/release-build.log`.
 
 **`install failed: FocusEdit is still running`** — в открытом документе есть несохранённые изменения, и приложение ждёт ответа. Сохраните или закройте документы и запустите `./install.sh` снова.
+
+**В «Открыть с помощью» или Spotlight несколько FocusEdit** — система регистрирует каждую найденную копию: `.build/FocusEdit.app`, тестовую сборку Windows-порта, копии в Корзине. `./install.sh` снимает их с регистрации, оставляя `/Applications/FocusEdit.app`. Вручную:
+
+```bash
+LSR=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+$LSR -dump | grep -E '^path:.*FocusEdit'      # какие копии знает система
+$LSR -u "$PWD/.build/FocusEdit.app"            # забыть одну
+```
 
 **В Dock старая или пустая иконка** — ставьте через `./install.sh`: он перезапускает Dock. Если иконка всё равно старая:
 

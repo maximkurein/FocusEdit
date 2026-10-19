@@ -7,6 +7,11 @@ if let i = CommandLine.arguments.firstIndex(of: "--makeicon"), i + 1 < CommandLi
     exit(0)
 }
 
+if CommandLine.arguments.contains("--make-default") {
+    _ = NSApplication.shared
+    exit(DefaultEditor.runFromCommandLine())
+}
+
 if CommandLine.arguments.contains("--selftest") {
     _ = NSApplication.shared      // text views need an app object
     exit(SelfTest.run())
@@ -77,6 +82,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var themeEditor: ThemeEditorWindowController?
 
+    @objc func makeDefaultEditor(_ sender: Any?) {
+        DefaultEditor.runInteractively()
+    }
+
     @objc func editThemes(_ sender: Any?) {
         let seed = frontSplit()?.editor.theme ?? .light
         let editor = ThemeEditorWindowController(seed: seed)
@@ -137,6 +146,8 @@ enum MenuBuilder {
         appMenu.addItem(withTitle: "About FocusEdit",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(item("Make Default Editor for .txt and .rtf", Selector(("makeDefaultEditor:")), ""))
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide FocusEdit",
                         action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")

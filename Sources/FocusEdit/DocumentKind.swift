@@ -7,7 +7,8 @@ enum DocumentKind {
 
     init(fileExtension ext: String) {
         switch ext.lowercased() {
-        case "md", "markdown", "mdown", "mkd", "mdwn": self = .markdown
+        // RTF opens as Markdown (RTFMarkdown converts both ways).
+        case "md", "markdown", "mdown", "mkd", "mdwn", "rtf": self = .markdown
         case "fountain":                                self = .fountain
         default:                                        self = .plain
         }

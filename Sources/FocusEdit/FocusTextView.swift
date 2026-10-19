@@ -77,7 +77,7 @@ final class FocusTextView: NSTextView {
         let opts: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
                                                          options: opts) as? [URL] ?? []
-        let exts: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain"]
+        let exts: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain", "rtf"]
         return urls.filter { exts.contains($0.pathExtension.lowercased()) }
     }
 

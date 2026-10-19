@@ -13,7 +13,7 @@ final class FileNode {
 
     var title: String { url.lastPathComponent }
 
-    static let documentExtensions: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain"]
+    static let documentExtensions: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain", "rtf"]
 
     var children: [FileNode] {
         if let loaded { return loaded }
