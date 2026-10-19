@@ -143,7 +143,12 @@ final class FocusTextView: NSTextView {
 
     // MARK: Syntax fonts (display-only storage attributes; never serialised)
 
-    private var baseFont: NSFont { font ?? .systemFont(ofSize: NSFont.systemFontSize) }
+    /// The editor's body font, set by the controller. Kept explicitly because
+    /// `NSTextView.font` reports the font of the *first character* — for a
+    /// document opening with a heading that is bold, and would spread.
+    var editorFont: NSFont?
+
+    private var baseFont: NSFont { editorFont ?? .systemFont(ofSize: NSFont.systemFontSize) }
 
     private func applyTokenFonts() {
         guard let ts = textStorage, ts.length > 0 else { return }

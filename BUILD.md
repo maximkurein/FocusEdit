@@ -29,7 +29,9 @@ FocusEdit/
 ├── Package.swift            # SwiftPM: executable-таргет FocusEdit, язык Swift 5, macOS 13+
 ├── Info.plist               # версия, типы документов (.txt/.md/.fountain), иконка
 ├── package.sh               # status → swift build → собрать .app → номер сборки → иконка
+├── README.md                # описание на английском; строку версии правит update_version.py
 ├── CHANGELOG.md             # заметки по версиям (заголовки правит update_version.py)
+├── docs/images/             # скриншоты для README (--snapshot)
 ├── scripts/update_version.py # bump / status / sync — единственный способ менять версию
 ├── Sources/FocusEdit/*.swift
 └── examples/                # welcome.md и превью иконки (для ручного теста)
@@ -48,7 +50,8 @@ cd /Users/olgazaharova/Project/rea-lab/work/uFocus/FocusEdit
 2. Собирает бандл `.build/FocusEdit.app`: копирует бинарь, кладёт `Info.plist` и `PkgInfo`.
 3. Ставит номер сборки `CFBundleVersion` по времени UTC (см. [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)).
 4. Рендерит иконку: запускает `FocusEdit --makeicon` (рисует набор PNG кодом из `IconFactory.swift`) и собирает `AppIcon.icns` через `iconutil`.
-5. Печатает итог: `Assembled .build/FocusEdit.app (version X.Y, build …)`.
+5. Подписывает весь бандл ad-hoc (`codesign --sign -`) и проверяет подпись (`codesign --verify --strict`) — так `Info.plist` и иконка запечатаны, а повреждённый бандл ломается на сборке, а не при запуске.
+6. Печатает итог: `Assembled .build/FocusEdit.app (version X.Y.Z, build …, ad-hoc signed)`.
 
 Можно собирать и без скрипта — тогда будет только бинарь, без бандла, иконки и типов документов:
 
@@ -78,10 +81,24 @@ pkill -f FocusEdit
 
 ## Шаг 3. Проверки
 
-Движок подсветки проверяется без GUI — встроенный self-test токенизирует образцы Markdown и Fountain и печатает роли:
+Логика проверяется без GUI — встроенный self-test токенизирует образцы Markdown и Fountain, проверяет автодополнение и правку текста (продолжение списков, автоскобки, принятие подсказки) и выходит с кодом 1 при любой ошибке:
 
 ```bash
 .build/FocusEdit.app/Contents/MacOS/FocusEdit --selftest
+```
+
+Снимок окна без разрешения на запись экрана: открывает документ, печатает демо-строку (список + серая подсказка), сохраняет PNG и закрывается, демо-ввод не сохраняется:
+
+```bash
+.build/FocusEdit.app/Contents/MacOS/FocusEdit "$PWD/examples/welcome.md" --snapshot "$TMPDIR/ui.png"
+```
+
+Окно снимка невидимо и не забирает фокус клавиатуры. `--theme Dark` задаёт тему только для снимка, `--content` оставляет область под тулбаром — стеклянный тулбар в тёмной теме вне экрана не рендерится. Скриншоты README обновляются так:
+
+```bash
+APP=.build/FocusEdit.app/Contents/MacOS/FocusEdit
+$APP "$PWD/examples/welcome.md" --snapshot "$PWD/docs/images/window-light.png" --theme Light
+$APP "$PWD/examples/welcome.md" --snapshot "$PWD/docs/images/editor-dark.png" --theme Dark --content
 ```
 
 Ручная проверка GUI: открыть `examples/welcome.md`, подвигать каретку (фокус-подсветка и typewriter-scrolling), ⌘S сохранить, ⌘F поиск, View ▸ Theme/Editor Size, ⇧⌘P превью, Edit ▸ Format/CriticMarkup.
@@ -116,6 +133,8 @@ open "$TMP/icon_256x256.png"   # вне лаборатории
 **`sandbox-exec: sandbox_apply: Operation not permitted` / недоступен кэш SwiftPM** — песочница мешает `swift build`. В Claude Code это снимается разрешением на команду; вне — запускайте сборку в обычной оболочке. Управление песочницей — `/sandbox`.
 
 **Окно не появляется, только иконка в Dock** — исправлено: после назначения `contentViewController` окну явно задаётся размер и центрирование (иначе оно схлопывалось до полоски заголовка, и это запоминалось в настройках). Если всплывёт старый кривой frame: `defaults delete com.example.focusedit`.
+
+**Приложение сразу падает: `SIGKILL (Code Signature Invalid)`, `Taskgated Invalid Signature`** — исполняемый файл внутри бандла перезаписали на месте (например, `cp .build/debug/FocusEdit .build/FocusEdit.app/Contents/MacOS/`). macOS кэширует проверку подписи файла, и подменённый Mach-O ядро убивает при запуске. Не копируйте бинарь в бандл руками — пересоберите `./package.sh`: он удаляет бандл целиком, собирает и подписывает заново.
 
 **`iconutil failed`** — `package.sh` продолжит сборку, приложение получит системную иконку по умолчанию. Проверьте, что `FocusEdit --makeicon` создал все 10 PNG в iconset.
 

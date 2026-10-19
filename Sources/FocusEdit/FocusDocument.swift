@@ -14,27 +14,19 @@ final class FocusDocument: NSDocument {
         let split = MainSplitViewController()
         self.editor = split.editor
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentViewController = split
-        // Setting a contentViewController resizes the window to the view's
-        // fitting size, so pin an explicit content size and center. No frame
-        // autosave — a degenerate saved frame must never collapse the window.
-        window.setContentSize(NSSize(width: 1040, height: 720))
-        window.center()
-
-        let controller = NSWindowController(window: window)
+        let controller = DocumentWindowController(split: split)
         addWindowController(controller)
 
         split.editor.attach(document: self)
         split.loadDocument(content, fileExtension: fileURL?.pathExtension ?? "txt")
-        window.makeFirstResponder(split.editor.textView)
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        controller.window?.makeFirstResponder(split.editor.textView)
+        if Snapshot.isActive {
+            controller.window?.alphaValue = 0
+            controller.window?.orderFront(nil)
+        } else {
+            controller.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     // MARK: Reading / writing (plain text only)

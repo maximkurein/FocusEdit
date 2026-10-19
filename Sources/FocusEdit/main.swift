@@ -8,38 +8,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--makeicon"), i + 1 < CommandLi
 }
 
 if CommandLine.arguments.contains("--selftest") {
-    let md = """
-    # Heading one
-    Some **bold** and *italic* and `code` here.
-    > a blockquote line
-    - a list item
-    [a link](https://example.com)
-    plain paragraph
-    """
-    let engine = SyntaxEngine(highlighter: MarkdownHighlighter())
-    let tokens = engine.tokens(for: md as NSString)
-    let ns = md as NSString
-    print("Markdown tokens: \(tokens.count)")
-    for t in tokens {
-        let text = ns.substring(with: t.range).replacingOccurrences(of: "\n", with: "⏎")
-        print("  \(t.role)  \(NSStringFromRange(t.range))  \"\(text)\"")
-    }
-
-    let fountain = """
-    INT. HOUSE - DAY
-    MARY
-    (whispering)
-    Hello there.
-    CUT TO:
-    """
-    let fe = SyntaxEngine(highlighter: FountainHighlighter())
-    let ft = fe.tokens(for: fountain as NSString)
-    let fns = fountain as NSString
-    print("Fountain tokens: \(ft.count)")
-    for t in ft {
-        print("  \(t.role)  \"\(fns.substring(with: t.range))\"")
-    }
-    exit(0)
+    _ = NSApplication.shared      // text views need an app object
+    exit(SelfTest.run())
 }
 
 // MARK: - Application
@@ -48,7 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Optional file passed on the command line (dev convenience for launching
     /// straight into a document without the LaunchServices `open` path).
     private var launchFileURL: URL? = {
-        for arg in CommandLine.arguments.dropFirst() where !arg.hasPrefix("-") {
+        let args = Array(CommandLine.arguments.dropFirst())
+        for (i, arg) in args.enumerated() where !arg.hasPrefix("-") {
+            if i > 0, ["--snapshot", "--theme"].contains(args[i - 1]) { continue }   // option values
             let url = URL(fileURLWithPath: arg)
             if FileManager.default.fileExists(atPath: url.path) { return url }
         }
@@ -62,9 +34,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Direct-exec launches don't always come frontmost; force it after the
         // document window is created.
-        DispatchQueue.main.async {
-            NSApp.activate(ignoringOtherApps: true)
-            NSApp.windows.first?.makeKeyAndOrderFront(nil)
+        if !Snapshot.isActive {
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.windows.first?.makeKeyAndOrderFront(nil)
+            }
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
+            Snapshot.schedule(to: CommandLine.arguments[i + 1])
         }
     }
 
@@ -267,6 +244,14 @@ enum MenuBuilder {
         cmMenu.addItem(item("Reject Change", Selector(("cmReject:")), ""))
         editMenu.addItem(cmParent)
 
+        // Writing aids
+        editMenu.addItem(.separator())
+        editMenu.addItem(item("Suggest Completions", Selector(("toggleAutocomplete:")), ""))
+        editMenu.addItem(item("Automatic Pairing", Selector(("toggleAutoPairing:")), ""))
+        let completeWord = item("Complete Word", #selector(NSTextView.complete(_:)), "\u{1b}")
+        completeWord.keyEquivalentModifierMask = [.option]
+        editMenu.addItem(completeWord)
+
         // Modus menu
         let modusItem = NSMenuItem()
         mainMenu.addItem(modusItem)
@@ -334,10 +319,19 @@ enum MenuBuilder {
         let outlineToggle = item("Show Outline", Selector(("toggleOutline:")), "o")
         outlineToggle.keyEquivalentModifierMask = [.command, .option]
         viewMenu.addItem(outlineToggle)
-        viewMenu.addItem(item("Show Statistics", Selector(("toggleStatistics:")), ""))
+        viewMenu.addItem(item("Show Word Count", Selector(("toggleStatistics:")), ""))
         let previewToggle = item("Show Preview", Selector(("togglePreview:")), "p")
         previewToggle.keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(previewToggle)
+        viewMenu.addItem(.separator())
+        let toolbarToggle = item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)), "t")
+        toolbarToggle.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(toolbarToggle)
+        viewMenu.addItem(item("Customize Toolbar…",
+                              #selector(NSWindow.runToolbarCustomizationPalette(_:)), ""))
+        let fullScreen = item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f")
+        fullScreen.keyEquivalentModifierMask = [.command, .control]
+        viewMenu.addItem(fullScreen)
 
         // Library menu
         let libraryItem = NSMenuItem()
@@ -348,6 +342,23 @@ enum MenuBuilder {
         libToggle.keyEquivalentModifierMask = [.command, .option]
         libraryMenu.addItem(libToggle)
         libraryMenu.addItem(item("Link Directory…", Selector(("linkLibraryDirectory:")), ""))
+
+        // Window menu (AppKit lists open windows and tabs here)
+        let windowItem = NSMenuItem()
+        mainMenu.addItem(windowItem)
+        let windowMenu = NSMenu(title: "Window")
+        windowItem.submenu = windowMenu
+        windowMenu.addItem(item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"))
+        windowMenu.addItem(item("Zoom", #selector(NSWindow.performZoom(_:)), ""))
+        NSApp.windowsMenu = windowMenu
+
+        // Help menu (AppKit adds the menu search field)
+        let helpItem = NSMenuItem()
+        mainMenu.addItem(helpItem)
+        let helpMenu = NSMenu(title: "Help")
+        helpItem.submenu = helpMenu
+        helpMenu.addItem(item("FocusEdit Hints", Selector(("showHints:")), "?"))
+        NSApp.helpMenu = helpMenu
 
         return mainMenu
     }

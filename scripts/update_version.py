@@ -2,7 +2,8 @@
 """Single source of truth for the FocusEdit version.
 
 The marketing version MAJOR.MINOR.PATCH lives in Info.plist
-(CFBundleShortVersionString). This script keeps CHANGELOG.md in sync with it and
+(CFBundleShortVersionString). This script keeps CHANGELOG.md and the README
+**Version:** line in sync with it and
 never touches the build number (CFBundleVersion), which package.sh stamps.
 
 Commands:
@@ -26,11 +27,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PLIST = ROOT / "Info.plist"
 CHANGELOG = ROOT / "CHANGELOG.md"
+README = ROOT / "README.md"
 
 PLIST_RE = re.compile(
     r"(<key>CFBundleShortVersionString</key>\s*<string>)([^<]+)(</string>)"
 )
 RELEASED_RE = re.compile(r"^## \[(\d+\.\d+(?:\.\d+)?)\]\s*-\s*(\d{4}-\d{2}-\d{2})", re.M)
+# **Version:** `X.Y.Z`, released DD.MM.YYYY
+README_RE = re.compile(r"(\*\*Version:\*\* `)([^`]+)(`, released )(\d{2}\.\d{2}\.\d{4})")
 
 
 class VersionError(Exception):
@@ -81,6 +85,17 @@ def cmd_status() -> int:
             ok = False
         print(f"changelog  CHANGELOG.md    {ver}  ({date})  {mark}")
 
+    if README.exists():
+        m = README_RE.search(README.read_text(encoding="utf-8"))
+        if m is None:
+            print("readme     README.md       MISSING (no **Version:** line)")
+            ok = False
+        else:
+            mark = "OK" if m.group(2) == source else "DIFF"
+            if m.group(2) != source:
+                ok = False
+            print(f"readme     README.md       {m.group(2)}  ({m.group(4)})  {mark}")
+
     print("OK" if ok else "OUT OF SYNC")
     return 0 if ok else 1
 
@@ -104,13 +119,26 @@ def set_changelog(text: str, version: str, date: str) -> str:
     return text.replace("## [Unreleased]", replacement, 1)
 
 
+def set_readme(text: str, version: str, date: str) -> str:
+    y, m, d = date.split("-")
+    new, n = README_RE.subn(lambda g: g.group(1) + version + g.group(3) + f"{d}.{m}.{y}", text)
+    if n == 0:
+        raise VersionError("Could not update README.md (no **Version:** line)")
+    return new
+
+
 def apply(version: str, date: str, dry_run: bool) -> None:
     normalize(version)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        raise VersionError(f"release date must be YYYY-MM-DD: {date}")
     plist_text = PLIST.read_text(encoding="utf-8")
     new_plist = set_plist(plist_text, version)
 
     changelog_text = CHANGELOG.read_text(encoding="utf-8") if CHANGELOG.exists() else ""
     new_changelog = set_changelog(changelog_text, version, date) if changelog_text else changelog_text
+
+    readme_text = README.read_text(encoding="utf-8") if README.exists() else ""
+    new_readme = set_readme(readme_text, version, date) if readme_text else readme_text
 
     print(f"Target version:      {version}")
     print(f"Target release date: {date}\n")
@@ -120,6 +148,8 @@ def apply(version: str, date: str, dry_run: bool) -> None:
         changed.append((PLIST, new_plist))
     if changelog_text and new_changelog != changelog_text:
         changed.append((CHANGELOG, new_changelog))
+    if readme_text and new_readme != readme_text:
+        changed.append((README, new_readme))
 
     if not changed:
         print("Nothing to update (already in sync).")

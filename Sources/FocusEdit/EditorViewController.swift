@@ -50,6 +50,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.font = fontKind.font(ofSize: fontSize)
+        textView.editorFont = fontKind.font(ofSize: fontSize)
         textView.focusMode = Preferences.focusMode
         textView.delegate = self
         sounds.enabled = Preferences.soundsEnabled
@@ -294,6 +295,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     private func applyFont() {
         let font = fontKind.font(ofSize: fontSize)
+        textView.editorFont = font
         textView.font = font
         textView.typingAttributes[.font] = font
         layoutWritingColumn()

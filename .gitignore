@@ -1,0 +1,11 @@
+# Build output (swift build, package.sh)
+.build/
+.swiftpm/
+
+# macOS and Xcode user state
+.DS_Store
+xcuserdata/
+*.xcuserstate
+
+# Python bytecode (scripts/update_version.py)
+__pycache__/

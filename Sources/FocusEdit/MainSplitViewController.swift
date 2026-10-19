@@ -168,6 +168,19 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
     // MARK: Validation
 
+    func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        switch item.action {
+        case #selector(togglePreview(_:)):
+            ToolbarSymbol.update(item, "eye", on: previewController?.window?.isVisible == true)
+            return editor.documentKind.supportsHTML
+        case #selector(toggleOutline(_:)):
+            ToolbarSymbol.update(item, "sidebar.right", on: !outlineItem.isCollapsed)
+        default:
+            break
+        }
+        return true
+    }
+
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(toggleLibrary(_:)):

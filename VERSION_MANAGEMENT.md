@@ -46,6 +46,7 @@ Target release date: 2026-10-19
 
 Updated Info.plist
 Updated CHANGELOG.md
+Updated README.md
 ```
 
 ## Что синхронизирует скрипт
@@ -54,6 +55,7 @@ Updated CHANGELOG.md
 |---|---|---|
 | `source` | `Info.plist` | `CFBundleShortVersionString` |
 | `changelog` | `CHANGELOG.md` | заголовок `## [X.Y.Z] - YYYY-MM-DD`: новая версия забирает заметки из `## [Unreleased]`, сверху появляется пустой `Unreleased` |
+| `readme` | `README.md` | строка ``**Version:** `X.Y.Z`, released DD.MM.YYYY`` под описанием |
 
 Текст заметок в CHANGELOG пишется руками; скрипт трогает только заголовки.
 

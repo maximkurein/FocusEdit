@@ -37,4 +37,9 @@ else
     echo "WARNING: iconutil failed; app will use the default icon"
 fi
 
-echo "Assembled $APP (version $VERSION, build $BUILD_NO)"
+# Ad-hoc sign the whole bundle last (it seals Info.plist and the icon), then
+# verify, so a broken bundle fails here and not with SIGKILL at launch.
+codesign --force --sign - --timestamp=none "$APP"
+codesign --verify --strict "$APP"
+
+echo "Assembled $APP (version $VERSION, build $BUILD_NO, ad-hoc signed)"
