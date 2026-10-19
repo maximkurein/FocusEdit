@@ -9,3 +9,10 @@ xcuserdata/
 
 # Python bytecode (scripts/update_version.py)
 __pycache__/
+
+# Windows port (windows/): npm, Vite and Cargo output
+windows/node_modules/
+windows/dist/
+windows/src-tauri/target/
+windows/src-tauri/gen/
+windows/*.png
