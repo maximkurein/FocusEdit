@@ -2,6 +2,7 @@
 
 Open this file, turn on Modus ▸ Vim Mode (learning) and follow VIM_GUIDE.md.
 Every line below is a small exercise. Undo with u whenever you like.
+Esc always brings you back to NORMAL; Exit Vim (or :novim) turns Vim mode off.
 
 ## Lesson 1 — move and fix
 

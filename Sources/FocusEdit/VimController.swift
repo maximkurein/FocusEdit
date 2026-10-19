@@ -18,6 +18,7 @@ final class VimController {
         engine.onModeChange = { [weak self] mode in self?.modeChanged(mode) }
         engine.onFeedback = { [weak self] _, _ in self?.refreshCoach() }
         engine.onAction = { [weak self] action in self?.perform?(action) }
+        coach.onExit = { [weak self] in self?.perform?(.exitVim) }
         engine.reset()
         modeChanged(engine.mode)
     }
@@ -144,6 +145,10 @@ final class VimCoachView: NSView {
     private let keys = NSTextField(labelWithString: "")
     private let message = NSTextField(labelWithString: "")
     private let tip = NSTextField(labelWithString: "")
+    private let legend = NSTextField(labelWithString: "")
+    private let exitButton = NSButton(title: "Exit Vim", target: nil, action: nil)
+    /// Called by the Exit Vim button.
+    var onExit: (() -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -164,6 +169,26 @@ final class VimCoachView: NSView {
         tip.lineBreakMode = .byTruncatingTail
         for f in [message, tip] { f.setContentCompressionResistancePriority(.defaultLow, for: .horizontal) }
 
+        legend.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        legend.textColor = .secondaryLabelColor
+        legend.alignment = .right
+        legend.setContentCompressionResistancePriority(.required, for: .horizontal)
+        exitButton.bezelStyle = .rounded
+        exitButton.controlSize = .small
+        exitButton.font = .systemFont(ofSize: 11)
+        exitButton.target = self
+        exitButton.action = #selector(exitTapped)
+        exitButton.toolTip = "Turn Vim mode off (also Modus ▸ Vim Mode, or :novim)"
+        let side = NSStackView(views: [legend, exitButton])
+        side.spacing = 10
+        side.alignment = .centerY
+        side.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(side)
+        NSLayoutConstraint.activate([
+            side.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            side.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+
         let row = NSStackView(views: [badge, keys, message])
         row.spacing = 8
         row.alignment = .centerY
@@ -178,12 +203,24 @@ final class VimCoachView: NSView {
             column.topAnchor.constraint(equalTo: topAnchor),
             column.bottomAnchor.constraint(equalTo: bottomAnchor),
             column.leadingAnchor.constraint(equalTo: leadingAnchor),
-            column.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            column.trailingAnchor.constraint(lessThanOrEqualTo: side.leadingAnchor, constant: -12),
             badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 62),
         ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    @objc private func exitTapped() { onExit?() }
+
+    /// How to get to the other modes from here — always on screen.
+    private static func legend(for mode: VimMode) -> String {
+        switch mode {
+        case .normal: return "i type · v select · : commands · u undo"
+        case .insert: return "Esc → NORMAL"
+        case .visual, .visualLine: return "d y c > act · Esc → NORMAL"
+        case .commandLine: return "Return run · Esc cancel"
+        }
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.separatorColor.setFill()
@@ -200,6 +237,7 @@ final class VimCoachView: NSView {
                 commandPrefix: String, commandLine: String) {
         badge.stringValue = " \(mode.rawValue) "
         badge.backgroundColor = Self.color(for: mode)
+        legend.stringValue = Self.legend(for: mode)
         if mode == .commandLine {
             keys.stringValue = commandPrefix + commandLine + "▏"
             message.stringValue = commandPrefix == ":" ? "Return runs it · Esc cancels"

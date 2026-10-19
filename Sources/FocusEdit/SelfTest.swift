@@ -172,6 +172,8 @@ enum SelfTest {
         vim.onAction = { action = $0 }
         for k in [":", "w", "q", "<CR>"] { vim.handle(k) }
         check(":wq saves and closes", "\(String(describing: action))", "Optional(FocusEdit.VimAction.saveAndClose)")
+        for k in [":", "n", "o", "v", "i", "m", "<CR>"] { vim.handle(k) }
+        check(":novim leaves Vim mode", "\(String(describing: action))", "Optional(FocusEdit.VimAction.exitVim)")
 
         vimRun("a b c d", "d2w") { vim in
             check("explains d2w", vim.feedback?.text, "Delete to the start of the next word ×2.")

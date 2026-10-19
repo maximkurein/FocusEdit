@@ -33,7 +33,7 @@ enum VimMode: String {
 }
 
 enum VimAction: Equatable {
-    case save, close, saveAndClose, discardAndClose, help
+    case save, close, saveAndClose, discardAndClose, help, exitVim
 }
 
 /// What the coach shows after a command.
@@ -138,8 +138,8 @@ final class VimEngine {
         clearPending()
         let p = buffer.selection.location
         buffer.selection = NSRange(location: clampNormal(p), length: 0)
-        report(VimFeedback(keys: "", text: "Normal mode: keys are commands. Press i to type, Esc to come back."),
-               tip: "Start with h j k l to move, i to insert, Esc to stop.")
+        report(VimFeedback(keys: "", text: "Vim mode on. NORMAL: letters are commands — press i to type, Esc to come back."),
+               tip: "Exit Vim (right) or :novim turns Vim mode off. VIM_GUIDE.md has the lessons.")
     }
 
     // MARK: Insert mode
@@ -209,6 +209,9 @@ final class VimEngine {
         case "q!":
             onAction?(.discardAndClose)
             report(VimFeedback(keys: keys, text: "quit! — close and throw away unsaved changes."), tip: nil)
+        case "novim", "vimoff", "noh vim":
+            onAction?(.exitVim)
+            report(VimFeedback(keys: keys, text: "Vim mode off — FocusEdit is a normal editor again."), tip: nil)
         case "h", "help":
             onAction?(.help)
             report(VimFeedback(keys: keys, text: "help — the cheat sheet."), tip: nil)
@@ -218,7 +221,7 @@ final class VimEngine {
                 buffer.selection = NSRange(location: target, length: 0)
                 report(VimFeedback(keys: keys, text: "Go to line \(n)."), tip: "\(n)G does the same from Normal mode.")
             } else {
-                report(VimFeedback(keys: keys, text: "Not an editor command: \(cmd). Try :w, :q, :wq, :q! or :help.", isError: true), tip: nil)
+                report(VimFeedback(keys: keys, text: "Not an editor command: \(cmd). Try :w, :q, :wq, :q!, :help or :novim (leave Vim mode).", isError: true), tip: nil)
             }
         }
     }

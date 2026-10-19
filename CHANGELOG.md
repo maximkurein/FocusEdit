@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-19
+
+### Added
+- Vim coach bar: an always-visible hint of how to reach the other modes, and an Exit Vim button
+- `:novim` / `:vimoff` turn Vim mode off from the keyboard
+
+### Changed
+- VIM_GUIDE.md, START_HERE.md: how to turn Vim mode on, switch its modes and get back to the normal editor
+- Windows port: vitest 5 (npm audit is clean)
+
 ## [1.1.0] - 2026-10-19
 ### Added
 - Учебный Vim-режим (Modus ▸ Vim Mode, кнопка в тулбаре): Normal, Insert, Visual, Visual Line и командная строка; грамматика «оператор + движение» со счётчиками (`d c y > <` с `h j k l w b e W B E ge 0 ^ $ gg G { } f F t T ; , n N`), текстовые объекты (`iw aw ip ap i" a" i' a' i( a( i[ a[ i{ a{`), `x X D C Y s S r ~ J p P u Ctrl-r .`, поиск `/ ?` (smartcase), `:w :q :wq :x :q! :help :N`. Блочный курсор в Normal.

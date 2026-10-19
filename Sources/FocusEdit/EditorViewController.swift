@@ -137,6 +137,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             view.window?.performClose(nil)
         case .help:
             NSApp.sendAction(Selector(("showHints:")), to: nil, from: textView)
+        case .exitVim:
+            if vimEnabled { toggleVimMode(nil) }
         }
     }
 
