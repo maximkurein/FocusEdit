@@ -6,7 +6,7 @@ A **minimalist** focus writer — now with *Markdown* highlighting and real
 ## Try this
 
 - Move the caret between paragraphs — focus fades smoothly.
-- Toggle **Modus → Focus Highlighting** (⌘0 / ⌘1 / ⌘2).
+- Click the focus button in the toolbar to switch **Off · Sentence · Paragraph**.
 - Edit this line and press ⌘S to save; the title-bar dot clears.
 
 > Headings, bold, italic, quotes, lists and links are styled,

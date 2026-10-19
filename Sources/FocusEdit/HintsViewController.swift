@@ -48,7 +48,7 @@ final class HintsViewController: NSViewController {
                 ("( [ { \" `", "Close automatically; select text first to wrap it"),
             ]),
             Section(title: "Focus", rows: [
-                ("⌘0 ⌘1 ⌘2", "Highlight off · sentence · paragraph"),
+                ("◎ toolbar", "Highlight off · sentence · paragraph — click to cycle"),
                 ("⌘T", "Keep the active line centred"),
                 ("⌘U", "Typewriter sounds"),
                 ("⌃⌘F", "Full screen — toolbar and menu hide"),

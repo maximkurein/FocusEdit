@@ -95,7 +95,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             item.image = ToolbarSymbol.image("scope")
             item.label = "Focus"
             item.paletteLabel = "Focus"
-            item.toolTip = "Focus highlighting — click to cycle, arrow for the list (⌘0 ⌘1 ⌘2)"
+            item.toolTip = "Focus highlighting — click to cycle Off · Sentence · Paragraph, arrow for the list"
             item.action = Selector(("cycleFocusMode:"))
             item.showsIndicator = true
             let menu = NSMenu()

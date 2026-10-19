@@ -367,7 +367,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
                                  on: sounds.enabled)
         case #selector(cycleFocusMode(_:)):
             ToolbarSymbol.update(item, "scope", on: textView.focusMode != .off)
-            item.toolTip = "Focus: \(textView.focusMode.title) — click to change (⌘0 ⌘1 ⌘2)"
+            item.toolTip = "Focus: \(textView.focusMode.title) — click to change, arrow for the list"
         default:
             break
         }

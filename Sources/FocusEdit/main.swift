@@ -264,9 +264,10 @@ enum MenuBuilder {
         let focusParent = NSMenuItem(title: "Focus Highlighting", action: nil, keyEquivalent: "")
         let focusMenu = NSMenu(title: "Focus Highlighting")
         focusParent.submenu = focusMenu
-        for (mode, key) in [(FocusTextView.FocusMode.off, "0"),
-                            (.sentence, "1"), (.paragraph, "2")] {
-            let it = item(mode.title, Selector(("selectFocusMode:")), key)
+        // No key equivalents: ⌘0/⌘1/⌘2 clash with users' own shortcuts. The toolbar
+        // button cycles the modes; System Settings ▸ Keyboard ▸ App Shortcuts can bind keys.
+        for mode in [FocusTextView.FocusMode.off, .sentence, .paragraph] {
+            let it = item(mode.title, Selector(("selectFocusMode:")), "")
             it.tag = mode.rawValue
             focusMenu.addItem(it)
         }
