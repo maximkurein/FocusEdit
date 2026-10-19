@@ -33,11 +33,12 @@ FocusEdit/
 ├── install.sh               # DMG → /Applications, регистрация в Launch Services, перезапуск Dock
 ├── README.md                # описание на английском; строку версии правит update_version.py
 ├── START_HERE.md            # как работать в приложении: режимы, подсказки, приёмы, клавиши
+├── VIM_GUIDE.md             # учебный курс по Vim-режиму: уроки, упражнения, переход в NeoVim
 ├── CHANGELOG.md             # заметки по версиям (заголовки правит update_version.py)
 ├── docs/images/             # скриншоты для README (--snapshot)
 ├── scripts/update_version.py # bump / status / sync — единственный способ менять версию
 ├── Sources/FocusEdit/*.swift
-├── examples/                # welcome.md и превью иконки (для ручного теста)
+├── examples/                # welcome.md, vim-practice.md (упражнения к VIM_GUIDE) и превью иконки
 ├── windows/                 # Windows-версия (эксперимент): Tauri 2 + CodeMirror 6
 └── .github/workflows/windows.yml  # сборка Windows-установщиков в GitHub Actions
 ```

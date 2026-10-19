@@ -11,6 +11,7 @@ enum SelfTest {
         completion()
         editing()
         rtf()
+        vim()
         print(failures == 0 ? "\nAll self-tests passed." : "\n\(failures) self-test(s) FAILED.")
         return failures == 0 ? 0 : 1
     }
@@ -63,6 +64,124 @@ enum SelfTest {
         fn.update(text: "INT. HOUSE - DAY\n\nMARGARET\nHello.\n\nMARGARET (V.O.)\nAgain.\n")
         check("fountain scene heading", fn.suffix(forPrefix: "IN", linePrefix: "IN"), "T. ")
         check("fountain character cue", fn.suffix(forPrefix: "MAR", linePrefix: "MAR"), "GARET")
+    }
+
+    // MARK: Vim mode
+
+    /// In-memory buffer with snapshot undo, for driving VimEngine headlessly.
+    private final class TestBuffer: VimBuffer {
+        let storage: NSMutableString
+        var selection = NSRange(location: 0, length: 0)
+        private var undoStack: [(String, NSRange)] = []
+        private var redoStack: [(String, NSRange)] = []
+        private var depth = 0
+        private var snapshotTaken = false
+        init(_ s: String) { storage = NSMutableString(string: s) }
+        var text: NSString { storage }
+        func replace(_ range: NSRange, with string: String) {
+            if depth == 0 || !snapshotTaken {
+                undoStack.append((storage as String, selection)); redoStack = []; snapshotTaken = true
+            }
+            storage.replaceCharacters(in: range, with: string)
+        }
+        func undo() {
+            guard let (t, sel) = undoStack.popLast() else { return }
+            redoStack.append((storage as String, selection))
+            storage.setString(t); selection = sel
+        }
+        func redo() {
+            guard let (t, sel) = redoStack.popLast() else { return }
+            undoStack.append((storage as String, selection))
+            storage.setString(t); selection = sel
+        }
+        func beginChange() { if depth == 0 { snapshotTaken = false }; depth += 1 }
+        func endChange() { depth -= 1 }
+    }
+
+    /// Run `keys` (space-separated tokens; typing inside Insert mode with "+text")
+    /// on `text` with the cursor at `cursor`; returns "text|cursor".
+    @discardableResult
+    private static func vimRun(_ text: String, cursor: Int = 0, _ keys: String,
+                               engineOut: ((VimEngine) -> Void)? = nil) -> String {
+        let buffer = TestBuffer(text)
+        buffer.selection = NSRange(location: cursor, length: 0)
+        let vim = VimEngine(buffer: buffer)
+        for token in keys.split(separator: " ").map(String.init) {
+            if token.hasPrefix("+") {
+                // Typing in Insert mode: what the text view would insert itself.
+                let typed = String(token.dropFirst()).replacingOccurrences(of: "_", with: " ")
+                buffer.replace(buffer.selection, with: typed)
+                buffer.selection = NSRange(location: buffer.selection.location + (typed as NSString).length, length: 0)
+                vim.noteInserted(typed, deletedBackward: 0)
+            } else if token.count > 1, token.range(of: #"^<[A-Za-z-]+>$"#, options: .regularExpression) == nil {
+                for ch in token { vim.handle(String(ch)) }  // "dw" → d, w
+            } else {
+                vim.handle(token)
+            }
+        }
+        engineOut?(vim)
+        return "\(buffer.text)|\(buffer.selection.location)"
+    }
+
+    private static func vim() {
+        print("Vim:")
+        check("w moves to the next word", vimRun("hello world", "w"), "hello world|6")
+        check("b and e", vimRun("one two three", cursor: 8, "b e"), "one two three|6")
+        check("3w with a count", vimRun("a b c d e", "3w"), "a b c d e|6")
+        check("$ and 0", vimRun("abc\ndef", "$"), "abc\ndef|2")
+        check("dw deletes a word", vimRun("hello world", "dw"), "world|0")
+        check("dw on the last word keeps the newline", vimRun("one two\nthree", cursor: 4, "dw"), "one \nthree|3")
+        check("d2w deletes two words", vimRun("a b c d", "d2w"), "c d|0")
+        check("cw + typing", vimRun("hello world", "cw +bye <Esc>"), "bye world|2")
+        check("ciw from inside the word", vimRun("hello world", cursor: 8, "ciw +there <Esc>"), "hello there|10")
+        check("dd deletes the line", vimRun("a\nb\nc", cursor: 2, "dd"), "a\nc|2")
+        check("2dd deletes two lines", vimRun("a\nb\nc", "2dd"), "c|0")
+        check("dd on the last line", vimRun("a\nb", cursor: 2, "dd"), "a|0")
+        check("yyp duplicates a line", vimRun("a\nb", "yy p"), "a\na\nb|2")
+        check("ddp swaps lines", vimRun("a\nb\nc", "dd p"), "b\na\nc|2")
+        check("x and . repeat", vimRun("abc", "x ."), "c|0")
+        check("3x", vimRun("abcdef", "3x"), "def|0")
+        check("dt, deletes up to the comma", vimRun("foo, bar", "dt,"), ", bar|0")
+        check("f then ;", vimRun("a,b,c", "f, ;"), "a,b,c|3")
+        check("J joins lines", vimRun("a\n  b", "J"), "a b|1")
+        check("u undoes, Ctrl-r redoes", vimRun("hello world", "dw u"), "hello world|0")
+        check("Ctrl-r", vimRun("hello world", "dw u <C-r>"), "world|0")
+        check("di\" inside quotes", vimRun("say \"hi there\" now", cursor: 6, "di\""), "say \"\" now|5")
+        check("da( deletes the group", vimRun("f(a, b) x", cursor: 2, "da("), "f x|1")
+        check("ci( changes inside", vimRun("f(a, b)", cursor: 3, "ci( +x <Esc>"), "f(x)|2")
+        check(">> indents", vimRun("a\nb", ">>"), "\ta\nb|1")
+        check("<< unindents", vimRun("\ta", "<<"), "a|0")
+        check("~ toggles case", vimRun("abc", "~"), "Abc|1")
+        check("r replaces a character", vimRun("abc", "rX"), "Xbc|0")
+        check("A appends at the line end", vimRun("ab\ncd", "A +! <Esc>"), "ab!\ncd|2")
+        check("o opens a line + . repeats it", vimRun("a", "o +b <Esc> ."), "a\nb\nb|4")
+        check("gg and G", vimRun("a\nb\nc", cursor: 2, "G"), "a\nb\nc|4")
+        check("5G goes to a line", vimRun("a\nb\nc\nd\ne", "4G"), "a\nb\nc\nd\ne|6")
+        check("} jumps to the blank line", vimRun("a\nb\n\nc", "}"), "a\nb\n\nc|4")
+        check("{ jumps back", vimRun("a\n\nb\nc", cursor: 5, "{"), "a\n\nb\nc|2")
+        check("v l d deletes the selection", vimRun("abc\ndef", "v l d"), "c\ndef|0")
+        check("V d deletes whole lines", vimRun("a\nb\nc", cursor: 2, "V j d"), "a|0")
+        check("yiw then P", vimRun("ab cd", cursor: 3, "yiw 0 P"), "cdab cd|1")
+        check("/ search", vimRun("hello world wide", "/ w o r <CR>"), "hello world wide|6")
+        check("n repeats the search", vimRun("x a x a x", "/ x <CR> n"), "x a x a x|8")
+
+        var action: VimAction?
+        vimRun("text", ": w <CR>") { vim in _ = vim }
+        let buffer = TestBuffer("text")
+        let vim = VimEngine(buffer: buffer)
+        vim.onAction = { action = $0 }
+        for k in [":", "w", "q", "<CR>"] { vim.handle(k) }
+        check(":wq saves and closes", "\(String(describing: action))", "Optional(FocusEdit.VimAction.saveAndClose)")
+
+        vimRun("a b c d", "d2w") { vim in
+            check("explains d2w", vim.feedback?.text, "Delete to the start of the next word ×2.")
+        }
+        vimRun("abcdefgh", "l l l l") { vim in
+            check("suggests a count after 4× l", vim.tip, "Pressed l 4 times? 4l does it in one go.")
+        }
+        vimRun("abc", "q") { vim in
+            check("unknown key is an error", vim.feedback?.isError == true ? "error" : "ok", "error")
+        }
     }
 
     // MARK: RTF ↔ Markdown

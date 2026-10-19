@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.0.0`, released 19.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.1.0`, released 19.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -27,6 +27,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **Focus** — highlight only the current sentence or paragraph, with a short fade as you move; keep the active line fixed at the centre of the window (typewriter scrolling); optional typewriter sounds; full screen hides the toolbar and the menu bar.
 - **Writing aids** — a grey suggestion completes the word you are typing from words already in the document, then from the system dictionary (English and Russian); brackets and quotes close themselves and wrap a selection; Return continues Markdown lists, task lists and quotes. In Fountain, scene headings and character names you have used are suggested.
 - **Plain text, styled on screen** — Markdown headings, emphasis, code, quotes, lists, links and CriticMarkup; Fountain scene headings, characters, parentheticals and transitions. Styling is display-only: the file on disk stays clean plain text.
+- **Vim mode for learning** — Modus ▸ Vim Mode: Normal, Insert and Visual modes with the operator + motion grammar (`dw`, `ciw`, `3j`, `.`), and a coach bar under the text that explains every command and suggests faster ways. Works in the Russian keyboard layout too. A lesson-by-lesson course is in [VIM_GUIDE.md](VIM_GUIDE.md).
 - **RTF** — `.rtf` files (TextEdit's default format) open as Markdown and save back as RTF: bold, italic, strikethrough, headings, lists, links and code survive the round trip; fonts, colours, images and tables do not, and FocusEdit warns when a file has them. **FocusEdit ▸ Make Default Editor for .txt and .rtf** makes double-clicked text and RTF files open in FocusEdit.
 - **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop. A library sidebar browses a linked folder; the outline jumps between headings; the window subtitle shows the word count and reading time; find and replace.
 - **Preview and export** — live HTML preview for Markdown, export as HTML or PDF, copy as HTML, print.
@@ -100,6 +101,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 
 ## Project documents
 
+- [VIM_GUIDE.md](VIM_GUIDE.md) — learning Vim with FocusEdit's Vim mode: lessons, exercises, moving on to NeoVim (in Russian)
 - [START_HERE.md](START_HERE.md) — how to work in the app: focus modes, writing aids, Markdown and Fountain, shortcuts (in Russian)
 - [windows/BUILD.md](windows/BUILD.md) — the experimental Windows version: what is ported and how to build it (in Russian)
 - [BUILD.md](BUILD.md) — how to build, run and check (in Russian)

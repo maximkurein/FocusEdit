@@ -44,6 +44,43 @@ final class FocusTextView: NSTextView {
     /// Opening dropped document files (set by the controller).
     var openFileURLs: (([URL]) -> Void)?
 
+    // MARK: Vim mode
+    /// Set while Vim mode is on; gets every key first.
+    var vim: VimController?
+    /// Normal/Visual mode draw a block cursor over the character.
+    var blockCursor = false {
+        didSet { if blockCursor != oldValue { needsDisplay = true; updateInsertionPointStateAndRestartTimer(true) } }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if let vim, vim.handle(event) { return }
+        super.keyDown(with: event)
+    }
+
+    private var blockCursorWidth: CGFloat {
+        let caret = selectedRange().location
+        if let lm = layoutManager, let tc = textContainer, caret < (textStorage?.length ?? 0),
+           (string as NSString).character(at: caret) != 10 {
+            let glyph = lm.glyphIndexForCharacter(at: caret)
+            let w = lm.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: tc).width
+            if w > 1 { return w }
+        }
+        return ("m" as NSString).size(withAttributes: [.font: baseFont]).width
+    }
+
+    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
+        guard blockCursor else { return super.drawInsertionPoint(in: rect, color: color, turnedOn: flag) }
+        var r = rect
+        r.size.width = blockCursorWidth
+        super.drawInsertionPoint(in: r, color: color.withAlphaComponent(0.45), turnedOn: flag)
+    }
+
+    override func setNeedsDisplay(_ rect: NSRect, avoidAdditionalLayout flag: Bool) {
+        var r = rect
+        if blockCursor { r.size.width += blockCursorWidth }
+        super.setNeedsDisplay(r, avoidAdditionalLayout: flag)
+    }
+
     // MARK: Writing aids
     var placeholder = "Start writing…"
     var autoPairingEnabled = true

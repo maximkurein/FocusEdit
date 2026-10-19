@@ -10,9 +10,11 @@ final class HintsViewController: NSViewController {
     }
 
     private let kind: DocumentKind
+    private let vim: Bool
 
-    init(kind: DocumentKind) {
+    init(kind: DocumentKind, vim: Bool = false) {
         self.kind = kind
+        self.vim = vim
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -54,6 +56,19 @@ final class HintsViewController: NSViewController {
                 ("⌃⌘F", "Full screen — toolbar and menu hide"),
             ]),
         ]
+        if vim {
+            list.insert(Section(title: "Vim mode — operator + motion", rows: [
+                ("Esc  i a o", "Normal mode · insert before / after / new line"),
+                ("h j k l", "Left, down, up, right"),
+                ("w b e  0 $", "Word forward / back / end · line start / end"),
+                ("gg G  { }", "First / last line · paragraph back / forward"),
+                ("d c y", "Delete, change, copy — then a motion: dw, c$, y}"),
+                ("dd yy p", "Delete / copy a line · put it below"),
+                ("ciw di\" da(", "Text objects: word, inside quotes, (…) group"),
+                ("u  Ctrl-r  .", "Undo · redo · repeat the last change"),
+                ("v V  /  :w", "Visual · Visual Line · search · save"),
+            ]), at: 0)
+        }
         switch kind {
         case .markdown:
             list.append(Section(title: "Markdown", rows: [

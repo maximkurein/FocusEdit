@@ -33,6 +33,11 @@ enum Snapshot {
         }
         let tv = split.editor.textView
         window?.makeFirstResponder(tv)
+        // `--vim`: show the coach after a couple of Normal-mode commands instead of typing.
+        if args.contains("--vim") {
+            split.editor.showVimForSnapshot(keys: ["g", "g", "j", "j", "j", "2", "w", "c", "i", "w"])
+            return
+        }
         tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
         let typing = NSRange(location: NSNotFound, length: 0)
         for ch in "\n- First idea" { tv.insertText(String(ch), replacementRange: typing) }
@@ -64,6 +69,13 @@ enum Snapshot {
                 tv.backgroundColor.setFill()            // covers the scroller gutter too
                 NSBezierPath(rect: content).fill()
                 textRep.draw(in: target)
+                // The Vim coach bar sits in the content area too.
+                let coach = split.editor.vimCoach
+                if !coach.isHidden, let coachRep = capture(coach, coach.bounds) {
+                    var rect = coach.convert(coach.bounds, to: frameView)
+                    if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
+                    coachRep.draw(in: rect)
+                }
                 NSGraphicsContext.restoreGraphicsState()
             }
         }

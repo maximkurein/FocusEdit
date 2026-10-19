@@ -39,6 +39,12 @@ enum Preferences {
         static let showStatistics = "show.statistics"
         static let autoPairing = "edit.autoPairing"
         static let autocomplete = "edit.autocomplete"
+        static let vimMode = "edit.vimMode"
+    }
+
+    static var vimMode: Bool {
+        get { d.bool(forKey: Key.vimMode) }
+        set { d.set(newValue, forKey: Key.vimMode) }
     }
 
     static var autoPairing: Bool {

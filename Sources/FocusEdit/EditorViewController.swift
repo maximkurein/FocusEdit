@@ -20,6 +20,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     private let completion = CompletionEngine()
     private var showStatistics = Preferences.showStatistics
     private var lastEditWasTyping = false
+    let vimCoach = VimCoachView()
+    private(set) var vimEnabled = Preferences.vimMode
 
     private weak var document: FocusDocument?
 
@@ -68,7 +70,14 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             container.lineFragmentPadding = 0
         }
         scrollView.documentView = textView
-        view = scrollView
+        scrollView.setContentHuggingPriority(.defaultLow, for: .vertical)
+        vimCoach.isHidden = !vimEnabled
+        vimCoach.setContentHuggingPriority(.required, for: .vertical)
+        let stack = NSStackView(views: [scrollView, vimCoach])
+        stack.orientation = .vertical
+        stack.spacing = 0
+        stack.distribution = .fill
+        view = stack
 
         textView.enableFileDropOpening()
         textView.openFileURLs = { urls in
@@ -78,11 +87,57 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         }
 
         apply(theme: theme)
+        if vimEnabled { enableVim() }
     }
 
     override func viewDidAppear() {
         super.viewDidAppear()
         updateStatistics()
+    }
+
+    // MARK: Vim mode
+
+    private func enableVim() {
+        let controller = VimController(textView: textView, coach: vimCoach)
+        controller.perform = { [weak self] action in self?.performVim(action) }
+        textView.vim = controller
+        vimCoach.isHidden = false
+    }
+
+    private func disableVim() {
+        textView.vim?.detach()
+        textView.vim = nil
+        vimCoach.isHidden = true
+    }
+
+    /// Snapshot demo: Vim mode on without changing the saved preference.
+    func showVimForSnapshot(keys: [String]) {
+        if !vimEnabled { vimEnabled = true; enableVim() }
+        keys.forEach { textView.vim?.engine.handle($0) }
+    }
+
+    @objc func toggleVimMode(_ sender: Any?) {
+        vimEnabled.toggle()
+        Preferences.vimMode = vimEnabled
+        if vimEnabled { enableVim() } else { disableVim() }
+        view.window?.makeFirstResponder(textView)
+    }
+
+    private func performVim(_ action: VimAction) {
+        switch action {
+        case .save:
+            NSApp.sendAction(Selector(("saveDocument:")), to: nil, from: textView)
+        case .close:
+            view.window?.performClose(nil)
+        case .saveAndClose:
+            NSApp.sendAction(Selector(("saveDocument:")), to: nil, from: textView)
+            view.window?.performClose(nil)
+        case .discardAndClose:
+            document?.updateChangeCount(.changeCleared)
+            view.window?.performClose(nil)
+        case .help:
+            NSApp.sendAction(Selector(("showHints:")), to: nil, from: textView)
+        }
     }
 
     // MARK: Document binding
@@ -177,6 +232,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.typingAttributes[.foregroundColor] = theme.foreground
         textView.activeTextColor = theme.foreground
         textView.dimmedTextColor = theme.dimmed
+        vimCoach.apply(background: theme.background, foreground: theme.foreground)
         view.window?.appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
         textView.refreshFocusEffects()
         textView.needsDisplay = true
@@ -201,6 +257,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         let replacement = replacementString ?? ""
         let isDeletion = replacement.isEmpty && affectedCharRange.length > 0
         sounds.playForEdit(replacement: replacement, isDeletion: isDeletion)
+        if let vim = self.textView.vim, vim.engine.mode == .insert {
+            vim.noteTyping(replacement, affected: affectedCharRange)
+        }
         lastEditWasTyping = affectedCharRange.length == 0 && replacement.count == 1
             && replacement.unicodeScalars.allSatisfy(CharacterSet.alphanumerics.contains)
         return true
@@ -219,6 +278,17 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
+        // Vim Normal mode: the cursor sits on a character, never past the line end.
+        if let vim = textView.vim, vim.engine.mode == .normal {
+            let sel = textView.selectedRange()
+            let ns = textView.string as NSString
+            if sel.length == 0, sel.location > 0, sel.location <= ns.length,
+               sel.location == ns.length || ns.character(at: sel.location) == 10,
+               ns.character(at: sel.location - 1) != 10 {
+                textView.setSelectedRange(NSRange(location: sel.location - 1, length: 0))
+                return
+            }
+        }
         textView.clearGhostIfMoved()
         textView.refreshFocusEffects()
     }
@@ -348,6 +418,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             item.state = (CGFloat(item.tag) == editorSize.rawValue) ? .on : .off
         case #selector(selectFontKind(_:)):
             item.state = (item.tag == fontKind.rawValue) ? .on : .off
+        case #selector(toggleVimMode(_:)):
+            item.state = vimEnabled ? .on : .off
         case #selector(toggleStatistics(_:)):
             item.title = showStatistics ? "Hide Word Count" : "Show Word Count"
         default:
@@ -365,6 +437,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         case #selector(toggleTypewriterSounds(_:)):
             ToolbarSymbol.update(item, sounds.enabled ? "speaker.wave.2" : "speaker.slash",
                                  on: sounds.enabled)
+        case #selector(toggleVimMode(_:)):
+            ToolbarSymbol.update(item, "keyboard", on: vimEnabled)
         case #selector(cycleFocusMode(_:)):
             ToolbarSymbol.update(item, "scope", on: textView.focusMode != .off)
             item.toolTip = "Focus: \(textView.focusMode.title) — click to change, arrow for the list"

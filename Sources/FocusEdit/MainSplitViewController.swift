@@ -86,7 +86,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         }
         let popover = NSPopover()
         popover.behavior = .transient
-        popover.contentViewController = HintsViewController(kind: editor.documentKind)
+        popover.contentViewController = HintsViewController(kind: editor.documentKind, vim: editor.vimEnabled)
         popover.appearance = NSAppearance(named: editor.themeIsDark ? .darkAqua : .aqua)
         hintsPopover = popover
 

@@ -4,6 +4,7 @@ extension NSToolbarItem.Identifier {
     static let focusMode = NSToolbarItem.Identifier("focusedit.focusMode")
     static let typewriter = NSToolbarItem.Identifier("focusedit.typewriter")
     static let sounds = NSToolbarItem.Identifier("focusedit.sounds")
+    static let vim = NSToolbarItem.Identifier("focusedit.vim")
     static let theme = NSToolbarItem.Identifier("focusedit.theme")
     static let preview = NSToolbarItem.Identifier("focusedit.preview")
     static let hints = NSToolbarItem.Identifier("focusedit.hints")
@@ -58,7 +59,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         self.init(window: window)
         window.delegate = self
 
-        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v1")
+        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v2")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -80,7 +81,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace,
-         .focusMode, .typewriter, .sounds, .theme, .space, .preview, .hints, .outline]
+         .focusMode, .typewriter, .sounds, .vim, .theme, .space, .preview, .hints, .outline]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -113,6 +114,9 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         case .sounds:
             return button(id, "speaker.wave.2", "Sounds",
                           "Typewriter sounds (⌘U)", "toggleTypewriterSounds:")
+        case .vim:
+            return button(id, "keyboard", "Vim",
+                          "Vim mode for learning — Normal/Insert modes with a coach under the text", "toggleVimMode:")
         case .theme:
             let item = NSMenuToolbarItem(itemIdentifier: id)
             item.image = ToolbarSymbol.image("circle.lefthalf.filled")
