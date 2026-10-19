@@ -1,8 +1,8 @@
 # BUILD — сборка FocusEdit
 
-Как собрать FocusEdit из исходников: приложение, иконку и бандл `.app` для запуска.
+Как собрать FocusEdit из исходников: приложение, DMG для установки и установка в «Программы».
 
-Связано: [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) · [implementation-plan.md](../implementation-plan.md) · [00-recon.md](../00-recon.md)
+Связано: [START_HERE.md](START_HERE.md) · [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) · [implementation-plan.md](../implementation-plan.md) · [00-recon.md](../00-recon.md)
 
 FocusEdit — минималистичный macOS-редактор (Swift + AppKit + TextKit 1), прототип, воссозданный по статической разведке uFocus. Собирается через SwiftPM; `.app`-бандл собирается скриптом поверх `swift build`.
 
@@ -10,9 +10,10 @@ FocusEdit — минималистичный macOS-редактор (Swift + App
 
 | Что | Чем собирается | Где лежит |
 |---|---|---|
-| Исполняемый файл (Debug) | `swift build` | `.build/debug/FocusEdit` |
-| Бандл `FocusEdit.app` (бинарь + Info.plist + иконка) | `./package.sh` | `.build/FocusEdit.app` |
-| Иконка `AppIcon.icns` | `./package.sh` (рендерит сам бинарь) | `.build/FocusEdit.app/Contents/Resources/AppIcon.icns` |
+| Исполняемый файл Debug (быстрая проверка компиляции) | `swift build` | `.build/debug/FocusEdit` |
+| Приложение Release (универсальное: Apple Silicon и Intel) | `./package.sh` | `.build/FocusEdit.app` |
+| DMG для установки | `./package.sh` | `.build/dist/FocusEdit-X.Y.Z.dmg` |
+| Установленное приложение | `./install.sh` | `/Applications/FocusEdit.app` |
 
 Всё собранное лежит в `.build/` и в git не попадает.
 
@@ -28,8 +29,10 @@ FocusEdit — минималистичный macOS-редактор (Swift + App
 FocusEdit/
 ├── Package.swift            # SwiftPM: executable-таргет FocusEdit, язык Swift 5, macOS 13+
 ├── Info.plist               # версия, типы документов (.txt/.md/.fountain), иконка
-├── package.sh               # status → swift build → собрать .app → номер сборки → иконка
+├── package.sh               # status → Release arm64+x86_64 → .app → номер сборки → иконка → подпись → DMG
+├── install.sh               # DMG → /Applications, регистрация в Launch Services, перезапуск Dock
 ├── README.md                # описание на английском; строку версии правит update_version.py
+├── START_HERE.md            # как работать в приложении: режимы, подсказки, приёмы, клавиши
 ├── CHANGELOG.md             # заметки по версиям (заголовки правит update_version.py)
 ├── docs/images/             # скриншоты для README (--snapshot)
 ├── scripts/update_version.py # bump / status / sync — единственный способ менять версию
@@ -41,28 +44,45 @@ FocusEdit/
 
 ```bash
 cd /Users/olgazaharova/Project/rea-lab/work/uFocus/FocusEdit
-./package.sh
+./package.sh            # → .build/FocusEdit.app и .build/dist/FocusEdit-X.Y.Z.dmg
+./package.sh --no-dmg   # только приложение — быстрее, пока идёт разработка
+./package.sh --open     # ещё и открыть DMG в Finder
 ```
 
 Что делает `package.sh`:
 
-1. `swift build` — компилирует исполняемый файл в `.build/debug/FocusEdit`.
-2. Собирает бандл `.build/FocusEdit.app`: копирует бинарь, кладёт `Info.plist` и `PkgInfo`.
-3. Ставит номер сборки `CFBundleVersion` по времени UTC (см. [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)).
-4. Рендерит иконку: запускает `FocusEdit --makeicon` (рисует набор PNG кодом из `IconFactory.swift`) и собирает `AppIcon.icns` через `iconutil`.
-5. Подписывает весь бандл ad-hoc (`codesign --sign -`) и проверяет подпись (`codesign --verify --strict`) — так `Info.plist` и иконка запечатаны, а повреждённый бандл ломается на сборке, а не при запуске.
-6. Печатает итог: `Assembled .build/FocusEdit.app (version X.Y.Z, build …, ad-hoc signed)`.
+1. Отказывается собирать, если версии разошлись (`update_version.py status`).
+2. Собирает Release для arm64 и x86_64 (`swift build -c release --arch arm64 --arch x86_64`) — журнал в `.build/release-build.log`.
+3. Собирает бандл `.build/FocusEdit.app` заново: бинарь, `Info.plist`, `PkgInfo`.
+4. Ставит номер сборки `CFBundleVersion` по времени UTC (см. [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)).
+5. Рендерит иконку: `FocusEdit --makeicon` рисует PNG кодом из `IconFactory.swift`, `iconutil` собирает `AppIcon.icns`.
+6. Подписывает бандл ad-hoc (`codesign --sign -`) и проверяет подпись (`codesign --verify --deep --strict`) и номер сборки — так `Info.plist` и иконка запечатаны, а повреждённый бандл ломается на сборке, а не при запуске.
+7. Собирает DMG со ссылкой на «Программы» и проверяет его (`hdiutil verify`).
 
-Можно собирать и без скрипта — тогда будет только бинарь, без бандла, иконки и типов документов:
+В конце печатает строку вида `Created .build/dist/FocusEdit-0.3.1.dmg (928K, version 0.3.1, build 20261019.175426, x86_64 arm64)`.
+
+Только проверить, что код компилируется, — без бандла, иконки и типов документов:
 
 ```bash
 swift build                 # → .build/debug/FocusEdit
-swift build -c release      # релизная сборка
 ```
 
-## Шаг 2. Запуск
+## Шаг 2. Установка в «Программы»
 
-Бандл запускается прямым вызовом внутреннего бинаря. При прямом запуске `Bundle.main` всё равно указывает на `.app`, поэтому `Info.plist`, типы документов и иконка подхватываются.
+```bash
+./install.sh            # поставить .build/dist/FocusEdit-X.Y.Z.dmg
+./install.sh <dmg>      # поставить другой DMG
+```
+
+`install.sh` закрывает запущенный FocusEdit (если есть несохранённые изменения, приложение спросит, сохранить ли, — ответьте и запустите `install.sh` ещё раз), перекладывает прежнюю копию в Корзину (ничего не удаляет), копирует новую из DMG и проверяет её подпись, заново регистрирует в Launch Services, «забывает» копии в Корзине, перезапускает Dock и открывает приложение. Без этого Dock может показывать старую или пустую иконку из кэша.
+
+Вручную: откройте DMG (`./package.sh --open`) и перетащите **FocusEdit** в **Applications**. Dock при этом не обновится.
+
+После установки FocusEdit запускается как обычное приложение: Launchpad, Spotlight, Dock, «Открыть с помощью» для `.md`, `.fountain` и `.txt`.
+
+## Запуск без установки
+
+Пока идёт разработка, собранный бандл можно запускать прямо из `.build/` — вызовом внутреннего бинаря. `Bundle.main` всё равно указывает на `.app`, поэтому `Info.plist`, типы документов и иконка подхватываются.
 
 ```bash
 # пустой документ
@@ -136,7 +156,19 @@ open "$TMP/icon_256x256.png"   # вне лаборатории
 
 **Приложение сразу падает: `SIGKILL (Code Signature Invalid)`, `Taskgated Invalid Signature`** — исполняемый файл внутри бандла перезаписали на месте (например, `cp .build/debug/FocusEdit .build/FocusEdit.app/Contents/MacOS/`). macOS кэширует проверку подписи файла, и подменённый Mach-O ядро убивает при запуске. Не копируйте бинарь в бандл руками — пересоберите `./package.sh`: он удаляет бандл целиком, собирает и подписывает заново.
 
-**`iconutil failed`** — `package.sh` продолжит сборку, приложение получит системную иконку по умолчанию. Проверьте, что `FocusEdit --makeicon` создал все 10 PNG в iconset.
+**`package failed: iconutil could not build AppIcon.icns`** — проверьте, что `FocusEdit --makeicon` создаёт все 10 PNG в iconset.
+
+**`package failed: swift build failed`** — первая строка с `error:` уже напечатана; полный журнал — `.build/release-build.log`.
+
+**`install failed: FocusEdit is still running`** — в открытом документе есть несохранённые изменения, и приложение ждёт ответа. Сохраните или закройте документы и запустите `./install.sh` снова.
+
+**В Dock старая или пустая иконка** — ставьте через `./install.sh`: он перезапускает Dock. Если иконка всё равно старая:
+
+```bash
+touch /Applications/FocusEdit.app
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/FocusEdit.app
+killall Dock
+```
 
 **Ошибки сборки после правки структуры** — убедитесь, что новые файлы лежат в `Sources/FocusEdit/`; SwiftPM забирает всю папку таргета автоматически (перегенерация проекта не нужна — Xcode-проекта тут нет).
 
@@ -170,7 +202,8 @@ claude --model claude-opus-5-5
 ### 3. Контроль сборки и процессов
 
 ```bash
-# Полная сборка бандла: проверка версии, UTC-номер сборки, иконка
+# Полная сборка: проверка версии, Release, UTC-номер сборки, иконка, подпись, DMG
+# (./install.sh — поставить DMG в «Программы»)
 ./package.sh
 
 # Быстрая компиляция отладочной версии через SwiftPM
@@ -183,4 +216,4 @@ pkill -f FocusEdit
 
 ## Правило
 
-Бандл для запуска собираем только `./package.sh`; версию меняем только в `Info.plist` (см. [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)). Перед запуском GUI — пересборка, затем прямой вызов бинаря бандла.
+Приложение и DMG собираем только `./package.sh`, ставим в «Программы» только `./install.sh`; версию меняем только `scripts/update_version.py` (см. [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)). Бинарь в бандл руками не копируем.

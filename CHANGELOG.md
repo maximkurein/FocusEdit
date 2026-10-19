@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-19
+### Added
+- `package.sh` собирает универсальный Release (Apple Silicon и Intel) и DMG `.build/dist/FocusEdit-X.Y.Z.dmg` со ссылкой на «Программы», проверяет подпись и DMG; `--no-dmg` — только приложение, `--open` — открыть DMG.
+- `install.sh` ставит DMG в `/Applications`: прежняя копия уходит в Корзину, приложение регистрируется в Launch Services, Dock перезапускается.
+- START_HERE.md — как работать в приложении: режимы фокуса, подсказки при наборе, Markdown, CriticMarkup, Fountain, навигация, клавиши, частые проблемы.
+
+### Fixed
+- После Save As с другим расширением (например, Untitled → `notes.md`) подсветка, продолжение списков, outline и превью переключаются сразу, без переоткрытия файла.
+- Документ из шаблона Markdown или Fountain при сохранении предлагает `.md` / `.fountain`, а не `.txt`.
+
 ## [0.3.1] - 2026-10-19
 ### Added
 - Современная оболочка окна: unified toolbar с SF Symbols (Liquid Glass на macOS 26) — библиотека, фокус, typewriter, звук, тема, превью, подсказки, outline; включённый режим подсвечивается акцентным цветом; панель настраивается (View ▸ Customize Toolbar…).

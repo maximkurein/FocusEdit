@@ -125,6 +125,16 @@ enum SelfTest {
         tv.insertTab(nil)
         check("Tab accepts suggestion", tv.string, "Markdown")
 
+        // Save As from Untitled (.txt) to .md switches the document type in place.
+        let editor = EditorViewController()
+        editor.loadContent("# Title\n- item", fileExtension: "txt")
+        check("untitled is plain text", "\(editor.documentKind)", "plain")
+        editor.updateKind(fileExtension: "md")
+        check("save as .md turns on Markdown", "\(editor.documentKind)", "markdown")
+        check("list continuation follows the type",
+              "\(editor.textView.listContinuationEnabled)", "true")
+        check("text kept after type switch", editor.plainText, "# Title\n- item")
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

@@ -5,6 +5,14 @@ import AppKit
 final class FocusDocument: NSDocument {
 
     private var content: String = ""
+
+    /// Save As / rename can change the extension (e.g. Untitled → notes.md):
+    /// switch the editor to the new document type right away.
+    override var fileURL: URL? {
+        didSet {
+            if let ext = fileURL?.pathExtension { editor?.updateKind(fileExtension: ext) }
+        }
+    }
     private weak var editor: EditorViewController?
 
     // Classic Save / Save As… / Revert semantics (no autosave-in-place).
@@ -51,6 +59,12 @@ final class FocusDocument: NSDocument {
     /// Fill a freshly-created untitled document from a template.
     func applyTemplate(_ text: String, fileExtension ext: String) {
         content = text
+        // Type names from Info.plist: Save suggests .md / .fountain, not .txt.
+        switch DocumentKind(fileExtension: ext) {
+        case .markdown: fileType = "Markdown"
+        case .fountain: fileType = "Fountain Script"
+        case .plain:    break
+        }
         editor?.loadContent(text, fileExtension: ext)
         updateChangeCount(.changeDone)
     }

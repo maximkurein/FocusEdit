@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text.
 
-**Version:** `0.3.1`, released 19.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `0.3.2`, released 19.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -56,13 +56,15 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 ## Build and run
 
 ```bash
-./package.sh                                                   # build .build/FocusEdit.app
-.build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md
+./package.sh   # build Release and pack .build/dist/FocusEdit-<version>.dmg
+./install.sh   # install that DMG into Applications and refresh the Dock icon
 ```
 
-`package.sh` checks that the version files agree, runs `swift build`, assembles the app bundle, stamps a UTC build number, renders the app icon (it is drawn in code) and ad-hoc signs the bundle. Outside a sandboxed shell, `open .build/FocusEdit.app` works too. Always rebuild with `package.sh`: copying a new binary into an existing bundle invalidates its signature and macOS kills the app at launch.
+`package.sh` checks that the version files agree, builds a universal Release (Apple Silicon and Intel), assembles the app bundle, stamps a UTC build number, renders the app icon (it is drawn in code), ad-hoc signs and verifies the bundle, then packs and verifies the DMG. `./package.sh --no-dmg` builds only `.build/FocusEdit.app`, which runs in place: `.build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md`. Always rebuild with `package.sh`: copying a new binary into an existing bundle invalidates its signature and macOS kills the app at launch.
 
-To keep it, copy `.build/FocusEdit.app` into **Applications**. The build is ad-hoc signed, not notarized: it opens on the Mac that built it, while on another Mac macOS blocks it until you choose **System Settings → Privacy & Security → Open Anyway**.
+`install.sh` quits a running FocusEdit, moves the installed copy to the Trash (nothing is deleted), copies the new one, re-registers it with Launch Services and restarts the Dock, which otherwise can keep a blank cached icon. To install by hand instead, `./package.sh --open` opens the DMG in Finder; drag **FocusEdit** into **Applications**.
+
+The build is ad-hoc signed, not notarized: it opens without warnings on the Mac that built it, while on other Macs macOS blocks it until you choose **System Settings → Privacy & Security → Open Anyway**.
 
 The step-by-step build guide with common problems: [BUILD.md](BUILD.md) (in Russian).
 
@@ -80,6 +82,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 
 ## Project documents
 
+- [START_HERE.md](START_HERE.md) — how to work in the app: focus modes, writing aids, Markdown and Fountain, shortcuts (in Russian)
 - [BUILD.md](BUILD.md) — how to build, run and check (in Russian)
 - [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) — how versions are changed and kept in sync (in Russian)
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version

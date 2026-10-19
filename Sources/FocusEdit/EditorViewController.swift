@@ -91,11 +91,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     func loadContent(_ text: String, fileExtension ext: String) {
         _ = self.view
-        documentKind = DocumentKind(fileExtension: ext)
-        textView.syntaxEngine = documentKind.makeHighlighter().map { SyntaxEngine(highlighter: $0) }
-        textView.listContinuationEnabled = documentKind == .markdown
-        textView.placeholder = Self.placeholder(for: documentKind)
-        completion.kind = documentKind
+        applyKind(DocumentKind(fileExtension: ext))
         completion.update(text: text)
         textView.string = text
         textView.typingAttributes[.font] = fontKind.font(ofSize: fontSize)
@@ -106,6 +102,27 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.needsDisplay = true
         updateStatistics()
         onTextChanged?()
+    }
+
+    /// After Save As / rename to another extension: switch highlighting,
+    /// completion and outline to the new type without reloading the text.
+    func updateKind(fileExtension ext: String) {
+        let kind = DocumentKind(fileExtension: ext)
+        guard kind != documentKind else { return }
+        applyKind(kind)
+        completion.update(text: textView.string)
+        textView.recomputeSyntax()
+        textView.refreshFocusEffects()
+        textView.needsDisplay = true
+        onTextChanged?()
+    }
+
+    private func applyKind(_ kind: DocumentKind) {
+        documentKind = kind
+        textView.syntaxEngine = kind.makeHighlighter().map { SyntaxEngine(highlighter: $0) }
+        textView.listContinuationEnabled = kind == .markdown
+        textView.placeholder = Self.placeholder(for: kind)
+        completion.kind = kind
     }
 
     private static func placeholder(for kind: DocumentKind) -> String {
