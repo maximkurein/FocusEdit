@@ -37,7 +37,9 @@ FocusEdit/
 ├── docs/images/             # скриншоты для README (--snapshot)
 ├── scripts/update_version.py # bump / status / sync — единственный способ менять версию
 ├── Sources/FocusEdit/*.swift
-└── examples/                # welcome.md и превью иконки (для ручного теста)
+├── examples/                # welcome.md и превью иконки (для ручного теста)
+├── windows/                 # Windows-версия (ветка experimental/windows): Tauri 2 + CodeMirror 6
+└── .github/workflows/windows.yml  # сборка Windows-установщиков в GitHub Actions
 ```
 
 ## Шаг 1. Собрать
@@ -145,6 +147,22 @@ open "$TMP/icon_256x256.png"   # вне лаборатории
 ```
 
 После правки рисунка просто пересоберите `./package.sh`.
+
+## Windows (эксперимент)
+
+В ветке `experimental/windows` есть Windows-версия — папка `windows/`. Это отдельное приложение на Tauri 2 (Rust) и CodeMirror 6 (TypeScript): AppKit под Windows нет, поэтому интерфейс написан заново, а логика (фокус, печатная машинка, подсказки, автоскобки, списки) перенесена из Swift. Подробно — [windows/BUILD.md](windows/BUILD.md).
+
+```bash
+cd windows
+npm install                 # один раз; в лаборатории запускает пользователь (npm install здесь запрещён агенту)
+npm test                    # проверки логики
+npm run build               # типы + сборка интерфейса
+npm run tauri -- build --bundles app   # на macOS: проверить, что Rust-часть собирается
+```
+
+Установщики `.msi` и `.exe` собирает GitHub Actions на Windows при пуше в ветку (`.github/workflows/windows.yml`): **Actions** → последний запуск → артефакт **FocusEdit-windows**. На Mac их не собрать.
+
+Версия Windows-порта своя (`0.1.0`, в `windows/package.json`, `tauri.conf.json`, `Cargo.toml`) и в `update_version.py` пока не входит.
 
 ## Частые проблемы
 

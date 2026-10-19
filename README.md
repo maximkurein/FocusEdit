@@ -1,6 +1,6 @@
 # FocusEdit
 
-FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text.
+FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives on the `experimental/windows` branch — see [Windows (experimental)](#windows-experimental).
 
 **Version:** `0.3.3`, released 19.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
@@ -79,9 +79,28 @@ FocusEdit --makeicon AppIcon.iconset      # render every icon size
 
 The snapshot window stays invisible and never takes keyboard focus, and its demo typing is never saved.
 
+## Windows (experimental)
+
+The `experimental/windows` branch has a Windows version in [`windows/`](windows/): a separate app built with [Tauri 2](https://tauri.app) and [CodeMirror 6](https://codemirror.net), since AppKit exists only on macOS. The writing logic is ported from the Swift code: focus highlighting by sentence or paragraph, typewriter scrolling, the grey word suggestion, automatic pairing, Markdown list continuation, themes, and plain-text files that keep their encoding and line endings.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/windows-light.png" alt="The Windows version: a light toolbar with open, save, focus (Paragraph), typewriter, theme, column width, font, full screen and hints buttons; the document in a centred column with faded paragraphs and a grey suggestion completing Markdown"></td>
+    <td width="50%"><img src="docs/images/windows-dark.png" alt="The Windows version in the dark theme"></td>
+  </tr>
+</table>
+
+<sub>Rendered from the same web UI in Chrome by <code>npm run snapshot</code> in <code>windows/</code>.</sub>
+
+- **Status:** stage 1. Not yet ported: the library, outline, HTML/PDF preview and export, Fountain highlighting, CriticMarkup and typewriter sounds.
+- **Installers:** GitHub Actions builds `.msi` and `.exe` on Windows for every push to the branch (**Actions** → latest run → artifact **FocusEdit-windows**). They cannot be built on a Mac.
+- **Keys:** Ctrl replaces ⌘; F1 opens the hints, F11 toggles full screen. Focus modes have no shortcuts: use the focus button in the toolbar.
+- **Build from source:** Node.js 22+ and Rust; see [windows/BUILD.md](windows/BUILD.md) (in Russian).
+
 ## Project documents
 
 - [START_HERE.md](START_HERE.md) — how to work in the app: focus modes, writing aids, Markdown and Fountain, shortcuts (in Russian)
+- [windows/BUILD.md](windows/BUILD.md) — the experimental Windows version: what is ported and how to build it (in Russian)
 - [BUILD.md](BUILD.md) — how to build, run and check (in Russian)
 - [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) — how versions are changed and kept in sync (in Russian)
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version

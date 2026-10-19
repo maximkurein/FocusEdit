@@ -1,0 +1,287 @@
+/* FocusEdit for Windows — app chrome and editor. Colours come from themes.ts. */
+
+:root {
+  --bg: #fffffd;
+  --fg: #1c1c1f;
+  --dim: #b8b8bd;
+  --muted: #8a8a90;
+  --accent: #2f7deb;
+  --cursor: #337af2;
+  --selection: rgba(51, 122, 242, 0.18);
+  --chrome: #f7f7f8;
+  --border: #e3e3e6;
+  --hover: rgba(0, 0, 0, 0.06);
+  --column: 650px;
+  --font-size: 17px;
+  --editor-font: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --mono-font: "Cascadia Mono", Consolas, ui-monospace, Menlo, monospace;
+  --ui-font: "Segoe UI Variable Display", "Segoe UI", -apple-system, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--ui-font);
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------------ toolbar */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 46px;
+  padding: 0 10px 0 16px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.doc {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.doc-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-stats {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: 12px var(--ui-font);
+  cursor: default;
+}
+
+.tool:hover {
+  background: var(--hover);
+}
+
+.tool:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tool svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool svg .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* A mode that is on is drawn in the accent colour, like the macOS toolbar. */
+.tool.on {
+  color: var(--accent);
+}
+
+.tool.labelled span {
+  min-width: 58px;
+  text-align: left;
+}
+
+.sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 5px;
+  background: var(--border);
+}
+
+/* ------------------------------------------------------------------- editor */
+/* CodeMirror injects its base theme after this file with equal specificity,
+   so editor rules are scoped under #editor to win. */
+
+#editor {
+  flex: 1;
+  min-height: 0;
+}
+
+#editor .cm-editor {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: var(--font-size);
+}
+
+#editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+#editor .cm-scroller {
+  font-family: var(--editor-font);
+  line-height: 1.65;
+}
+
+/* The centred writing column. */
+#editor .cm-content {
+  max-width: var(--column);
+  margin: 0 auto;
+  padding: 48px 24px;
+  caret-color: var(--cursor);
+}
+
+/* Typewriter scrolling: room for the first and last lines to reach the centre. */
+#editor .cm-editor.typewriter .cm-content {
+  padding-top: 45vh;
+  padding-bottom: 45vh;
+}
+
+#editor .cm-cursor,
+#editor .cm-dropCursor {
+  border-left: 2px solid var(--cursor) !important;
+}
+
+#editor .cm-editor .cm-selectionBackground,
+#editor .cm-editor.cm-focused .cm-selectionBackground,
+#editor .cm-content ::selection {
+  background: var(--selection) !important;
+}
+
+#editor .cm-placeholder {
+  color: var(--dim);
+}
+
+/* Focus highlighting: only the colour fades; weight and slant stay. */
+#editor .cm-line,
+#editor .cm-line * {
+  transition: color 0.18s ease;
+}
+
+#editor .cm-dim,
+#editor .cm-dim *,
+#editor .cm-dim-text,
+#editor .cm-dim-text * {
+  color: var(--dim) !important;
+}
+
+#editor .cm-ghost {
+  color: var(--dim);
+  pointer-events: none;
+}
+
+/* Search panel and completion list. */
+#editor .cm-panels {
+  background: var(--chrome) !important;
+  color: var(--fg) !important;
+  border-color: var(--border) !important;
+  font-family: var(--ui-font);
+}
+
+#editor .cm-panel.cm-search input,
+#editor .cm-panel.cm-search button {
+  font: 12px var(--ui-font);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+
+#editor .cm-tooltip.cm-tooltip-autocomplete {
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--ui-font);
+}
+
+#editor .cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* -------------------------------------------------------------------- hints */
+
+.hints {
+  position: fixed;
+  top: 52px;
+  right: 12px;
+  width: 380px;
+  max-height: calc(100vh - 70px);
+  overflow: auto;
+  padding: 14px 18px;
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  z-index: 10;
+}
+
+.hints h3 {
+  margin: 12px 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hints h3:first-child {
+  margin-top: 0;
+}
+
+.hints dl {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.hints dt {
+  font-family: var(--mono-font);
+  font-weight: 500;
+}
+
+.hints dd {
+  margin: 0;
+  color: var(--muted);
+}

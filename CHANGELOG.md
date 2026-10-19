@@ -5,6 +5,8 @@
 `scripts/update_version.py`; текст заметок пишется руками.
 
 ## [Unreleased]
+### Added
+- Экспериментальная Windows-версия в `windows/` (ветка `experimental/windows`): Tauri 2 + CodeMirror 6, логика перенесена из Swift — фокус-подсветка, печатная машинка, серая подсказка, автоскобки, продолжение списков, темы, файлы с сохранением кодировки и переводов строк. Установщики `.msi`/`.exe` собирает GitHub Actions. Описано в README, BUILD.md, START_HERE.md и `windows/BUILD.md`.
 
 ## [0.3.3] - 2026-10-19
 ### Changed
