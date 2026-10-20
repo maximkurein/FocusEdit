@@ -91,8 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: centered,
         ]
-        let credits = NSMutableAttributedString(string: "Developer: Kurein M.N.
-", attributes: base)
+        let credits = NSMutableAttributedString(string: "Developer: Kurein M.N.\n", attributes: base)
         var link = base
         link[.link] = URL(string: "https://github.com/maximkurein/FocusEdit")
         credits.append(NSAttributedString(string: "github.com/maximkurein/FocusEdit", attributes: link))
