@@ -56,6 +56,7 @@ Updated README.md
 | `source` | `Info.plist` | `CFBundleShortVersionString` |
 | `changelog` | `CHANGELOG.md` | заголовок `## [X.Y.Z] - YYYY-MM-DD`: новая версия забирает заметки из `## [Unreleased]`, сверху появляется пустой `Unreleased` |
 | `readme` | `README.md` | строка ``**Version:** `X.Y.Z`, released DD.MM.YYYY`` под описанием |
+| `windows` | `windows/package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `Cargo.toml`, `Cargo.lock` | поле версии: Windows-версия нумеруется вместе с macOS. Её же показывает About в подсказках (F1) |
 
 Текст заметок в CHANGELOG пишется руками; скрипт трогает только заголовки.
 

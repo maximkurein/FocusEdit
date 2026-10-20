@@ -59,6 +59,23 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
   return sections;
 }
 
+export function appendAbout(container: HTMLElement, version: string, openPage: () => void): void {
+  const about = document.createElement("div");
+  about.className = "about";
+  const title = document.createElement("div");
+  title.className = "about-title";
+  title.textContent = `FocusEdit ${version}`;
+  const author = document.createElement("div");
+  author.textContent = "Developer: Kurein M.N.";
+  const link = document.createElement("button");
+  link.type = "button";
+  link.className = "about-link";
+  link.textContent = "github.com/maximkurein/FocusEdit";
+  link.addEventListener("click", openPage);
+  about.append(title, author, link);
+  container.append(about);
+}
+
 export function renderHints(container: HTMLElement, kind: DocKind, mod: string): void {
   container.replaceChildren();
   for (const section of hintSections(kind, mod)) {

@@ -413,3 +413,28 @@ body {
 .vim-exit:hover {
   background: var(--hover);
 }
+
+/* -------------------------------------------------------------------- about */
+
+.hints .about {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.about-title {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.about-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}

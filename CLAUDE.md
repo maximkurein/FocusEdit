@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Two apps, one product
 
 - **macOS app** (`Sources/FocusEdit/`, `Package.swift`): Swift 5 language mode, AppKit + TextKit 1, SwiftPM, no third-party dependencies. macOS 13+. Docs are partly in Russian (`BUILD.md`, `VERSION_MANAGEMENT.md`, `START_HERE.md`); `README.md` is English.
-- **Windows app** (`windows/`): separate, experimental port — Tauri 2 (Rust shell in `src-tauri/`) + CodeMirror 6 (TypeScript in `src/`). The writing logic (focus, typewriter, completion, auto-pairing, list continuation, Vim mode) is *re-implemented* in TS, not shared with Swift (`src/vim.ts` is a line-by-line port of `VimEngine.swift`; `src/vim-cm.ts` is the equivalent of `VimController.swift`). When changing behaviour in one, check whether the other needs the same change. The Windows port has its own version (`0.1.0` in `package.json`, `tauri.conf.json`, `Cargo.toml`) that `update_version.py` does not touch.
+- **Windows app** (`windows/`): separate, experimental port — Tauri 2 (Rust shell in `src-tauri/`) + CodeMirror 6 (TypeScript in `src/`). The writing logic (focus, typewriter, completion, auto-pairing, list continuation, Vim mode) is *re-implemented* in TS, not shared with Swift (`src/vim.ts` is a line-by-line port of `VimEngine.swift`; `src/vim-cm.ts` is the equivalent of `VimController.swift`). When changing behaviour in one, check whether the other needs the same change. The Windows port shares the version: `update_version.py` also rewrites `windows/package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `Cargo.toml` and `Cargo.lock` (the About block in the F1 hints reads it from `package.json` at build time).
 
 ## macOS commands
 
@@ -23,7 +23,7 @@ python3 scripts/update_version.py status | bump patch|minor|major | sync X.Y.Z -
 
 - There is no XCTest target. Tests are `SelfTest.swift` (`--selftest`: syntax, completion, editing, rtf, vim groups) — add new checks there via its `check(name, actual, expected)` helper.
 - Always rebuild with `package.sh`; copying a binary into an existing bundle invalidates the ad-hoc signature and macOS kills the app.
-- Version lives in `Info.plist` (`CFBundleShortVersionString`) and is changed **only** via `scripts/update_version.py` (it also edits README version line and CHANGELOG headings). `package.sh` refuses to build if versions disagree; `CFBundleVersion` is stamped by `package.sh`, never by hand.
+- Version lives in `Info.plist` (`CFBundleShortVersionString`) and is changed **only** via `scripts/update_version.py` (it also edits README version line, CHANGELOG headings and the Windows version files). `package.sh` refuses to build if versions disagree; `CFBundleVersion` is stamped by `package.sh`, never by hand.
 - README screenshots in `docs/images/` are regenerated with `--snapshot` (commands in `BUILD.md`).
 
 ## Windows commands

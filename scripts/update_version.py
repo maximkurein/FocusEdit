@@ -2,8 +2,9 @@
 """Single source of truth for the FocusEdit version.
 
 The marketing version MAJOR.MINOR.PATCH lives in Info.plist
-(CFBundleShortVersionString). This script keeps CHANGELOG.md and the README
-**Version:** line in sync with it and
+(CFBundleShortVersionString). This script keeps CHANGELOG.md, the README
+**Version:** line and the Windows port (windows/package.json, package-lock.json,
+src-tauri/tauri.conf.json, Cargo.toml, Cargo.lock) in sync with it and
 never touches the build number (CFBundleVersion), which package.sh stamps.
 
 Commands:
@@ -28,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PLIST = ROOT / "Info.plist"
 CHANGELOG = ROOT / "CHANGELOG.md"
 README = ROOT / "README.md"
+WIN = ROOT / "windows"
 
 PLIST_RE = re.compile(
     r"(<key>CFBundleShortVersionString</key>\s*<string>)([^<]+)(</string>)"
@@ -37,14 +39,36 @@ RELEASED_RE = re.compile(r"^## \[(\d+\.\d+(?:\.\d+)?)\]\s*-\s*(\d{4}-\d{2}-\d{2}
 README_RE = re.compile(r"(\*\*Version:\*\* `)([^`]+)(`, released )(\d{2}\.\d{2}\.\d{4})")
 
 
+# The Windows port shares the version: (file, pattern whose group 2 is the version, matches to change).
+WINDOWS_FILES = [
+    (WIN / "package.json", re.compile(r'(\n  "version":\s*")([^"]+)(")'), 1),
+    # Root version, then the root package entry ("" in "packages").
+    (WIN / "package-lock.json", re.compile(r'(\n(?:  |      )"version":\s*")([^"]+)(")'), 2),
+    (WIN / "src-tauri" / "tauri.conf.json", re.compile(r'(\n  "version":\s*")([^"]+)(")'), 1),
+    (WIN / "src-tauri" / "Cargo.toml", re.compile(r'(\nversion = ")([^"]+)(")'), 1),
+    (WIN / "src-tauri" / "Cargo.lock", re.compile(r'(name = "focusedit"\nversion = ")([^"]+)(")'), 1),
+]
+
+
 class VersionError(Exception):
     pass
 
 
 # --- reading -----------------------------------------------------------------
 
+def read(path: Path) -> str:
+    """Read without newline translation, so writing back keeps the file's line endings."""
+    with open(path, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def write(path: Path, text: str) -> None:
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
 def read_source() -> str:
-    text = PLIST.read_text(encoding="utf-8")
+    text = read(PLIST)
     m = PLIST_RE.search(text)
     if not m:
         raise VersionError("CFBundleShortVersionString not found in Info.plist")
@@ -54,7 +78,7 @@ def read_source() -> str:
 def latest_changelog() -> tuple[str, str] | None:
     if not CHANGELOG.exists():
         return None
-    m = RELEASED_RE.search(CHANGELOG.read_text(encoding="utf-8"))
+    m = RELEASED_RE.search(read(CHANGELOG))
     return (m.group(1), m.group(2)) if m else None
 
 
@@ -86,7 +110,7 @@ def cmd_status() -> int:
         print(f"changelog  CHANGELOG.md    {ver}  ({date})  {mark}")
 
     if README.exists():
-        m = README_RE.search(README.read_text(encoding="utf-8"))
+        m = README_RE.search(read(README))
         if m is None:
             print("readme     README.md       MISSING (no **Version:** line)")
             ok = False
@@ -95,6 +119,16 @@ def cmd_status() -> int:
             if m.group(2) != source:
                 ok = False
             print(f"readme     README.md       {m.group(2)}  ({m.group(4)})  {mark}")
+
+    for path, pattern, count in WINDOWS_FILES:
+        if not path.exists():
+            continue
+        found = [m.group(2) for m in pattern.finditer(read(path))][:count]
+        bad = [v for v in found if v != source]
+        if not found or bad:
+            ok = False
+        label = str(path.relative_to(ROOT))
+        print(f"windows    {label:<34}{', '.join(found) or 'MISSING'}  {'DIFF' if bad or not found else 'OK'}")
 
     print("OK" if ok else "OUT OF SYNC")
     return 0 if ok else 1
@@ -131,14 +165,24 @@ def apply(version: str, date: str, dry_run: bool) -> None:
     normalize(version)
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
         raise VersionError(f"release date must be YYYY-MM-DD: {date}")
-    plist_text = PLIST.read_text(encoding="utf-8")
+    plist_text = read(PLIST)
     new_plist = set_plist(plist_text, version)
 
-    changelog_text = CHANGELOG.read_text(encoding="utf-8") if CHANGELOG.exists() else ""
+    changelog_text = read(CHANGELOG) if CHANGELOG.exists() else ""
     new_changelog = set_changelog(changelog_text, version, date) if changelog_text else changelog_text
 
-    readme_text = README.read_text(encoding="utf-8") if README.exists() else ""
+    readme_text = read(README) if README.exists() else ""
     new_readme = set_readme(readme_text, version, date) if readme_text else readme_text
+
+    windows = []
+    for path, pattern, count in WINDOWS_FILES:
+        if not path.exists():
+            continue
+        text = read(path)
+        new, n = pattern.subn(lambda m: m.group(1) + version + m.group(3), text, count=count)
+        if n < count:
+            raise VersionError(f"Could not update {path.relative_to(ROOT)} (pattern changed)")
+        windows.append((path, text, new))
 
     print(f"Target version:      {version}")
     print(f"Target release date: {date}\n")
@@ -151,6 +195,8 @@ def apply(version: str, date: str, dry_run: bool) -> None:
     if readme_text and new_readme != readme_text:
         changed.append((README, new_readme))
 
+    changed += [(path, new) for path, text, new in windows if new != text]
+
     if not changed:
         print("Nothing to update (already in sync).")
         return
@@ -160,7 +206,7 @@ def apply(version: str, date: str, dry_run: bool) -> None:
         if dry_run:
             print(f"Would update {rel}")
         else:
-            path.write_text(content, encoding="utf-8")
+            write(path, content)
             print(f"Updated {rel}")
 
 

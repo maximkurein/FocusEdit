@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### Added
+- About: developer (Kurein M.N.) and a link to the GitHub page — in the Windows hints panel (F1) and in the Mac About panel (credits)
+
+### Changed
+- The Windows version now shares the macOS version number; `update_version.py` updates the Windows files too
+
 ## [1.1.2] - 2026-10-20
 
 ### Fixed

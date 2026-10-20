@@ -5,7 +5,7 @@ import "./styles.css";
 import type { Text } from "@codemirror/state";
 import { type DocKind, kindForPath } from "./completion";
 import { Editor, type LineSeparator } from "./editor";
-import { renderHints } from "./hints";
+import { appendAbout, renderHints } from "./hints";
 import type { VimAction } from "./vim";
 import * as platform from "./platform";
 import {
@@ -108,7 +108,7 @@ function load(text: string, path: string | null, name: string): void {
   editor.load(body, doc.kind, separator);
   updateTitle();
   updateStats(editor.view.state.doc);
-  renderHints(hintsEl, doc.kind, mod);
+  renderHelp();
   editor.focusEditor();
 }
 
@@ -157,7 +157,7 @@ async function saveAs(): Promise<void> {
   // Untitled → notes.md switches highlighting and list continuation at once.
   doc.kind = kindForPath(path);
   editor.setKind(doc.kind);
-  renderHints(hintsEl, doc.kind, mod);
+  renderHelp();
   markSaved();
 }
 
@@ -167,6 +167,11 @@ function markSaved(): void {
 }
 
 // ------------------------------------------------------------------- hints
+
+function renderHelp(): void {
+  renderHints(hintsEl, doc.kind, mod);
+  appendAbout(hintsEl, __APP_VERSION__, () => void platform.openProjectPage());
+}
 
 function toggleHints(show = hintsEl.hidden): void {
   hintsEl.hidden = !show;

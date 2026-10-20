@@ -66,4 +66,4 @@ npm run snapshot -- --theme Dark ../docs/images/windows-dark.png
 
 ## Правило
 
-Логику держим в паре с macOS-версией: меняя поведение в одной, переносим и в другую. Версия Windows-порта (`package.json`, `tauri.conf.json`, `Cargo.toml`) пока своя — `0.1.0`, пока порт экспериментальный.
+Логику держим в паре с macOS-версией: меняя поведение в одной, переносим и в другую. Версия общая с macOS: её меняет только `scripts/update_version.py` из корня репозитория (он правит `package.json`, `package-lock.json`, `tauri.conf.json`, `Cargo.toml`, `Cargo.lock`); в приложении она видна в About внизу подсказок (F1).

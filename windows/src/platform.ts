@@ -132,6 +132,12 @@ export async function onCloseRequested(guard: () => Promise<boolean>): Promise<v
   }
 }
 
+/** Open the project page on GitHub in the default browser. */
+export async function openProjectPage(): Promise<void> {
+  if (isTauri) await invoke("open_project_page");
+  else window.open("https://github.com/maximkurein/FocusEdit", "_blank", "noopener");
+}
+
 /** Close the window; the close guard (unsaved changes) still runs. */
 export async function closeWindow(): Promise<void> {
   if (isTauri) {

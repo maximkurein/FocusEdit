@@ -82,6 +82,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var themeEditor: ThemeEditorWindowController?
 
+    /// The standard About panel (name, version, icon) plus the developer and the project page.
+    @objc func showAbout(_ sender: Any?) {
+        let centered = NSMutableParagraphStyle()
+        centered.alignment = .center
+        let base: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: centered,
+        ]
+        let credits = NSMutableAttributedString(string: "Developer: Kurein M.N.
+", attributes: base)
+        var link = base
+        link[.link] = URL(string: "https://github.com/maximkurein/FocusEdit")
+        credits.append(NSAttributedString(string: "github.com/maximkurein/FocusEdit", attributes: link))
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+    }
+
     @objc func makeDefaultEditor(_ sender: Any?) {
         DefaultEditor.runInteractively()
     }
@@ -143,9 +160,7 @@ enum MenuBuilder {
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
-        appMenu.addItem(withTitle: "About FocusEdit",
-                        action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
-                        keyEquivalent: "")
+        appMenu.addItem(item("About FocusEdit", Selector(("showAbout:")), ""))
         appMenu.addItem(.separator())
         appMenu.addItem(item("Make Default Editor for .txt and .rtf", Selector(("makeDefaultEditor:")), ""))
         appMenu.addItem(.separator())

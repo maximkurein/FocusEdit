@@ -166,7 +166,7 @@ npm run tauri -- build --bundles app   # на macOS: проверить, что 
 
 Установщики `.msi` и `.exe` собирает GitHub Actions на Windows при пуше в `main`, затрагивающем `windows/` (`.github/workflows/windows.yml`): **Actions** → последний запуск → артефакт **FocusEdit-windows**. На Mac их не собрать.
 
-Версия Windows-порта своя (`0.1.0`, в `windows/package.json`, `tauri.conf.json`, `Cargo.toml`) и в `update_version.py` пока не входит.
+Версия у Windows-порта общая с macOS: `update_version.py` меняет и `windows/package.json`, `package-lock.json`, `tauri.conf.json`, `Cargo.toml`, `Cargo.lock`.
 
 ## Частые проблемы
 
