@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-10-20
+
+### Changed
+- Windows: the app identifier is now `com.kurein.focusedit` instead of the `com.example…` placeholder (aimed at the MSI warning 1946 about the shortcut's AppUserModel.ID). The WebView profile moves with it, so settings (theme, Vim mode) start from defaults once
+
 ## [1.1.3] - 2026-10-20
 
 ### Added

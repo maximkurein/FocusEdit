@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "FocusEdit",
-  "version": "1.1.3",
-  "identifier": "com.example.focusedit.tauri",
+  "version": "1.1.4",
+  "identifier": "com.kurein.focusedit",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
