@@ -47,12 +47,12 @@ npm install                 # зависимости — локально в win
 npm test                    # проверки логики без окна (vitest)
 npm run build               # проверка типов + сборка интерфейса в dist/
 npm run tauri -- dev        # запустить приложение в режиме разработки
-npm run tauri -- build      # установщики: src-tauri/target/release/bundle/{msi,nsis}
+npm run tauri -- build      # установщики: src-tauri/target/release/bundle/nsis
 ```
 
 На macOS `npm run tauri -- build --bundles app` собирает `.app` — так проверяется, что Rust-часть компилируется, и интерфейс можно погонять в настоящем окне.
 
-**Windows-установщики собирает GitHub Actions** (`.github/workflows/windows.yml`) на Windows-машине при каждом пуше в `main`, затрагивающем `windows/`: вкладка **Actions** → последний запуск → артефакт **FocusEdit-windows** (`.msi` и `.exe`). Собрать их на Mac нельзя: нужен Windows-тулчейн.
+**Windows-установщики собирает GitHub Actions** (`.github/workflows/windows.yml`) на Windows-машине при каждом пуше в `main`, затрагивающем `windows/`: вкладка **Actions** → последний запуск → артефакт **FocusEdit-windows** (`.exe`). Собрать их на Mac нельзя: нужен Windows-тулчейн.
 
 ## Скриншот без Tauri
 

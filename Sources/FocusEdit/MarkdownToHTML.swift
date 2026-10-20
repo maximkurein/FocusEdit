@@ -150,15 +150,35 @@ enum MarkdownToHTML {
     private static func inline(_ text: String) -> String {
         var s = escape(text)
         s = replace(s, #"!\[([^\]]*)\]\(([^)]+)\)"#) { m in
-            "<img alt=\"\(m[1])\" src=\"\(m[2])\">"
+            guard let src = safeURL(m[2], image: true) else { return m[1] }
+            return "<img alt=\"\(attribute(m[1]))\" src=\"\(attribute(src))\">"
         }
         s = replace(s, #"\[([^\]]+)\]\(([^)]+)\)"#) { m in
-            "<a href=\"\(m[2])\">\(m[1])</a>"
+            guard let href = safeURL(m[2], image: false) else { return m[1] }
+            return "<a href=\"\(attribute(href))\">\(m[1])</a>"
         }
         s = replace(s, #"`([^`]+)`"#) { m in "<code>\(m[1])</code>" }
         s = replace(s, #"(\*\*|__)(\S.*?\S|\S)\1"#) { m in "<strong>\(m[2])</strong>" }
         s = replace(s, #"(?<![\*_])([\*_])(\S.*?\S|\S)\1(?![\*_])"#) { m in "<em>\(m[2])</em>" }
         return s
+    }
+
+    /// Text for inside a quoted attribute value (the quotes must not end the value).
+    private static func attribute(_ s: String) -> String {
+        s.replacingOccurrences(of: "\"", with: "&quot;")
+         .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    /// A link or image address that is safe to put in the page: web addresses,
+    /// mail links (not images), relative paths, and data: images. Anything else
+    /// (javascript:, file:, …) is dropped and only the text is shown.
+    private static func safeURL(_ raw: String, image: Bool) -> String? {
+        let url = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !url.isEmpty else { return nil }
+        guard let colon = url.firstIndex(of: ":") else { return url }          // relative path
+        if let slash = url.firstIndex(where: { "/?#".contains($0) }), slash < colon { return url }
+        let allowed = image ? ["http", "https", "data"] : ["http", "https", "mailto"]
+        return allowed.contains(url[..<colon].lowercased()) ? url : nil
     }
 
     private static func escape(_ s: String) -> String {

@@ -7,7 +7,11 @@ import WebKit
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     private lazy var webView: WKWebView = {
-        let web = WKWebView()
+        let config = WKWebViewConfiguration()
+        // The page never needs scripts of its own (the app updates it with
+        // evaluateJavaScript, which this does not affect), so a document can't run any.
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         return web
     }()
@@ -36,7 +40,12 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         let html = MarkdownToHTML.render(markdown)
         guard let data = try? JSONSerialization.data(withJSONObject: [html]),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("document.body.innerHTML = \(json)[0];", completionHandler: nil)
+        webView.evaluateJavaScript("document.body.innerHTML = \(json)[0];") { [weak self] _, error in
+            // Could not update in place: load the whole page again.
+            guard error != nil, let self, let dark = self.loadedDark else { return }
+            self.ready = false
+            self.webView.loadHTMLString(MarkdownToHTML.document(markdown, dark: dark), baseURL: nil)
+        }
     }
 
     // MARK: WKNavigationDelegate
@@ -46,14 +55,20 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         inject(latest) // anything typed while the page was loading
     }
 
-    /// Links open in the browser; the preview itself never navigates away.
+    /// Only the app's own page load (about:blank) is allowed; every other navigation is
+    /// cancelled, and a clicked web link opens in the browser instead.
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        guard navigationAction.navigationType == .linkActivated else {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+        if url.scheme?.lowercased() == "about" {
             decisionHandler(.allow)
             return
         }
-        if let url = navigationAction.request.url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+        if navigationAction.navigationType == .linkActivated,
+           ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
             NSWorkspace.shared.open(url)
         }
         decisionHandler(.cancel)

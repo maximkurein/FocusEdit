@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "FocusEdit",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "identifier": "com.kurein.focusedit",
   "build": {
     "frontendDist": "../dist",
@@ -27,7 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "publisher": "FocusEdit",
     "shortDescription": "Minimalist focus writing editor",
     "category": "Productivity",

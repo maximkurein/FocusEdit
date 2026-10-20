@@ -57,14 +57,13 @@ npm run tauri -- build
 
 1. По `beforeBuildCommand` выполняется `npm run build`: проверка типов (`tsc --noEmit`) и `vite build` → минифицированная статика в `dist/`.
 2. `cargo build --release` с настройками из `Cargo.toml`: `lto = true`, `codegen-units = 1`, `opt-level = "s"` (компактный размер), `strip = true` (без отладочных символов). Статика `dist/` встраивается в `.exe`.
-3. Упаковка в установщики (`"targets": "all"`): **NSIS** (`.exe`, мастер «Далее → Далее → Готово») и **WiX** (`.msi`, для корпоративного развёртывания). Инструменты NSIS/WiX Tauri скачивает сам при первой сборке.
+3. Упаковка в установщик (`"targets": ["nsis"]`): **NSIS** (`.exe`, мастер «Далее → Далее → Готово»). MSI (WiX) отключён: при его установке Windows 11 показывала предупреждение 1946 про `AppUserModel.ID` ярлыка. Если нужен MSI для корпоративного развёртывания, верните `"targets": "all"`. Инструмент NSIS Tauri скачивает сам при первой сборке.
 
 Результат:
 
 ```
 src-tauri\target\release\FocusEdit.exe                 # сам исполняемый файл (без установщика)
 src-tauri\target\release\bundle\nsis\*.exe             # установщик NSIS
-src-tauri\target\release\bundle\msi\*.msi              # установщик MSI
 ```
 
 Установщики на Windows также собирает GitHub Actions (`.github/workflows/windows.yml`): `npm ci` → `npm test` → `tauri build` → артефакт **FocusEdit-windows**.

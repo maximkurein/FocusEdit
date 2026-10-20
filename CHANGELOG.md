@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-10-20
+
+### Changed
+- Windows: only the NSIS `.exe` installer is built; the `.msi` is dropped because installing it on Windows 11 showed warning 1946 (the shortcut's AppUserModel.ID could not be set)
+
+### Security
+- Mac preview and HTML export: a link or image address could close its attribute and add an event handler. Quotes are now escaped, addresses are limited to web, mail and relative links (images: web, relative and data:), the preview page runs no scripts, and a clicked web link opens in the browser while every other navigation is cancelled
+
 ### Changed
 - Mac: the Markdown preview (⇧⌘P, the eye button) is now a pane beside the text inside the window instead of a separate window; it updates while you type without jumping to the top, and links open in the browser
 

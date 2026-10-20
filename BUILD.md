@@ -164,7 +164,7 @@ npm run build               # типы + сборка интерфейса
 npm run tauri -- build --bundles app   # на macOS: проверить, что Rust-часть собирается
 ```
 
-Установщики `.msi` и `.exe` собирает GitHub Actions на Windows при пуше в `main`, затрагивающем `windows/` (`.github/workflows/windows.yml`): **Actions** → последний запуск → артефакт **FocusEdit-windows**. На Mac их не собрать.
+Установщик `.exe` (NSIS) собирает GitHub Actions на Windows при пуше в `main`, затрагивающем `windows/` (`.github/workflows/windows.yml`): **Actions** → последний запуск → артефакт **FocusEdit-windows**. На Mac их не собрать.
 
 Версия у Windows-порта общая с macOS: `update_version.py` меняет и `windows/package.json`, `package-lock.json`, `tauri.conf.json`, `Cargo.toml`, `Cargo.lock`.
 

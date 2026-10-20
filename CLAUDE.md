@@ -36,7 +36,7 @@ npm run dev                          # vite dev server on :1420 (browser fallbac
 npm test                             # vitest run (tests/*.test.ts, node environment)
 npx vitest run tests/editing.test.ts # single file; add -t "name" for a single test
 npm run build                        # tsc --noEmit && vite build
-npm run tauri -- build               # .msi/.exe installers (Windows only; CI does this)
+npm run tauri -- build               # NSIS .exe installer (Windows only; CI does this). MSI is off: its AppUserModel.ID warning 1946
 npm run snapshot                     # scripts/snapshot.mjs (playwright-core) → UI screenshots
 ```
 
