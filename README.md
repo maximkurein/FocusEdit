@@ -116,6 +116,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 - [VIM_GUIDE.md](VIM_GUIDE.md) — learning Vim with FocusEdit's Vim mode: lessons, exercises, moving on to NeoVim (in Russian)
 - [START_HERE.md](START_HERE.md) — how to work in the app: focus modes, writing aids, Markdown and Fountain, shortcuts (in Russian)
 - [windows/BUILD.md](windows/BUILD.md) — the experimental Windows version: what is ported and how to build it (in Russian)
+- [PROMT_MAC.md](PROMT_MAC.md) — a task for Claude Code on a Mac: what to check and what to port from the Windows version (in Russian)
 - [BUILD.md](BUILD.md) — how to build, run and check (in Russian)
 - [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) — how versions are changed and kept in sync (in Russian)
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version
