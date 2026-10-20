@@ -13,6 +13,7 @@ import { tags as t } from "@lezer/highlight";
 import { CompletionEngine, type DocKind } from "./completion";
 import { focusHighlighting, typewriterScrolling } from "./focus";
 import { inlineCompletion } from "./ghost";
+import { liveMarkdown } from "./live";
 import { linkFromPaste } from "./links";
 import { countWords } from "./session";
 import type { Settings } from "./settings";
@@ -103,6 +104,7 @@ export class Editor {
   private readonly hint = new Compartment();
   private readonly lineSep = new Compartment();
   private readonly vimSlot = new Compartment();
+  private readonly live = new Compartment();
   private vim: VimController | null = null;
 
   constructor(
@@ -143,6 +145,7 @@ export class Editor {
       this.typewriter.of(s.typewriter ? typewriterScrolling() : []),
       search({ top: true }),
       this.vimSlot.of(this.vim ? this.vim.extension() : []),
+      this.live.of(s.liveMarkdown ? liveMarkdown() : []),
       keymap.of([
         ...closeBracketsKeymap,
         ...formatKeymap,
@@ -239,6 +242,7 @@ export class Editor {
         this.focus.reconfigure(focusHighlighting(s.focusMode)),
         this.typewriter.reconfigure(s.typewriter ? typewriterScrolling() : []),
         this.pairs.reconfigure(s.pairing ? closeBrackets() : []),
+        this.live.reconfigure(s.liveMarkdown ? liveMarkdown() : []),
       ],
     });
   }

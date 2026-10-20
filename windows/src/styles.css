@@ -891,3 +891,15 @@ body[data-view="split"] .preview {
 .goal-bar.done .goal-fill {
   background: #2f9e5b;
 }
+
+/* ------------------------------------------------------- live Markdown (live.ts) */
+/* Heading sizes: the marks that told the level are hidden, so the size has to. */
+
+#editor .cm-line.cm-md-h1 { font-size: 1.7em; line-height: 1.35; }
+#editor .cm-line.cm-md-h2 { font-size: 1.4em; line-height: 1.4; }
+#editor .cm-line.cm-md-h3 { font-size: 1.2em; line-height: 1.5; }
+
+#editor .cm-md-image {
+  font-style: italic;
+  color: var(--muted);
+}

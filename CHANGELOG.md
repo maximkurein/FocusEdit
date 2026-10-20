@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-20
+
+### Added
+- Windows: live Markdown. The marks of formatting (`#`, `**`, `*`, `~~`, `` ` ``, `[`…`](address)`, image and autolink marks) are hidden away from the cursor and shown when it comes near, headings get their size; the file stays plain Markdown. Palette: "Markup" turns it off
+
 ## [1.3.0] - 2026-10-20
 
 ### Added

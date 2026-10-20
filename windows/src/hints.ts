@@ -30,6 +30,7 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
         [`${mod}Shift+P`, "Command palette: type what you want to do"],
         ["a number", "In the palette: set a word goal, or go to a line"],
         ["Select + paste URL", "Makes a Markdown link"],
+        ["Markup", "Palette: hide the marks (#, **, [ ]) away from the cursor, or always show them"],
       ],
     },
     {

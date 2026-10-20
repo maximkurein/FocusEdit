@@ -524,6 +524,11 @@ function allCommands(): Command[] {
     { title: "Text size: larger", shortcut: key("+"), run: () => setFontSize(1) },
     { title: "Text size: smaller", shortcut: key("−"), run: () => setFontSize(-1) },
     { title: "Full screen", shortcut: "F11", run: () => void platform.toggleFullscreen() },
+    {
+      title: settings.liveMarkdown ? "Markup: always show the marks" : "Markup: hide the marks away from the cursor",
+      keywords: "markdown symbols asterisks hashes wysiwyg live",
+      run: () => changeSettings(() => (settings.liveMarkdown = !settings.liveMarkdown)),
+    },
     { title: settings.vim ? "Vim mode: turn off" : "Vim mode: turn on", keywords: "learn", run: () => actions["btn-vim"]() },
     { title: "Format: Bold", shortcut: key("B"), run: format("**", "**") },
     { title: "Format: Italic", shortcut: key("I"), run: format("*", "*") },

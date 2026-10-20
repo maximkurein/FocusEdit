@@ -17,6 +17,8 @@ export interface Settings {
   pairing: boolean;
   vim: boolean;
   outline: boolean;
+  /** Hide the marks of Markdown formatting away from the cursor. */
+  liveMarkdown: boolean;
   /** Words to write per session; 0 = no goal. */
   goal: number;
 }
@@ -32,6 +34,7 @@ export const defaults: Settings = {
   pairing: true,
   vim: false,
   outline: false,
+  liveMarkdown: true,
   goal: 0,
 };
 

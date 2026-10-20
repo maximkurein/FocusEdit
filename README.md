@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.3.0`, released 20.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.4.0`, released 20.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -108,7 +108,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
   | Ctrl+R | Redo in Vim mode (it no longer reloads the window) |
   | select text, paste a web address | Makes a Markdown link `[text](address)` |
 
-  Also: a word goal with a thin progress bar and a timer that counts only the time you write (palette: *Word goal*), a word count of the selection under the title, and a welcome document on the first start (palette: *Open the welcome tour*).
+  Also: live Markdown (the marks `#`, `**`, `*`, `` ` ``, `[ ](…)` are hidden away from the cursor and appear as it comes close; palette: *Markup*), a word goal with a thin progress bar and a timer that counts only the time you write (palette: *Word goal*), a word count of the selection under the title, and a welcome document on the first start (palette: *Open the welcome tour*).
 - **Build from source:** Node.js 22+ and Rust; see [windows/BUILD.md](windows/BUILD.md) (in Russian).
 
 ## Project documents
