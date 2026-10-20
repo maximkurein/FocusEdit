@@ -13,6 +13,9 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     private var libraryItem: NSSplitViewItem!
     private var editorItem: NSSplitViewItem!
     private var previewItem: NSSplitViewItem!
+    private var scrollObserver: NSObjectProtocol?
+    /// The editor that was just moved by code ignores its own scrolling for a moment.
+    private var editorQuietUntil = Date.distantPast
     private var outlineItem: NSSplitViewItem!
 
     override func viewDidLoad() {
@@ -143,8 +146,42 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     @objc func togglePreview(_ sender: Any?) {
         guard editor.documentKind.supportsHTML else { NSSound.beep(); return }
         let showing = previewItem.isCollapsed
-        if showing { preview.update(markdown: editor.plainText, dark: editor.themeIsDark) }
+        if showing {
+            preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
+            syncScrolling()
+        }
         previewItem.animator().isCollapsed = !showing
+    }
+
+    /// Scrolling the editor scrolls the preview and the other way round (relative position).
+    private func syncScrolling() {
+        guard scrollObserver == nil, let clip = editor.textView.enclosingScrollView?.contentView else { return }
+        clip.postsBoundsChangedNotifications = true
+        scrollObserver = NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification, object: clip, queue: .main
+        ) { [weak self] _ in
+            guard let self, !self.previewItem.isCollapsed, Date() >= self.editorQuietUntil else { return }
+            self.preview.scroll(toRatio: self.editorScrollRatio())
+        }
+        preview.onScroll = { [weak self] ratio in self?.scrollEditor(toRatio: ratio) }
+    }
+
+    private func editorScrollRatio() -> Double {
+        guard let scroll = editor.textView.enclosingScrollView, let doc = scroll.documentView else { return 0 }
+        let span = doc.frame.height - scroll.contentView.bounds.height
+        return span > 0 ? Double(scroll.contentView.bounds.origin.y / span) : 0
+    }
+
+    private func scrollEditor(toRatio ratio: Double) {
+        guard let scroll = editor.textView.enclosingScrollView, let doc = scroll.documentView else { return }
+        let span = max(0, doc.frame.height - scroll.contentView.bounds.height)
+        editorQuietUntil = Date().addingTimeInterval(0.25)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: CGFloat(ratio) * span))
+        scroll.reflectScrolledClipView(scroll.contentView)
+    }
+
+    deinit {
+        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
     }
 
     @objc func exportAsHTML(_ sender: Any?) {

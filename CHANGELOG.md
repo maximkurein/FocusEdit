@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-10-20
+
+### Fixed
+- Mac: the preview pane scrolls together with the editor, both ways
+- Windows: in Split view scrolling the preview now scrolls the editor too (it only worked the other way round); leaving Preview (`Esc`) puts the caret and the editor where you were reading
+
 ## [1.1.7] - 2026-10-20
 
 ### Changed

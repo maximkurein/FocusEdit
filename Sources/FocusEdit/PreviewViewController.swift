@@ -20,8 +20,58 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     private var ready = false
     private var latest = ""
 
+    /// Called when the reader scrolls the page: 0 is the top, 1 the bottom.
+    var onScroll: ((Double) -> Void)?
+    private var lastRatio = 0.0
+    /// The page that was just moved by code ignores its own scrolling for a moment.
+    private var quietUntil = Date.distantPast
+    private var pollTimer: Timer?
+
     override func loadView() {
         view = webView
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        guard pollTimer == nil else { return }
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.pollScroll()
+        }
+    }
+
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+
+    // MARK: Scrolling together with the editor
+
+    private static let readScroll = """
+        (function () { var m = document.documentElement.scrollHeight - window.innerHeight;
+                       return m > 0 ? window.scrollY / m : 0; })();
+        """
+
+    /// The page has no scripts of its own, so scrolling is read by asking it.
+    private func pollScroll() {
+        guard ready, Date() >= quietUntil, !view.isHiddenOrHasHiddenAncestor else { return }
+        webView.evaluateJavaScript(Self.readScroll) { [weak self] value, _ in
+            guard let self, Date() >= self.quietUntil, let ratio = value as? Double,
+                  abs(ratio - self.lastRatio) > 0.002 else { return }
+            self.lastRatio = ratio
+            self.onScroll?(ratio)
+        }
+    }
+
+    /// Put the page at the same relative place as the editor.
+    func scroll(toRatio ratio: Double) {
+        guard ready else { return }
+        lastRatio = ratio
+        quietUntil = Date().addingTimeInterval(0.25)
+        webView.evaluateJavaScript("""
+            (function () { var m = document.documentElement.scrollHeight - window.innerHeight;
+                           window.scrollTo(0, Math.max(0, m) * \(ratio)); })();
+            """, completionHandler: nil)
     }
 
     func update(markdown: String, dark: Bool) {

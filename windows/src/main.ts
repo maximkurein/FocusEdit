@@ -3,6 +3,7 @@
 
 import "./styles.css";
 import type { Text } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { type DocKind, kindForPath } from "./completion";
 import { Editor, type LineSeparator } from "./editor";
 import { appendAbout, renderHints } from "./hints";
@@ -214,17 +215,39 @@ function schedulePreview(): void {
   previewTimer = window.setTimeout(renderPreview, 120);
 }
 
+// In Split view scrolling either pane scrolls the other. The pane that was just
+// moved by code ignores the scroll event that causes, or the two would chase each other.
+const quiet = { editor: 0, preview: 0 };
+const hold = (pane: keyof typeof quiet) => void (quiet[pane] = performance.now() + 100);
+const maxScroll = (el: HTMLElement) => Math.max(0, el.scrollHeight - el.clientHeight);
+const scrollRatio = (el: HTMLElement) => (maxScroll(el) > 0 ? el.scrollTop / maxScroll(el) : 0);
+
 /** Put the preview at the same relative place as the editor (or its cursor). */
 function syncPreviewScroll(fromCursor = false): void {
   if (view === "edit") return;
-  const scroller = editor.view.scrollDOM;
   const state = editor.view.state;
   const ratio = fromCursor
     ? (state.doc.lineAt(state.selection.main.head).number - 1) / Math.max(1, state.doc.lines - 1)
-    : scroller.scrollHeight > scroller.clientHeight
-      ? scroller.scrollTop / (scroller.scrollHeight - scroller.clientHeight)
-      : 0;
-  previewEl.scrollTop = ratio * (previewEl.scrollHeight - previewEl.clientHeight);
+    : scrollRatio(editor.view.scrollDOM);
+  hold("preview");
+  previewEl.scrollTop = ratio * maxScroll(previewEl);
+}
+
+/** Put the editor at the same relative place as the preview. */
+function syncEditorScroll(): void {
+  const scroller = editor.view.scrollDOM;
+  hold("editor");
+  scroller.scrollTop = scrollRatio(previewEl) * maxScroll(scroller);
+}
+
+/** After reading in the preview: continue editing where the reading stopped. */
+function moveCaretTo(ratio: number): void {
+  const doc = editor.view.state.doc;
+  const line = doc.line(1 + Math.round(ratio * (doc.lines - 1)));
+  editor.view.dispatch({
+    selection: { anchor: line.from },
+    effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+  });
 }
 
 function applyView(): void {
@@ -240,15 +263,23 @@ function applyView(): void {
 
 function setView(mode: ViewMode): void {
   if (mode !== "edit" && !previewable()) return;
+  const readingAt = view === "preview" ? scrollRatio(previewEl) : null;
   view = mode;
   applyView();
   syncPreviewScroll(mode === "preview");
-  if (mode === "preview") previewEl.focus();
-  else editor.focusEditor();
+  if (mode === "preview") {
+    previewEl.focus();
+    return;
+  }
+  if (readingAt !== null) moveCaretTo(readingAt);
+  editor.focusEditor();
 }
 
 editor.view.scrollDOM.addEventListener("scroll", () => {
-  if (view === "split") syncPreviewScroll();
+  if (view === "split" && performance.now() >= quiet.editor) syncPreviewScroll();
+});
+previewEl.addEventListener("scroll", () => {
+  if (view === "split" && performance.now() >= quiet.preview) syncEditorScroll();
 });
 
 // Links in the preview open in the browser; the window itself never navigates.
