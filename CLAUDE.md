@@ -33,7 +33,7 @@ Run from `windows/`:
 ```bash
 npm install
 npm run dev                          # vite dev server on :1420 (browser fallback works without Tauri)
-npm test                             # vitest run (tests/*.test.ts, node environment)
+npm test                             # vitest run (tests/*.test.ts, node env; pure logic: vim, markdown-html, outline, recent/draft, export, themes)
 npx vitest run tests/editing.test.ts # single file; add -t "name" for a single test
 npm run build                        # tsc --noEmit && vite build
 npm run tauri -- build               # NSIS .exe installer (Windows only; CI does this). MSI is off: its AppUserModel.ID warning 1946

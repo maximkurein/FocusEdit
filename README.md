@@ -29,8 +29,8 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **Plain text, styled on screen** — Markdown headings, emphasis, code, quotes, lists, links and CriticMarkup; Fountain scene headings, characters, parentheticals and transitions. Styling is display-only: the file on disk stays clean plain text.
 - **Vim mode for learning** — Modus ▸ Vim Mode: Normal, Insert and Visual modes with the operator + motion grammar (`dw`, `ciw`, `3j`, `.`), and a coach bar under the text that explains every command and suggests faster ways. Leave it with the Exit Vim button on the coach bar or `:novim`. Works in the Russian keyboard layout too. A lesson-by-lesson course is in [VIM_GUIDE.md](VIM_GUIDE.md).
 - **RTF** — `.rtf` files (TextEdit's default format) open as Markdown and save back as RTF: bold, italic, strikethrough, headings, lists, links and code survive the round trip; fonts, colours, images and tables do not, and FocusEdit warns when a file has them. **FocusEdit ▸ Make Default Editor for .txt and .rtf** makes double-clicked text and RTF files open in FocusEdit.
-- **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop. A library sidebar browses a linked folder; the outline jumps between headings; the window subtitle shows the word count and reading time; find and replace.
-- **Preview and export** — live HTML preview for Markdown, export as HTML or PDF, copy as HTML, print.
+- **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop, and autosave elsewhere every minute so unsaved text survives a crash. A library sidebar browses a linked folder; the outline jumps between headings; the window subtitle shows the word count and reading time; find and replace.
+- **Preview and export** — live HTML preview for Markdown in a pane beside the text, scrolling together with it, export as HTML or PDF, copy as HTML, print.
 - **Themes and type** — Light, Dark, Sepia and custom themes; system, monospaced or serif font; three column widths.
 - **Help where you are** — every toolbar button has a tooltip with its shortcut, and ⌘? opens a cheat sheet for the current document type.
 
@@ -87,16 +87,24 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/windows-light.png" alt="The Windows version: a light toolbar with open, save, focus (Paragraph), typewriter, theme, column width, font, full screen and hints buttons; the document in a centred column with faded paragraphs and a grey suggestion completing Markdown"></td>
+    <td width="50%"><img src="docs/images/windows-light.png" alt="The Windows version: a light toolbar with open, save, recent files and export, view mode, outline, focus (Paragraph), typewriter, theme, column width, font, full screen, Vim and hints buttons; the document in a centred column with faded paragraphs and a grey suggestion completing Markdown"></td>
     <td width="50%"><img src="docs/images/windows-dark.png" alt="The Windows version in the dark theme"></td>
   </tr>
 </table>
 
 <sub>Rendered from the same web UI in Chrome by <code>npm run snapshot</code> in <code>windows/</code>.</sub>
 
-- **Status:** stage 1. Not yet ported: the library, Fountain highlighting, CriticMarkup and typewriter sounds.
+- **Status:** stage 2. Ported: focus and typewriter, writing aids, Vim mode, Markdown preview (edit, split, preview), outline, recent files, export (HTML, print or PDF, copy as HTML), crash recovery, themes including System, drag-and-drop open. Not yet ported: the library, Fountain highlighting, CriticMarkup and typewriter sounds.
 - **Installers:** GitHub Actions builds the `.exe` installer on Windows for every push to `main` that changes `windows/` (**Actions** → latest run → artifact **FocusEdit-windows**). They cannot be built on a Mac.
-- **Keys:** Ctrl replaces ⌘; F1 opens the hints, F11 toggles full screen. Focus modes have no shortcuts: use the focus button in the toolbar.
+- **Keys:** Ctrl replaces ⌘; F1 opens the hints (with the version and the developer), F11 toggles full screen. Focus modes have no shortcuts: use the focus button in the toolbar.
+
+  | Keys | Action |
+  |---|---|
+  | Ctrl+Shift+P | View: Edit → Split → Preview (Esc leaves the preview) |
+  | Ctrl+Shift+O | Outline of headings |
+  | Ctrl+P | Print, or save as PDF from the print dialog |
+  | ⋯ button | Recent files · Export as HTML · Copy as HTML |
+  | Ctrl+R | Redo in Vim mode (it no longer reloads the window) |
 - **Build from source:** Node.js 22+ and Rust; see [windows/BUILD.md](windows/BUILD.md) (in Russian).
 
 ## Project documents
