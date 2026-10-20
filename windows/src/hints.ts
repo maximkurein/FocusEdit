@@ -52,6 +52,8 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
     title: "Files",
     rows: [
       [`${mod}N  ${mod}O`, "New · open"],
+      [`${mod}⇧P`, "View: edit · split (live preview) · preview; Esc leaves the preview"],
+      ["drag a file", "Drop .md, .txt or .fountain on the window to open it"],
       [`${mod}S  ${mod}⇧S`, "Save · save as"],
       [`${mod}F`, "Find and replace"],
     ],

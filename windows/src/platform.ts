@@ -132,10 +132,63 @@ export async function onCloseRequested(guard: () => Promise<boolean>): Promise<v
   }
 }
 
-/** Open the project page on GitHub in the default browser. */
-export async function openProjectPage(): Promise<void> {
-  if (isTauri) await invoke("open_project_page");
-  else window.open("https://github.com/maximkurein/FocusEdit", "_blank", "noopener");
+const OPENABLE = /\.(md|markdown|fountain|txt)$/i;
+
+/**
+ * Files dropped onto the window. `onFile` gets the first supported file (the
+ * app has one document); `over` tells whether a drag is hovering, for the hint.
+ * Under Tauri the native drag-and-drop events carry real paths; in a browser
+ * the HTML5 events carry the file itself.
+ */
+export async function onFileDrop(onFile: (file: OpenedFile) => void, over: (hovering: boolean) => void): Promise<void> {
+  const reject = (name: string) => showError(`“${name}” is not a document FocusEdit opens (.md, .markdown, .fountain, .txt).`);
+  if (isTauri) {
+    const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+    await getCurrentWebview().onDragDropEvent(async ({ payload }) => {
+      if (payload.type === "enter" || payload.type === "over") return over(true);
+      over(false);
+      if (payload.type !== "drop") return;
+      const path = payload.paths.find((p) => OPENABLE.test(p));
+      if (path) {
+        try {
+          onFile(await readFile(path));
+        } catch (error) {
+          await showError(`Could not open ${baseName(path)}: ${String(error)}`);
+        }
+      } else if (payload.paths.length > 0) await reject(baseName(payload.paths[0]));
+    });
+    return;
+  }
+  let depth = 0; // dragenter/dragleave also fire for child elements
+  const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes("Files") ?? false;
+  window.addEventListener("dragenter", (e) => {
+    if (!hasFiles(e)) return;
+    depth++;
+    over(true);
+  });
+  window.addEventListener("dragleave", () => {
+    depth = Math.max(0, depth - 1);
+    if (depth === 0) over(false);
+  });
+  window.addEventListener("dragover", (e) => {
+    if (hasFiles(e)) e.preventDefault(); // allow the drop
+  });
+  window.addEventListener("drop", async (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    over(false);
+    const files = [...(e.dataTransfer?.files ?? [])];
+    const file = files.find((f) => OPENABLE.test(f.name));
+    if (file) onFile({ path: null, name: file.name, text: await file.text() });
+    else if (files.length > 0) await reject(files[0].name);
+  });
+}
+
+/** Open a web address in the default browser. */
+export async function openUrl(url: string): Promise<void> {
+  if (isTauri) await invoke("open_url", { url });
+  else window.open(url, "_blank", "noopener");
 }
 
 /** Close the window; the close guard (unsaved changes) still runs. */

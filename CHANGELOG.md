@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-10-20
+
+### Added
+- Windows: Markdown preview. The View button (`Ctrl+Shift+P`) cycles Edit → Split (live preview next to the editor, scrolling together) → Preview (reading view; `Esc` returns to editing). Headings, emphasis, lists, task lists, quotes, code, tables and links; raw HTML is shown as text, links open in the browser (http/https only), images appear as their alt text
+- Windows: drag a `.md`, `.markdown`, `.fountain` or `.txt` file onto the window to open it (asks before discarding unsaved changes; other file types are refused with a message)
+
 ## [1.1.4] - 2026-10-20
 
 ### Changed

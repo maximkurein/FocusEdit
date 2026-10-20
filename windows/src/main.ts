@@ -6,6 +6,7 @@ import type { Text } from "@codemirror/state";
 import { type DocKind, kindForPath } from "./completion";
 import { Editor, type LineSeparator } from "./editor";
 import { appendAbout, renderHints } from "./hints";
+import { renderMarkdown } from "./markdown-html";
 import type { VimAction } from "./vim";
 import * as platform from "./platform";
 import {
@@ -21,6 +22,8 @@ import {
 } from "./settings";
 import { applyTheme } from "./themes";
 
+const PROJECT_URL = "https://github.com/maximkurein/FocusEdit";
+
 const settings = loadSettings();
 const mod = platform.modKey;
 
@@ -31,6 +34,11 @@ interface DocState {
   dirty: boolean;
   bom: boolean;
 }
+
+// Edit → Split (editor and live preview side by side) → Preview (reading view).
+type ViewMode = "edit" | "split" | "preview";
+const viewModes: ViewMode[] = ["edit", "split", "preview"];
+let view: ViewMode = "edit";
 
 const doc: DocState = { path: null, name: "Untitled", kind: "plain", dirty: false, bom: false };
 
@@ -48,6 +56,7 @@ const editor = new Editor($("editor"), {
       updateTitle();
     }
     updateStats(text);
+    schedulePreview();
   },
   vim: { coach: $("vim-coach"), perform: (action) => void performVim(action) },
 });
@@ -109,6 +118,7 @@ function load(text: string, path: string | null, name: string): void {
   updateTitle();
   updateStats(editor.view.state.doc);
   renderHelp();
+  applyView();
   editor.focusEditor();
 }
 
@@ -124,6 +134,11 @@ async function openDocument(): Promise<void> {
   if (!(await canDiscard())) return;
   const file = await platform.openFile();
   if (file) load(file.text, file.path, file.name);
+}
+
+/** A file dropped on the window: ask before discarding unsaved changes, then open it. */
+async function openDropped(file: platform.OpenedFile): Promise<void> {
+  if (await canDiscard()) load(file.text, file.path, file.name);
 }
 
 async function openPath(path: string): Promise<void> {
@@ -158,6 +173,7 @@ async function saveAs(): Promise<void> {
   doc.kind = kindForPath(path);
   editor.setKind(doc.kind);
   renderHelp();
+  applyView();
   markSaved();
 }
 
@@ -170,7 +186,7 @@ function markSaved(): void {
 
 function renderHelp(): void {
   renderHints(hintsEl, doc.kind, mod);
-  appendAbout(hintsEl, __APP_VERSION__, () => void platform.openProjectPage());
+  appendAbout(hintsEl, __APP_VERSION__, () => void platform.openUrl(PROJECT_URL));
 }
 
 function toggleHints(show = hintsEl.hidden): void {
@@ -178,6 +194,71 @@ function toggleHints(show = hintsEl.hidden): void {
   $("btn-hints").classList.toggle("on", show);
   if (!show) editor.focusEditor();
 }
+
+// ----------------------------------------------------------------- preview
+
+const previewEl = $("preview");
+const viewLabels: Record<ViewMode, string> = { edit: "Edit", split: "Split", preview: "Preview" };
+let previewTimer = 0;
+
+/** Fountain scripts are not Markdown; everything else can be previewed. */
+const previewable = () => doc.kind !== "fountain";
+
+function renderPreview(): void {
+  previewEl.innerHTML = renderMarkdown(editor.text);
+}
+
+function schedulePreview(): void {
+  if (view === "edit") return;
+  window.clearTimeout(previewTimer);
+  previewTimer = window.setTimeout(renderPreview, 120);
+}
+
+/** Put the preview at the same relative place as the editor (or its cursor). */
+function syncPreviewScroll(fromCursor = false): void {
+  if (view === "edit") return;
+  const scroller = editor.view.scrollDOM;
+  const state = editor.view.state;
+  const ratio = fromCursor
+    ? (state.doc.lineAt(state.selection.main.head).number - 1) / Math.max(1, state.doc.lines - 1)
+    : scroller.scrollHeight > scroller.clientHeight
+      ? scroller.scrollTop / (scroller.scrollHeight - scroller.clientHeight)
+      : 0;
+  previewEl.scrollTop = ratio * (previewEl.scrollHeight - previewEl.clientHeight);
+}
+
+function applyView(): void {
+  if (!previewable()) view = "edit";
+  document.body.dataset.view = view;
+  previewEl.hidden = view === "edit";
+  $("view-label").textContent = viewLabels[view];
+  const button = $<HTMLButtonElement>("btn-view");
+  button.classList.toggle("on", view !== "edit");
+  button.disabled = !previewable();
+  if (view !== "edit") renderPreview();
+}
+
+function setView(mode: ViewMode): void {
+  if (mode !== "edit" && !previewable()) return;
+  view = mode;
+  applyView();
+  syncPreviewScroll(mode === "preview");
+  if (mode === "preview") previewEl.focus();
+  else editor.focusEditor();
+}
+
+editor.view.scrollDOM.addEventListener("scroll", () => {
+  if (view === "split") syncPreviewScroll();
+});
+
+// Links in the preview open in the browser; the window itself never navigates.
+previewEl.addEventListener("click", (e) => {
+  const link = (e.target as Element).closest("a");
+  if (!link) return;
+  e.preventDefault();
+  const href = link.getAttribute("href");
+  if (href) void platform.openUrl(href);
+});
 
 // --------------------------------------------------------------------- vim
 
@@ -208,6 +289,7 @@ const actions: Record<string, () => void> = {
   "btn-open": () => void openDocument(),
   "btn-save": () => void save(),
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
+  "btn-view": () => setView(next(viewModes, view)),
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
   "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
   "btn-theme": () => changeSettings(() => (settings.theme = next(themeNames, settings.theme))),
@@ -243,12 +325,14 @@ window.addEventListener(
     else if (cmd && key === "s") void save();
     else if (cmd && key === "o") void openDocument();
     else if (cmd && key === "n") void newDocument();
+    else if (cmd && e.shiftKey && key === "p") actions["btn-view"]();
     else if (cmd && key === "t") actions["btn-typewriter"]();
     else if (cmd && (key === "=" || key === "+")) setFontSize(1);
     else if (cmd && key === "-") setFontSize(-1);
     else if (e.key === "F1" || (cmd && e.key === "?")) toggleHints();
     else if (e.key === "F11" || (platform.isMac && e.metaKey && e.ctrlKey && key === "f")) void platform.toggleFullscreen();
     else if (e.key === "Escape" && !hintsEl.hidden) toggleHints(false);
+    else if (e.key === "Escape" && view === "preview") setView("edit");
     // A reload would throw away the document: swallow the WebView's refresh keys.
     // Ctrl+R is Vim's redo: outside Insert mode Vim itself cancels the reload (a handler that
     // already called preventDefault would stop the editor from seeing the key).
@@ -268,6 +352,12 @@ window.addEventListener(
 applyAppearance();
 load("", null, "Untitled");
 editor.setVim(settings.vim);
+
+const dropOverlay = $("drop-overlay");
+void platform.onFileDrop(
+  (file) => void openDropped(file),
+  (hovering) => (dropOverlay.hidden = !hovering),
+);
 
 void platform.onCloseRequested(async () => !doc.dirty || platform.confirmDiscard(doc.name));
 void platform.startupFile().then((path) => {

@@ -438,3 +438,195 @@ body {
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* --------------------------------------------------------------------- drop */
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 600;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------- md preview */
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.workspace #editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview[hidden] {
+  display: none;
+}
+
+body[data-view="preview"] #editor,
+body[data-view="preview"] .vim-coach {
+  display: none;
+}
+
+.preview {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 40px 32px 64px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--editor-font);
+  font-size: var(--font-size);
+  line-height: 1.65;
+  outline: none;
+}
+
+body[data-view="split"] .preview {
+  border-left: 1px solid var(--border);
+}
+
+/* The reading column, centred like the editor's. */
+.preview > * {
+  max-width: var(--column);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.preview h1,
+.preview h2,
+.preview h3,
+.preview h4,
+.preview h5,
+.preview h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+}
+
+.preview > :first-child {
+  margin-top: 0;
+}
+
+.preview h1 { font-size: 1.9em; }
+.preview h2 { font-size: 1.5em; }
+.preview h3 { font-size: 1.25em; }
+.preview h4,
+.preview h5,
+.preview h6 { font-size: 1.05em; }
+
+.preview p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+.preview a {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.preview code {
+  font-family: var(--mono-font);
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--hover);
+}
+
+.preview pre {
+  padding: 12px 14px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--hover);
+}
+
+.preview pre code {
+  padding: 0;
+  background: none;
+}
+
+.preview pre.raw {
+  color: var(--muted);
+  font-family: var(--mono-font);
+  font-size: 0.85em;
+}
+
+.preview blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 1em;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.preview ul,
+.preview ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 1.6em;
+}
+
+.preview li > p {
+  margin-bottom: 0.3em;
+}
+
+.preview li.task {
+  list-style: none;
+  margin-left: -1.3em;
+}
+
+.preview li.task input {
+  margin-right: 0.4em;
+}
+
+.preview table {
+  border-collapse: collapse;
+  margin-bottom: 1em;
+}
+
+.preview th,
+.preview td {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+}
+
+.preview th {
+  background: var(--hover);
+}
+
+.preview hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.5em auto;
+}
+
+.preview .image {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tool:disabled {
+  opacity: 0.4;
+}
+
+/* A table is as wide as its content: start it at the column's left edge instead of centring it. */
+.preview > table {
+  margin-left: max(0px, calc((100% - var(--column)) / 2));
+  margin-right: 0;
+}

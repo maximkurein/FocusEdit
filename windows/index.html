@@ -18,6 +18,10 @@
         <button id="btn-save" class="tool" title="Save (Ctrl+S)" aria-label="Save">
           <svg viewBox="0 0 20 20"><path d="M4 3.5h9.5l3 3V15a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 15V5A1.5 1.5 0 0 1 4 3.5Zm2 0V7h6V3.5M5.5 16.5v-5h9v5"/></svg>
         </button>
+        <button id="btn-view" class="tool labelled" title="View: edit, split or preview (Ctrl+Shift+P)" aria-label="View mode">
+          <svg viewBox="0 0 20 20"><path d="M1.5 10S4.7 4.5 10 4.5 18.5 10 18.5 10 15.3 15.5 10 15.5 1.5 10 1.5 10Z"/><circle cx="10" cy="10" r="2.4"/></svg>
+          <span id="view-label">Edit</span>
+        </button>
         <span class="sep" aria-hidden="true"></span>
         <button id="btn-focus" class="tool labelled" title="Focus highlighting" aria-label="Focus highlighting">
           <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.6" class="fill"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3"/></svg>
@@ -49,8 +53,12 @@
         </button>
       </nav>
     </header>
-    <main id="editor"></main>
+    <div id="workspace" class="workspace">
+      <main id="editor"></main>
+      <section id="preview" class="preview" tabindex="0" aria-label="Markdown preview" hidden></section>
+    </div>
     <footer id="vim-coach" class="vim-coach" aria-label="Vim coach" hidden></footer>
+    <div id="drop-overlay" class="drop-overlay" hidden><span>Drop a file to open it</span></div>
     <aside id="hints" class="hints" role="dialog" aria-label="Hints and shortcuts" hidden></aside>
     <script type="module" src="/src/main.ts"></script>
   </body>
