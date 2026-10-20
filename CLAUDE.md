@@ -48,7 +48,7 @@ CI (`.github/workflows/windows.yml`) runs `npm ci`, `npm test`, `tauri build` on
 - Document model: `FocusDocument` (NSDocument) with `DocumentKind` (Markdown / Fountain / plain). RTF files are converted to Markdown on open and back on save by `RTFMarkdown` (lossy: fonts, colours, images, tables are dropped).
 - Window: `DocumentWindowController` → `MainSplitViewController` hosting `LibraryViewController`, `EditorViewController`, `OutlineViewController`. `EditorViewController` owns theme/size/font/focus-mode state and the writing aids, and forwards edits to outline/preview.
 - Editing surface: `FocusTextView` (focus fade, typewriter scrolling) with `EditorCommands` (formatting, CriticMarkup). Highlighting is split in `SyntaxHighlighter` (semantic `SyntaxRole` tokens via `SyntaxEngine`) with `MarkdownHighlighter` / `FountainHighlighter`; roles are resolved to colours/traits at render time from `Theme`, so theme switches do not retokenise.
-- `CompletionEngine` (grey inline word suggestion), `VimEngine` (pure operator+motion grammar, teaching mode with explanations) driven by `VimController` in the view; `MarkdownToHTML` + `PreviewWindowController` for preview; `Snapshot` for headless rendering; `IconFactory` draws the app icon in code (no PNG assets).
+- `CompletionEngine` (grey inline word suggestion), `VimEngine` (pure operator+motion grammar, teaching mode with explanations) driven by `VimController` in the view; `MarkdownToHTML` + `PreviewViewController` (split pane beside the editor) for preview; `Snapshot` for headless rendering; `IconFactory` draws the app icon in code (no PNG assets).
 
 ## Windows architecture
 

@@ -6,6 +6,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Mac: the Markdown preview (⇧⌘P, the eye button) is now a pane beside the text inside the window instead of a separate window; it updates while you type without jumping to the top, and links open in the browser
+
 ## [1.1.6] - 2026-10-20
 
 ### Changed

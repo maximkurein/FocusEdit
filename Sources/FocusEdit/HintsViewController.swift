@@ -78,7 +78,7 @@ final class HintsViewController: NSViewController {
                 ("> quote", "Blockquote"),
                 ("[text](url)", "Link · ⌘K"),
                 ("{++ ++} {-- --}", "CriticMarkup — Edit ▸ CriticMarkup"),
-                ("⇧⌘P", "Live preview"),
+                ("⇧⌘P", "Live preview beside the text; again to close"),
             ]))
         case .fountain:
             list.append(Section(title: "Fountain", rows: [

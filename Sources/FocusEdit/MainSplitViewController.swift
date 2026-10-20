@@ -1,19 +1,19 @@
 import AppKit
 
-/// Document window content: [Library | Editor | Outline] with collapsible
-/// sidebars, plus HTML preview/export and the Library menu actions. Routed to
+/// Document window content: [Library | Editor | Preview | Outline] with collapsible
+/// sidebars and preview pane, plus HTML export and the Library menu actions. Routed to
 /// via the responder chain from the menu.
 final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation, NSToolbarItemValidation {
 
     let library = LibraryViewController()
     let editor = EditorViewController()
+    let preview = PreviewViewController()
     let outline = OutlineViewController()
 
     private var libraryItem: NSSplitViewItem!
     private var editorItem: NSSplitViewItem!
+    private var previewItem: NSSplitViewItem!
     private var outlineItem: NSSplitViewItem!
-
-    private var previewController: PreviewWindowController?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -25,6 +25,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
         editorItem = NSSplitViewItem(viewController: editor)
         editorItem.minimumThickness = 380
+
+        // The live preview beside the text; hidden until View ▸ Show Preview.
+        previewItem = NSSplitViewItem(viewController: preview)
+        previewItem.minimumThickness = 300
+        previewItem.canCollapse = true
+        previewItem.isCollapsed = true
 
         // macOS 14+: a trailing inspector (floating glass panel on macOS 26).
         if #available(macOS 14.0, *) {
@@ -38,6 +44,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
         addSplitViewItem(libraryItem)
         addSplitViewItem(editorItem)
+        addSplitViewItem(previewItem)
         addSplitViewItem(outlineItem)
 
         libraryItem.isCollapsed = !Preferences.showLibrary
@@ -57,8 +64,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
     private func contentChanged() {
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
-        if let pc = previewController, pc.window?.isVisible == true {
-            pc.update(markdown: editor.plainText, dark: editor.themeIsDark)
+        if !previewItem.isCollapsed {
+            preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
         }
     }
 
@@ -131,18 +138,13 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         }
     }
 
-    // MARK: Preview / export
+    // MARK: Preview beside the text / export
 
     @objc func togglePreview(_ sender: Any?) {
         guard editor.documentKind.supportsHTML else { NSSound.beep(); return }
-        if let pc = previewController, pc.window?.isVisible == true {
-            pc.close()
-        } else {
-            let pc = previewController ?? PreviewWindowController()
-            previewController = pc
-            pc.update(markdown: editor.plainText, dark: editor.themeIsDark)
-            pc.showWindow(nil)
-        }
+        let showing = previewItem.isCollapsed
+        if showing { preview.update(markdown: editor.plainText, dark: editor.themeIsDark) }
+        previewItem.animator().isCollapsed = !showing
     }
 
     @objc func exportAsHTML(_ sender: Any?) {
@@ -171,7 +173,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
         switch item.action {
         case #selector(togglePreview(_:)):
-            ToolbarSymbol.update(item, "eye", on: previewController?.window?.isVisible == true)
+            ToolbarSymbol.update(item, "eye", on: !previewItem.isCollapsed)
             return editor.documentKind.supportsHTML
         case #selector(toggleOutline(_:)):
             ToolbarSymbol.update(item, "sidebar.right", on: !outlineItem.isCollapsed)
@@ -188,8 +190,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         case #selector(toggleOutline(_:)):
             item.title = outlineItem.isCollapsed ? "Show Outline" : "Hide Outline"
         case #selector(togglePreview(_:)):
-            let visible = previewController?.window?.isVisible == true
-            item.title = visible ? "Hide Preview" : "Show Preview"
+            item.title = previewItem.isCollapsed ? "Show Preview" : "Hide Preview"
             return editor.documentKind.supportsHTML
         case #selector(exportAsHTML(_:)), #selector(copyAsHTML(_:)):
             return editor.documentKind.supportsHTML
