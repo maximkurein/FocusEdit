@@ -13,6 +13,8 @@ import { tags as t } from "@lezer/highlight";
 import { CompletionEngine, type DocKind } from "./completion";
 import { focusHighlighting, typewriterScrolling } from "./focus";
 import { inlineCompletion } from "./ghost";
+import { linkFromPaste } from "./links";
+import { countWords } from "./session";
 import type { Settings } from "./settings";
 import type { VimAction } from "./vim";
 import { joinVimEdits, VimController } from "./vim-cm";
@@ -68,8 +70,8 @@ const formatKeymap = [
   { key: "Mod-k", run: wrapWith("[", "](https://)") },
 ];
 
-export function placeholderFor(kind: DocKind, hintsKey: string): string {
-  const hints = `   ·   ${hintsKey} hints`;
+export function placeholderFor(kind: DocKind, hintsKey: string, commandsKey = ""): string {
+  const hints = `   ·   ${hintsKey} hints` + (commandsKey ? `   ·   ${commandsKey} commands` : "");
   if (kind === "markdown") return `Start writing — # heading, **bold**, - list${hints}`;
   if (kind === "fountain") return `INT. LOCATION - DAY${hints}`;
   return `Start writing…${hints}`;
@@ -78,9 +80,11 @@ export function placeholderFor(kind: DocKind, hintsKey: string): string {
 export interface EditorOptions {
   settings: Settings;
   hintsKey: string;
+  /** Shown in the placeholder: how to open the command palette. */
+  commandsKey: string;
   onChange: (doc: Text) => void;
-  /** The cursor moved (or the text changed): its 1-based line. */
-  onCursor: (line: number) => void;
+  /** The cursor moved (or the text changed): its 1-based line, and how many words are selected. */
+  onCursor: (line: number, selectedWords: number) => void;
   /** Vim mode: the coach bar element and the app-level actions (:w, :q, …). */
   vim: { coach: HTMLElement; perform: (action: VimAction) => void };
 }
@@ -122,7 +126,7 @@ export class Editor {
       highlightSpecialChars(),
       EditorView.lineWrapping,
       EditorView.contentAttributes.of({ spellcheck: "true", autocorrect: "off", autocapitalize: "sentences" }),
-      this.hint.of(placeholder(placeholderFor(this.kind, this.options.hintsKey))),
+      this.hint.of(placeholder(placeholderFor(this.kind, this.options.hintsKey, this.options.commandsKey))),
       this.language.of(this.languageFor(this.kind)),
       syntaxHighlighting(highlightStyle),
       pairing,
@@ -148,12 +152,36 @@ export class Editor {
         ...defaultKeymap,
         { key: "Tab", run: insertTab },
       ]),
+      EditorView.domEventHandlers({ paste: (event, view) => this.pasteLink(event, view) }),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) this.options.onChange(u.state.doc);
-        if (u.docChanged || u.selectionSet) this.options.onCursor(u.state.doc.lineAt(u.state.selection.main.head).number);
+        if (u.docChanged || u.selectionSet) {
+          const main = u.state.selection.main;
+          // A selection of a whole book would be slow to count and is not worth a number.
+          const words = main.empty || main.to - main.from > 200_000 ? 0 : countWords(u.state.sliceDoc(main.from, main.to));
+          this.options.onCursor(u.state.doc.lineAt(main.head).number, words);
+        }
       }),
     ];
     return EditorState.create({ doc, extensions });
+  }
+
+  /** Selected text + a pasted web address = a Markdown link. */
+  private pasteLink(event: ClipboardEvent, view: EditorView): boolean {
+    if (this.kind === "fountain") return false;
+    const { state } = view;
+    if (state.selection.ranges.length !== 1 || state.selection.main.empty) return false;
+    const { from, to } = state.selection.main;
+    const link = linkFromPaste(state.sliceDoc(from, to), event.clipboardData?.getData("text/plain") ?? "");
+    if (link === null) return false;
+    event.preventDefault();
+    view.dispatch({
+      changes: { from, to, insert: link },
+      selection: { anchor: from + link.length },
+      userEvent: "input.paste",
+      scrollIntoView: true,
+    });
+    return true;
   }
 
   private languageFor(kind: DocKind): Extension {
@@ -198,7 +226,7 @@ export class Editor {
     this.view.dispatch({
       effects: [
         this.language.reconfigure(this.languageFor(kind)),
-        this.hint.reconfigure(placeholder(placeholderFor(kind, this.options.hintsKey))),
+        this.hint.reconfigure(placeholder(placeholderFor(kind, this.options.hintsKey, this.options.commandsKey))),
       ],
     });
   }

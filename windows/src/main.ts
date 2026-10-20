@@ -6,14 +6,17 @@ import type { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type DocKind, kindForPath } from "./completion";
 import { clearDraft, loadDraft, saveDraft } from "./draft";
-import { Editor, type LineSeparator } from "./editor";
+import { Editor, type LineSeparator, wrapWith } from "./editor";
 import { copyAsHtml, htmlDocument, printMarkdown, titleOf } from "./export";
 import { appendAbout, renderHints } from "./hints";
 import { renderMarkdown } from "./markdown-html";
 import { closeMenu, type MenuItem, showMenu } from "./menu";
+import { type Command, filterCommands, Palette } from "./palette";
 import { extractHeadings, OutlinePanel } from "./outline";
 import { addRecent, folderOf, loadRecent, removeRecent, saveRecent } from "./recent";
+import { countWords, formatDuration, Session } from "./session";
 import type { VimAction } from "./vim";
+import { markWelcomed, wasWelcomed, welcomeText } from "./welcome";
 import * as platform from "./platform";
 import {
   columnWidth,
@@ -54,23 +57,33 @@ const statsEl = $("doc-stats");
 const hintsEl = $("hints");
 
 let cursorLine = 1;
+let wordCount = 0;
+let selectedWords = 0;
+let notice = "";
+const session = new Session();
 
 const editor = new Editor($("editor"), {
   settings,
   hintsKey: platform.isMac ? "⌘?" : "F1",
+  commandsKey: `${mod}Shift+P`,
   onChange: (text) => {
     if (!doc.dirty) {
       doc.dirty = true;
       updateTitle();
     }
     updateStats(text);
+    session.note(wordCount);
     schedulePreview();
     scheduleDraft();
     scheduleOutline();
   },
-  onCursor: (line) => {
+  onCursor: (line, words) => {
     cursorLine = line;
     if (settings.outline) outline.setCursor(line);
+    if (words !== selectedWords) {
+      selectedWords = words;
+      renderStats();
+    }
   },
   vim: { coach: $("vim-coach"), perform: (action) => void performVim(action) },
 });
@@ -117,9 +130,38 @@ function updateTitle(): void {
 }
 
 function updateStats(text: Text): void {
-  const words = text.toString().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.ceil(words / 200));
-  statsEl.textContent = words === 0 ? "" : `${words} word${words === 1 ? "" : "s"} · ${minutes} min read`;
+  wordCount = countWords(text.toString());
+  renderStats();
+}
+
+const plural = (n: number) => `${n} word${n === 1 ? "" : "s"}`;
+
+/** The line under the title: a notice, the selection, the session goal, or the document's size. */
+function renderStats(): void {
+  const goal = settings.goal;
+  const bar = $("goal-bar");
+  bar.hidden = goal <= 0;
+  if (goal > 0) {
+    const progress = session.progress(goal);
+    $("goal-fill").style.width = `${Math.round(progress * 100)}%`;
+    bar.classList.toggle("done", progress >= 1);
+  }
+  if (notice) statsEl.textContent = notice;
+  else if (selectedWords > 0) statsEl.textContent = `${plural(selectedWords)} selected`;
+  else if (goal > 0) statsEl.textContent = `+${session.written} / ${goal} words · ${formatDuration(session.activeMs)}${session.progress(goal) >= 1 ? " · goal reached" : ""}`;
+  else statsEl.textContent = wordCount === 0 ? "" : `${plural(wordCount)} · ${Math.max(1, Math.ceil(wordCount / 200))} min read`;
+}
+
+// The session timer counts the seconds spent writing; the line is redrawn while a goal is set.
+window.setInterval(() => {
+  session.tick();
+  if (settings.goal > 0) renderStats();
+}, 1000);
+
+function setGoal(words: number): void {
+  changeSettings(() => (settings.goal = words));
+  session.reset(wordCount); // count from now
+  renderStats();
 }
 
 // --------------------------------------------------------------- documents
@@ -134,6 +176,7 @@ function load(text: string, path: string | null, name: string, keepDraft = false
   editor.load(body, doc.kind, separator);
   updateTitle();
   updateStats(editor.view.state.doc);
+  session.reset(wordCount);
   renderHelp();
   applyView();
   refreshOutline(1);
@@ -261,8 +304,12 @@ function scheduleOutline(): void {
 
 /** A short message in place of the word count. */
 function notify(message: string): void {
-  statsEl.textContent = message;
-  window.setTimeout(() => updateStats(editor.view.state.doc), 2500);
+  notice = message;
+  renderStats();
+  window.setTimeout(() => {
+    notice = "";
+    renderStats();
+  }, 2500);
 }
 
 async function exportHtml(): Promise<void> {
@@ -432,6 +479,87 @@ async function performVim(action: VimAction): Promise<void> {
   }
 }
 
+// ----------------------------------------------------------- command palette
+
+const palette = new Palette($("palette"), () => editor.focusEditor());
+
+async function showWelcome(): Promise<void> {
+  if (!(await canDiscard())) return;
+  load(welcomeText(mod), null, "Welcome.md");
+}
+
+/** Everything the app can do, for the palette. */
+function allCommands(): Command[] {
+  const key = (s: string) => `${mod}${s}`;
+  const format = (before: string, after: string) => () => {
+    const view = editor.view;
+    wrapWith(before, after)({ state: view.state, dispatch: (tr) => view.dispatch(tr) });
+    editor.focusEditor();
+  };
+  const list: Command[] = [
+    { title: "New document", shortcut: key("N"), run: () => void newDocument() },
+    { title: "Open…", shortcut: key("O"), run: () => void openDocument() },
+    { title: "Save", shortcut: key("S"), run: () => void save() },
+    { title: "Save as…", shortcut: key("Shift+S"), run: () => void saveAs() },
+    { title: "Export as HTML…", run: () => void exportHtml() },
+    { title: "Print or save as PDF…", shortcut: key("P"), keywords: "pdf", run: printDocument },
+    { title: "Copy as HTML", run: () => void copyHtml() },
+    { title: "View: Edit", shortcut: key("Shift+V"), keywords: "source write", run: () => setView("edit") },
+    { title: "View: Split", keywords: "side by side live preview", run: () => setView("split") },
+    { title: "View: Preview", keywords: "read reading", run: () => setView("preview") },
+    { title: settings.outline ? "Outline: hide" : "Outline: show", shortcut: key("Shift+O"), keywords: "headings", run: () => actions["btn-outline"]() },
+    ...focusModes.map((mode): Command => ({
+      title: `Focus: ${mode[0].toUpperCase()}${mode.slice(1)}`,
+      keywords: "highlight dim",
+      run: () => changeSettings(() => (settings.focusMode = mode)),
+    })),
+    { title: settings.typewriter ? "Typewriter scrolling: off" : "Typewriter scrolling: on", shortcut: key("T"), keywords: "centre center", run: () => actions["btn-typewriter"]() },
+    ...themeNames.map((theme): Command => ({
+      title: `Theme: ${theme}`,
+      keywords: { System: "auto follow windows", Light: "day white", Dark: "night black", Sepia: "paper warm" }[theme],
+      run: () => changeSettings(() => (settings.theme = theme)),
+    })),
+    ...sizes.map((size): Command => ({ title: `Column width: ${size}`, run: () => changeSettings(() => (settings.size = size)) })),
+    ...fonts.map((font): Command => ({ title: `Font: ${font[0].toUpperCase()}${font.slice(1)}`, run: () => changeSettings(() => (settings.font = font)) })),
+    { title: "Text size: larger", shortcut: key("+"), run: () => setFontSize(1) },
+    { title: "Text size: smaller", shortcut: key("−"), run: () => setFontSize(-1) },
+    { title: "Full screen", shortcut: "F11", run: () => void platform.toggleFullscreen() },
+    { title: settings.vim ? "Vim mode: turn off" : "Vim mode: turn on", keywords: "learn", run: () => actions["btn-vim"]() },
+    { title: "Format: Bold", shortcut: key("B"), run: format("**", "**") },
+    { title: "Format: Italic", shortcut: key("I"), run: format("*", "*") },
+    { title: "Format: Link", shortcut: key("K"), run: format("[", "](https://)") },
+    ...[250, 500, 1000, 2000].map((n): Command => ({ title: `Word goal: ${n} words`, keywords: "target session progress timer", run: () => setGoal(n) })),
+    { title: "Word goal: off", keywords: "target session progress timer", run: () => setGoal(0) },
+    { title: "Hints and shortcuts", shortcut: "F1", run: () => toggleHints(true) },
+    { title: "About FocusEdit", keywords: "version developer github", run: () => toggleHints(true) },
+    { title: "Open the welcome tour", keywords: "introduction help start", run: () => void showWelcome() },
+  ];
+  if (platform.isTauri) {
+    for (const file of loadRecent()) {
+      list.push({ title: `Open recent: ${file.name}`, keywords: folderOf(file.path), run: () => void openRecent(file.path) });
+    }
+  }
+  return list;
+}
+
+/** What the palette lists for what has been typed; a number also offers a word goal and a line. */
+function paletteCommands(query: string): Command[] {
+  const list = filterCommands(allCommands(), query);
+  const number = /^\d+$/.test(query.trim()) ? parseInt(query.trim(), 10) : null;
+  if (number !== null && number > 0) {
+    list.unshift(
+      { title: `Word goal: ${number} words`, run: () => setGoal(number) },
+      { title: `Go to line ${number}`, run: () => editor.goToLine(number) },
+    );
+  }
+  return list;
+}
+
+function openPalette(): void {
+  closeMenu();
+  palette.open(paletteCommands);
+}
+
 // ----------------------------------------------------------------- toolbar
 
 const actions: Record<string, () => void> = {
@@ -478,7 +606,8 @@ window.addEventListener(
     else if (cmd && key === "o") void openDocument();
     else if (cmd && !e.shiftKey && key === "p") printDocument();
     else if (cmd && key === "n") void newDocument();
-    else if (cmd && e.shiftKey && key === "p") actions["btn-view"]();
+    else if (cmd && e.shiftKey && key === "p") openPalette();
+    else if (cmd && e.shiftKey && key === "v") actions["btn-view"]();
     else if (cmd && key === "t") actions["btn-typewriter"]();
     else if (cmd && (key === "=" || key === "+")) setFontSize(1);
     else if (cmd && key === "-") setFontSize(-1);
@@ -540,14 +669,19 @@ async function start(): Promise<void> {
   const startup = await platform.startupFile();
   if (startup) return openPath(startup);
   const last = platform.isTauri ? loadRecent()[0] : undefined;
+  let opened = false;
   if (last) {
     try {
       const file = await platform.readFile(last.path);
       load(file.text, file.path, file.name);
+      opened = true;
     } catch {
       removeRecent(last.path); // gone since last time: start with an empty document
     }
   }
+  // The very first start: a document that teaches by being edited.
+  if (!opened && !wasWelcomed()) load(welcomeText(mod), null, "Welcome.md");
+  markWelcomed();
 }
 void start();
 

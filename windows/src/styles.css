@@ -790,3 +790,104 @@ body[data-view="split"] .preview {
     font-size: 11.5pt;
   }
 }
+
+/* ------------------------------------------------------------ command palette */
+
+.palette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.palette[hidden] {
+  display: none;
+}
+
+.palette-panel {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 64vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  font: 13px var(--ui-font);
+  color: var(--fg);
+}
+
+.palette-panel input {
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font: 15px var(--ui-font);
+  outline: none;
+}
+
+.palette-panel input::placeholder {
+  color: var(--muted);
+}
+
+.palette-list {
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  list-style: none;
+}
+
+.palette-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.palette-item.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.palette-key {
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.palette-empty {
+  padding: 10px;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ goal bar */
+
+.goal-bar {
+  height: 2px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.goal-bar[hidden] {
+  display: none;
+}
+
+.goal-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.goal-bar.done .goal-fill {
+  background: #2f9e5b;
+}

@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-20
+
+### Added
+- Windows: command palette (`Ctrl+Shift+P`): every action by typing a few letters; a number offers "Word goal" and "Go to line"
+- Windows: word goal with a progress bar under the toolbar and a session timer that counts only the time spent writing; the number of selected words replaces the word count while text is selected
+- Windows: a welcome document on the first start (and from the palette)
+- Windows: select text and paste a web address to get a Markdown link
+
+### Changed
+- Windows: the View switch (Edit → Split → Preview) moved from `Ctrl+Shift+P` to `Ctrl+Shift+V`; `Ctrl+Shift+P` now opens the command palette
+
 ## [1.2.0] - 2026-10-20
 
 ### Added

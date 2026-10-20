@@ -25,9 +25,17 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
       ],
     },
     {
+      title: "Commands",
+      rows: [
+        [`${mod}Shift+P`, "Command palette: type what you want to do"],
+        ["a number", "In the palette: set a word goal, or go to a line"],
+        ["Select + paste URL", "Makes a Markdown link"],
+      ],
+    },
+    {
       title: "View (eye button in the toolbar)",
       rows: [
-        [`${mod}Shift+P`, "Switch: Edit → Split → Preview → Edit"],
+        [`${mod}Shift+V`, "Switch: Edit → Split → Preview → Edit"],
         ["Split", "Editor and live preview side by side"],
         ["Preview", "Reading view; Esc goes back to editing"],
       ],

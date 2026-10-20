@@ -17,6 +17,8 @@ export interface Settings {
   pairing: boolean;
   vim: boolean;
   outline: boolean;
+  /** Words to write per session; 0 = no goal. */
+  goal: number;
 }
 
 export const defaults: Settings = {
@@ -30,6 +32,7 @@ export const defaults: Settings = {
   pairing: true,
   vim: false,
   outline: false,
+  goal: 0,
 };
 
 const KEY = "focusedit.settings.v1";
