@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-10-20
+
 ### Added
 - About: developer (Kurein M.N.) and a link to the GitHub page — in the Windows hints panel (F1) and in the Mac About panel (credits)
 
