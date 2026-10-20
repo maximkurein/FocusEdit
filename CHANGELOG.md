@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-10-20
+
+### Changed
+- Windows: the F1 hints panel has its own View section (`Ctrl+Shift+P`: Edit → Split → Preview)
+
 ## [1.1.5] - 2026-10-20
 
 ### Added

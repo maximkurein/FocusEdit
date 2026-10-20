@@ -24,6 +24,14 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
         [`${mod}+  ${mod}−`, "Text size"],
       ],
     },
+    {
+      title: "View (eye button in the toolbar)",
+      rows: [
+        [`${mod}Shift+P`, "Switch: Edit → Split → Preview → Edit"],
+        ["Split", "Editor and live preview side by side"],
+        ["Preview", "Reading view; Esc goes back to editing"],
+      ],
+    },
   ];
   sections.push({
     title: "Vim mode (Vim button in the toolbar)",
@@ -52,7 +60,6 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
     title: "Files",
     rows: [
       [`${mod}N  ${mod}O`, "New · open"],
-      [`${mod}⇧P`, "View: edit · split (live preview) · preview; Esc leaves the preview"],
       ["drag a file", "Drop .md, .txt or .fountain on the window to open it"],
       [`${mod}S  ${mod}⇧S`, "Save · save as"],
       [`${mod}F`, "Find and replace"],
