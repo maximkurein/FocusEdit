@@ -154,6 +154,7 @@ enum SelfTest {
         check("~ toggles case", vimRun("abc", "~"), "Abc|1")
         check("r replaces a character", vimRun("abc", "rX"), "Xbc|0")
         check("A appends at the line end", vimRun("ab\ncd", "A +! <Esc>"), "ab!\ncd|2")
+        check("i inserts before the cursor", vimRun("ab", cursor: 1, "i +x <Esc>"), "axb|1")
         check("o opens a line + . repeats it", vimRun("a", "o +b <Esc> ."), "a\nb\nb|4")
         check("gg and G", vimRun("a\nb\nc", cursor: 2, "G"), "a\nb\nc|4")
         check("5G goes to a line", vimRun("a\nb\nc\nd\ne", "4G"), "a\nb\nc\nd\ne|6")

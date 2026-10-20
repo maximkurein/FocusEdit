@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-20
+
+### Fixed
+- Vim mode (Mac): `i` and `a` in Normal mode waited for a text object instead of entering Insert mode (the `where` clause of the `case` applied to `a` only); self-test added
+
+### Added
+- Windows port: the Vim learning mode (`windows/src/vim.ts`, `vim-cm.ts`) — a TypeScript port of VimEngine with the coach bar, block cursor, Russian-layout keys and tests (`windows/tests/vim.test.ts`)
+
 ## [1.1.1] - 2026-10-19
 
 ### Added

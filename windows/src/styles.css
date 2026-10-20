@@ -285,3 +285,131 @@ body {
   margin: 0;
   color: var(--muted);
 }
+
+/* ---------------------------------------------------------------- vim mode */
+
+#editor .cm-editor.vim-hide-caret .cm-cursorLayer {
+  visibility: hidden;
+}
+
+/* Normal mode: the cursor is a block over the character it sits on. */
+#editor .cm-vim-block {
+  background: var(--cursor);
+  color: var(--bg) !important;
+  border-radius: 1px;
+}
+
+#editor .cm-vim-block-empty {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.2em;
+  vertical-align: text-bottom;
+}
+
+.vim-coach {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 14px 8px;
+  background: var(--chrome);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.vim-coach[hidden] {
+  display: none;
+}
+
+.vim-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.vim-badge {
+  min-width: 78px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  color: #fff;
+  background: #2f7deb;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.vim-badge.insert {
+  background: #2f9e5b;
+}
+
+.vim-badge.visual {
+  background: #e08a1e;
+}
+
+.vim-badge.command {
+  background: #8a55d6;
+}
+
+.vim-keys {
+  font-family: var(--mono-font);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vim-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vim-message.muted,
+.vim-tip {
+  color: var(--muted);
+}
+
+.vim-message.error {
+  color: #d64545;
+}
+
+.vim-tip {
+  font-size: 11px;
+}
+
+.vim-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.vim-legend {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.vim-exit {
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 11px var(--ui-font);
+  cursor: default;
+}
+
+.vim-exit:hover {
+  background: var(--hover);
+}

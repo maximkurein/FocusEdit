@@ -14,6 +14,8 @@ import { CompletionEngine, type DocKind } from "./completion";
 import { focusHighlighting, typewriterScrolling } from "./focus";
 import { inlineCompletion } from "./ghost";
 import type { Settings } from "./settings";
+import type { VimAction } from "./vim";
+import { joinVimEdits, VimController } from "./vim-cm";
 
 export type LineSeparator = "\n" | "\r\n";
 
@@ -77,6 +79,8 @@ export interface EditorOptions {
   settings: Settings;
   hintsKey: string;
   onChange: (doc: Text) => void;
+  /** Vim mode: the coach bar element and the app-level actions (:w, :q, …). */
+  vim: { coach: HTMLElement; perform: (action: VimAction) => void };
 }
 
 export class Editor {
@@ -92,6 +96,8 @@ export class Editor {
   private readonly language = new Compartment();
   private readonly hint = new Compartment();
   private readonly lineSep = new Compartment();
+  private readonly vimSlot = new Compartment();
+  private vim: VimController | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -108,7 +114,7 @@ export class Editor {
     const s = this.settings;
     const extensions: Extension[] = [
       this.lineSep.of(EditorState.lineSeparator.of(this.separator)),
-      history(),
+      history({ joinToEvent: joinVimEdits }),
       drawSelection(),
       dropCursor(),
       highlightSpecialChars(),
@@ -130,6 +136,7 @@ export class Editor {
       this.focus.of(focusHighlighting(s.focusMode)),
       this.typewriter.of(s.typewriter ? typewriterScrolling() : []),
       search({ top: true }),
+      this.vimSlot.of(this.vim ? this.vim.extension() : []),
       keymap.of([
         ...closeBracketsKeymap,
         ...formatKeymap,
@@ -176,6 +183,7 @@ export class Editor {
     this.engine.kind = kind;
     this.engineDoc = null;
     this.view.setState(this.createState(text));
+    this.vim?.start();
   }
 
   /** Save As to another extension: switch language without touching the text. */
@@ -202,6 +210,25 @@ export class Editor {
         this.pairs.reconfigure(s.pairing ? closeBrackets() : []),
       ],
     });
+  }
+
+  /** Turn Vim mode on or off; on starts in Normal mode. */
+  setVim(on: boolean): void {
+    if (on === (this.vim !== null)) return;
+    if (on) {
+      this.vim = new VimController(this.view, this.options.vim.coach, this.options.vim.perform);
+      this.view.dispatch({ effects: this.vimSlot.reconfigure(this.vim.extension()) });
+      this.vim.start();
+    } else {
+      this.vim?.stop();
+      this.vim = null;
+      this.view.dispatch({ effects: this.vimSlot.reconfigure([]) });
+    }
+  }
+
+  /** Vim is on and not in Insert mode: it takes every key, even Ctrl+R. */
+  get vimOwnsKeys(): boolean {
+    return this.vim !== null && this.vim.engine.mode !== "INSERT";
   }
 
   get text(): string {

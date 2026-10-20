@@ -287,7 +287,9 @@ final class VimEngine {
             awaiting = .find(Character(key))
             onFeedback?(feedback, tip)
             return
-        case "i", "a" where operatorKey != nil || mode != .normal:
+        case "i", "a":
+            // After an operator or in Visual mode i/a start a text object (iw, a(); in Normal they insert.
+            guard operatorKey != nil || mode != .normal else { break }
             awaiting = .textObject(Character(key))
             onFeedback?(feedback, tip)
             return

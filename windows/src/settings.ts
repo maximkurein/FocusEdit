@@ -14,6 +14,7 @@ export interface Settings {
   fontSize: number;
   autocomplete: boolean;
   pairing: boolean;
+  vim: boolean;
 }
 
 export const defaults: Settings = {
@@ -25,6 +26,7 @@ export const defaults: Settings = {
   fontSize: 17,
   autocomplete: true,
   pairing: true,
+  vim: false,
 };
 
 const KEY = "focusedit.settings.v1";

@@ -6,6 +6,7 @@ import type { Text } from "@codemirror/state";
 import { type DocKind, kindForPath } from "./completion";
 import { Editor, type LineSeparator } from "./editor";
 import { renderHints } from "./hints";
+import type { VimAction } from "./vim";
 import * as platform from "./platform";
 import {
   columnWidth,
@@ -48,6 +49,7 @@ const editor = new Editor($("editor"), {
     }
     updateStats(text);
   },
+  vim: { coach: $("vim-coach"), perform: (action) => void performVim(action) },
 });
 
 // ---------------------------------------------------------------- appearance
@@ -65,6 +67,8 @@ function applyAppearance(): void {
   $("btn-focus").classList.toggle("on", settings.focusMode !== "off");
   $("btn-focus").title = `Focus highlighting: ${focusLabel} — click to change`;
   $("btn-typewriter").classList.toggle("on", settings.typewriter);
+  $("btn-vim").classList.toggle("on", settings.vim);
+  $("btn-vim").title = settings.vim ? "Vim mode is on — click (or :novim) to turn it off" : "Vim mode: learn Vim as you write";
   $("btn-theme").title = `Theme: ${settings.theme} — click to change`;
   $("btn-size").title = `Column width: ${settings.size} — click to change`;
   $("btn-font").title = `Font: ${settings.font} — click to change`;
@@ -75,6 +79,7 @@ function changeSettings(update: () => void): void {
   saveSettings(settings);
   applyAppearance();
   editor.applySettings();
+  editor.setVim(settings.vim);
 }
 
 // ------------------------------------------------------------------- title
@@ -169,6 +174,29 @@ function toggleHints(show = hintsEl.hidden): void {
   if (!show) editor.focusEditor();
 }
 
+// --------------------------------------------------------------------- vim
+
+async function performVim(action: VimAction): Promise<void> {
+  switch (action) {
+    case "save":
+      return save();
+    case "close":
+      return platform.closeWindow(); // the close guard asks about unsaved changes
+    case "saveAndClose":
+      await save();
+      if (!doc.dirty) await platform.closeWindow();
+      return;
+    case "discardAndClose":
+      doc.dirty = false;
+      return platform.closeWindow();
+    case "help":
+      return toggleHints(true);
+    case "exitVim":
+      changeSettings(() => (settings.vim = false));
+      editor.focusEditor();
+  }
+}
+
 // ----------------------------------------------------------------- toolbar
 
 const actions: Record<string, () => void> = {
@@ -176,6 +204,7 @@ const actions: Record<string, () => void> = {
   "btn-save": () => void save(),
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
+  "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
   "btn-theme": () => changeSettings(() => (settings.theme = next(themeNames, settings.theme))),
   "btn-size": () => changeSettings(() => (settings.size = next(sizes, settings.size))),
   "btn-font": () => changeSettings(() => (settings.font = next(fonts, settings.font))),
@@ -216,7 +245,10 @@ window.addEventListener(
     else if (e.key === "F11" || (platform.isMac && e.metaKey && e.ctrlKey && key === "f")) void platform.toggleFullscreen();
     else if (e.key === "Escape" && !hintsEl.hidden) toggleHints(false);
     // A reload would throw away the document: swallow the WebView's refresh keys.
-    else if (e.key === "F5" || (cmd && key === "r")) handled = true;
+    // Ctrl+R is Vim's redo: outside Insert mode Vim itself cancels the reload (a handler that
+    // already called preventDefault would stop the editor from seeing the key).
+    else if (cmd && (key === "r" || e.code === "KeyR") && editor.vimOwnsKeys) handled = false;
+    else if (e.key === "F5" || (cmd && (key === "r" || e.code === "KeyR"))) handled = true;
     else handled = false;
     if (handled) {
       e.preventDefault();
@@ -230,6 +262,7 @@ window.addEventListener(
 
 applyAppearance();
 load("", null, "Untitled");
+editor.setVim(settings.vim);
 
 void platform.onCloseRequested(async () => !doc.dirty || platform.confirmDiscard(doc.name));
 void platform.startupFile().then((path) => {

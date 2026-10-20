@@ -131,3 +131,13 @@ export async function onCloseRequested(guard: () => Promise<boolean>): Promise<v
     });
   }
 }
+
+/** Close the window; the close guard (unsaved changes) still runs. */
+export async function closeWindow(): Promise<void> {
+  if (isTauri) {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().close();
+  } else {
+    window.close();
+  }
+}

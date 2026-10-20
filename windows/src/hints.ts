@@ -25,6 +25,17 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
       ],
     },
   ];
+  sections.push({
+    title: "Vim mode (Vim button in the toolbar)",
+    rows: [
+      ["Esc  i  v  :", "Normal · insert · select · command line"],
+      ["h j k l  w b e", "Move by character, line, word"],
+      ["0 ^ $  gg G", "Line start · first text · end · first / last line"],
+      ["d c y + motion", "dw, ciw, y$ — dd, cc, yy for whole lines"],
+      ["x  p  u  .", `Delete a character · put · undo · repeat (redo: ${mod}R)`],
+      [":w :q :wq :novim", "Save · close · both · leave Vim mode"],
+    ],
+  });
   if (kind === "markdown") {
     sections.push({
       title: "Markdown",
