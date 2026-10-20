@@ -5,9 +5,14 @@ import "./styles.css";
 import type { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { type DocKind, kindForPath } from "./completion";
+import { clearDraft, loadDraft, saveDraft } from "./draft";
 import { Editor, type LineSeparator } from "./editor";
+import { copyAsHtml, htmlDocument, printMarkdown, titleOf } from "./export";
 import { appendAbout, renderHints } from "./hints";
 import { renderMarkdown } from "./markdown-html";
+import { closeMenu, type MenuItem, showMenu } from "./menu";
+import { extractHeadings, OutlinePanel } from "./outline";
+import { addRecent, folderOf, loadRecent, removeRecent, saveRecent } from "./recent";
 import type { VimAction } from "./vim";
 import * as platform from "./platform";
 import {
@@ -48,6 +53,8 @@ const nameEl = $("doc-name");
 const statsEl = $("doc-stats");
 const hintsEl = $("hints");
 
+let cursorLine = 1;
+
 const editor = new Editor($("editor"), {
   settings,
   hintsKey: platform.isMac ? "⌘?" : "F1",
@@ -58,6 +65,12 @@ const editor = new Editor($("editor"), {
     }
     updateStats(text);
     schedulePreview();
+    scheduleDraft();
+    scheduleOutline();
+  },
+  onCursor: (line) => {
+    cursorLine = line;
+    if (settings.outline) outline.setCursor(line);
   },
   vim: { coach: $("vim-coach"), perform: (action) => void performVim(action) },
 });
@@ -80,6 +93,9 @@ function applyAppearance(): void {
   $("btn-vim").classList.toggle("on", settings.vim);
   $("btn-vim").title = settings.vim ? "Vim mode is on — click (or :novim) to turn it off" : "Vim mode: learn Vim as you write";
   $("btn-theme").title = `Theme: ${settings.theme} — click to change`;
+  $("outline").hidden = !settings.outline;
+  $("btn-outline").classList.toggle("on", settings.outline);
+  if (settings.outline) refreshOutline();
   $("btn-size").title = `Column width: ${settings.size} — click to change`;
   $("btn-font").title = `Font: ${settings.font} — click to change`;
 }
@@ -110,7 +126,7 @@ function updateStats(text: Text): void {
 
 const EXTENSION: Record<DocKind, string> = { markdown: ".md", fountain: ".fountain", plain: ".txt" };
 
-function load(text: string, path: string | null, name: string): void {
+function load(text: string, path: string | null, name: string, keepDraft = false): void {
   const bom = text.startsWith("﻿");
   const body = bom ? text.slice(1) : text;
   const separator: LineSeparator = body.includes("\r\n") ? "\r\n" : "\n";
@@ -120,6 +136,9 @@ function load(text: string, path: string | null, name: string): void {
   updateStats(editor.view.state.doc);
   renderHelp();
   applyView();
+  refreshOutline(1);
+  if (!keepDraft) dropDraft();
+  if (path) remember(path, name);
   editor.focusEditor();
 }
 
@@ -175,12 +194,111 @@ async function saveAs(): Promise<void> {
   editor.setKind(doc.kind);
   renderHelp();
   applyView();
+  remember(path, doc.name);
   markSaved();
+  refreshOutline();
 }
 
 function markSaved(): void {
   doc.dirty = false;
+  dropDraft();
   updateTitle();
+}
+
+// ------------------------------------------------- crash recovery, recent files
+
+let draftTimer = 0;
+
+/** Keep a copy of the unsaved text, so a crash or power cut doesn't lose it. */
+function flushDraft(): void {
+  window.clearTimeout(draftTimer);
+  if (doc.dirty) saveDraft({ path: doc.path, name: doc.name, text: contents(), savedAt: Date.now() });
+}
+
+function scheduleDraft(): void {
+  window.clearTimeout(draftTimer);
+  draftTimer = window.setTimeout(flushDraft, 1500);
+}
+
+function dropDraft(): void {
+  window.clearTimeout(draftTimer);
+  clearDraft();
+}
+
+function remember(path: string, name: string): void {
+  if (platform.isTauri) addRecent({ path, name });
+}
+
+async function openRecent(path: string): Promise<void> {
+  if (!(await canDiscard())) return;
+  try {
+    const file = await platform.readFile(path);
+    load(file.text, file.path, file.name);
+  } catch {
+    removeRecent(path);
+    await platform.showError(`Could not open ${platform.baseName(path)}. It was moved or deleted, so it was removed from the recent list.`);
+  }
+}
+
+// ----------------------------------------------------------------- outline
+
+const outline = new OutlinePanel($("outline"), (line) => editor.goToLine(line));
+let outlineTimer = 0;
+
+function refreshOutline(line = cursorLine): void {
+  if (!settings.outline) return;
+  window.clearTimeout(outlineTimer);
+  outline.update(extractHeadings(editor.text, doc.kind), line);
+}
+
+function scheduleOutline(): void {
+  if (!settings.outline) return;
+  window.clearTimeout(outlineTimer);
+  outlineTimer = window.setTimeout(() => refreshOutline(), 250);
+}
+
+// ------------------------------------------------------- file menu, export
+
+/** A short message in place of the word count. */
+function notify(message: string): void {
+  statsEl.textContent = message;
+  window.setTimeout(() => updateStats(editor.view.state.doc), 2500);
+}
+
+async function exportHtml(): Promise<void> {
+  const html = htmlDocument(editor.text, titleOf(doc.name));
+  const path = await platform.chooseSavePath(`${titleOf(doc.name)}.html`, html, platform.HTML_FILTERS);
+  if (path !== null && (await platform.writeFile(path, html))) notify("Exported as HTML");
+}
+
+async function copyHtml(): Promise<void> {
+  notify((await copyAsHtml(editor.text)) ? "Copied as HTML" : "Could not copy");
+}
+
+function printDocument(): void {
+  printMarkdown($("print-root"), editor.text);
+}
+
+function openFileMenu(): void {
+  if (closeMenu()) return; // the click that closes it must not open it again
+  const items: MenuItem[] = [];
+  if (platform.isTauri) {
+    const recent = loadRecent();
+    items.push({ label: "Recent files", heading: true });
+    if (recent.length === 0) items.push({ label: "No recent files", disabled: true });
+    for (const file of recent) {
+      items.push({ label: file.name, detail: folderOf(file.path), run: () => void openRecent(file.path) });
+    }
+    if (recent.length > 0) items.push({ label: "Clear the list", run: () => saveRecent([]) });
+    items.push({ label: "", separator: true });
+  }
+  items.push(
+    { label: "Export", heading: true },
+    { label: "Export as HTML…", run: () => void exportHtml() },
+    { label: "Print or save as PDF…", detail: `${mod}P`, run: printDocument },
+    { label: "Copy as HTML", run: () => void copyHtml() },
+  );
+  showMenu($("btn-file"), items);
 }
 
 // ------------------------------------------------------------------- hints
@@ -320,6 +438,8 @@ const actions: Record<string, () => void> = {
   "btn-open": () => void openDocument(),
   "btn-save": () => void save(),
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
+  "btn-file": openFileMenu,
+  "btn-outline": () => changeSettings(() => (settings.outline = !settings.outline)),
   "btn-view": () => setView(next(viewModes, view)),
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
   "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
@@ -334,7 +454,7 @@ for (const [id, run] of Object.entries(actions)) {
   const button = $(id);
   button.addEventListener("click", () => {
     run();
-    if (id !== "btn-hints") editor.focusEditor();
+    if (id !== "btn-hints" && id !== "btn-file") editor.focusEditor();
   });
   // Show the platform's modifier in tooltips (⌘ on macOS test builds).
   button.title = button.title.replaceAll("Ctrl+", mod);
@@ -354,7 +474,9 @@ window.addEventListener(
     let handled = true;
     if (cmd && e.shiftKey && key === "s") void saveAs();
     else if (cmd && key === "s") void save();
+    else if (cmd && e.shiftKey && key === "o") actions["btn-outline"]();
     else if (cmd && key === "o") void openDocument();
+    else if (cmd && !e.shiftKey && key === "p") printDocument();
     else if (cmd && key === "n") void newDocument();
     else if (cmd && e.shiftKey && key === "p") actions["btn-view"]();
     else if (cmd && key === "t") actions["btn-typewriter"]();
@@ -381,8 +503,15 @@ window.addEventListener(
 // ------------------------------------------------------------------- start
 
 applyAppearance();
-load("", null, "Untitled");
+// Read before anything can clear it: a draft left by a crash is offered back below.
+const pendingDraft = loadDraft();
+load("", null, "Untitled", true);
 editor.setVim(settings.vim);
+
+// "System" theme follows Windows switching between light and dark.
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (settings.theme === "System") applyAppearance();
+});
 
 const dropOverlay = $("drop-overlay");
 void platform.onFileDrop(
@@ -390,10 +519,37 @@ void platform.onFileDrop(
   (hovering) => (dropOverlay.hidden = !hovering),
 );
 
-void platform.onCloseRequested(async () => !doc.dirty || platform.confirmDiscard(doc.name));
-void platform.startupFile().then((path) => {
-  if (path) void openPath(path);
+void platform.onCloseRequested(async () => {
+  const leave = !doc.dirty || (await platform.confirmDiscard(doc.name));
+  if (leave) dropDraft(); // a clean exit leaves nothing to recover
+  return leave;
 });
+
+/** Start-up order: unsaved text from a crash, then a file given on the command line, then the last document. */
+async function start(): Promise<void> {
+  if (pendingDraft && pendingDraft.text.trim() !== "") {
+    if (await platform.confirmRestore(pendingDraft.name)) {
+      load(pendingDraft.text, pendingDraft.path, pendingDraft.name);
+      doc.dirty = true;
+      updateTitle();
+      flushDraft();
+      return;
+    }
+  }
+  dropDraft();
+  const startup = await platform.startupFile();
+  if (startup) return openPath(startup);
+  const last = platform.isTauri ? loadRecent()[0] : undefined;
+  if (last) {
+    try {
+      const file = await platform.readFile(last.path);
+      load(file.text, file.path, file.name);
+    } catch {
+      removeRecent(last.path); // gone since last time: start with an empty document
+    }
+  }
+}
+void start();
 
 // Small hook for scripted checks (scripts/snapshot.mjs).
 (window as unknown as { focusEdit: unknown }).focusEdit = {

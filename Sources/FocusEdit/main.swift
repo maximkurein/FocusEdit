@@ -34,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MenuBuilder.build()
+        // Autosave elsewhere: after a crash the unsaved text is offered back at the next launch.
+        NSDocumentController.shared.autosavingDelay = 60
         if let url = launchFileURL {
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }

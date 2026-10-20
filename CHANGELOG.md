@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-20
+
+### Added
+- Windows: recovery after a crash. Unsaved text is kept in storage while you write; at the next start FocusEdit offers to restore it
+- Windows: the ⋯ button opens a menu with recent files, Export as HTML…, Print or save as PDF… (`Ctrl+P`) and Copy as HTML. The last document reopens at start
+- Windows: outline of headings (`Ctrl+Shift+O`, the list button) with the current heading highlighted; Fountain scripts show scenes and sections
+- Windows: theme "System" (now the default) follows the Windows light/dark setting and switches live
+- Mac: autosave elsewhere every 60 seconds, so unsaved text survives a crash (the system offers it back at the next launch)
+
 ## [1.1.8] - 2026-10-20
 
 ### Fixed

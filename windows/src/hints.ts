@@ -60,6 +60,9 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
     title: "Files",
     rows: [
       [`${mod}N  ${mod}O`, "New · open"],
+      ["⋯ toolbar", "Recent files · export HTML · copy as HTML"],
+      [`${mod}P`, "Print, or save as PDF from the print dialog"],
+      [`${mod}Shift+O`, "Outline: headings of the document"],
       ["drag a file", "Drop .md, .txt or .fountain on the window to open it"],
       [`${mod}S  ${mod}⇧S`, "Save · save as"],
       [`${mod}F`, "Find and replace"],

@@ -61,13 +61,16 @@ export async function writeFile(path: string, text: string): Promise<boolean> {
   }
 }
 
+export const HTML_FILTERS = [{ name: "HTML page", extensions: ["html"] }];
+
 /** Ask where to save. Browser fallback downloads the file and returns null. */
-export async function chooseSavePath(suggestedName: string, text: string): Promise<string | null> {
+export async function chooseSavePath(suggestedName: string, text: string, filters = FILTERS): Promise<string | null> {
   if (isTauri) {
     const { save } = await import("@tauri-apps/plugin-dialog");
-    return (await save({ defaultPath: suggestedName, filters: FILTERS })) ?? null;
+    return (await save({ defaultPath: suggestedName, filters })) ?? null;
   }
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  const type = suggestedName.endsWith(".html") ? "text/html" : "text/plain";
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const a = Object.assign(document.createElement("a"), { href: url, download: suggestedName });
   a.click();
   URL.revokeObjectURL(url);
@@ -79,6 +82,16 @@ export async function confirmDiscard(name: string): Promise<boolean> {
   if (isTauri) {
     const { ask } = await import("@tauri-apps/plugin-dialog");
     return ask(message, { title: "FocusEdit", kind: "warning", okLabel: "Discard", cancelLabel: "Keep Editing" });
+  }
+  return window.confirm(message);
+}
+
+/** After a crash: offer the unsaved text back. True = restore it. */
+export async function confirmRestore(name: string): Promise<boolean> {
+  const message = `FocusEdit did not close properly last time. Restore the unsaved changes of “${name}”?`;
+  if (isTauri) {
+    const { ask } = await import("@tauri-apps/plugin-dialog");
+    return ask(message, { title: "FocusEdit", kind: "info", okLabel: "Restore", cancelLabel: "Discard" });
   }
   return window.confirm(message);
 }

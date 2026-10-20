@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.1.8`, released 20.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.2.0`, released 20.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -83,7 +83,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 
 ## Windows (experimental)
 
-[`windows/`](windows/) holds an experimental Windows version: a separate app built with [Tauri 2](https://tauri.app) and [CodeMirror 6](https://codemirror.net), since AppKit exists only on macOS. The writing logic is ported from the Swift code: focus highlighting by sentence or paragraph, typewriter scrolling, the grey word suggestion, automatic pairing, Markdown list continuation, the Vim learning mode (the Vim button in the toolbar; same commands and coach bar as on the Mac, `Ctrl+R` redoes), a Markdown preview (the View button: edit, split with a live preview, or preview only; `Ctrl+Shift+P`), files dropped on the window to open them, themes, and plain-text files that keep their encoding and line endings.
+[`windows/`](windows/) holds an experimental Windows version: a separate app built with [Tauri 2](https://tauri.app) and [CodeMirror 6](https://codemirror.net), since AppKit exists only on macOS. The writing logic is ported from the Swift code: focus highlighting by sentence or paragraph, typewriter scrolling, the grey word suggestion, automatic pairing, Markdown list continuation, the Vim learning mode (the Vim button in the toolbar; same commands and coach bar as on the Mac, `Ctrl+R` redoes), an outline of headings (`Ctrl+Shift+O`), recent files and export to HTML, print or PDF, copy as HTML (the ⋯ button), recovery of unsaved text after a crash, a theme that follows the Windows light/dark setting, a Markdown preview (the View button: edit, split with a live preview, or preview only; `Ctrl+Shift+P`), files dropped on the window to open them, themes, and plain-text files that keep their encoding and line endings.
 
 <table>
   <tr>
@@ -94,7 +94,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 
 <sub>Rendered from the same web UI in Chrome by <code>npm run snapshot</code> in <code>windows/</code>.</sub>
 
-- **Status:** stage 1. Not yet ported: the library, outline, HTML/PDF export, Fountain highlighting, CriticMarkup and typewriter sounds.
+- **Status:** stage 1. Not yet ported: the library, Fountain highlighting, CriticMarkup and typewriter sounds.
 - **Installers:** GitHub Actions builds the `.exe` installer on Windows for every push to `main` that changes `windows/` (**Actions** → latest run → artifact **FocusEdit-windows**). They cannot be built on a Mac.
 - **Keys:** Ctrl replaces ⌘; F1 opens the hints, F11 toggles full screen. Focus modes have no shortcuts: use the focus button in the toolbar.
 - **Build from source:** Node.js 22+ and Rust; see [windows/BUILD.md](windows/BUILD.md) (in Russian).

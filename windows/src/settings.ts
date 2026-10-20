@@ -1,7 +1,8 @@
 // Persisted user preferences (localStorage in the app's WebView profile).
 
 export type FocusMode = "off" | "sentence" | "paragraph";
-export type ThemeName = "Light" | "Dark" | "Sepia";
+/** "System" follows the Windows light/dark setting. */
+export type ThemeName = "System" | "Light" | "Dark" | "Sepia";
 export type EditorSize = "small" | "medium" | "large";
 export type FontKind = "system" | "monospace" | "serif";
 
@@ -15,18 +16,20 @@ export interface Settings {
   autocomplete: boolean;
   pairing: boolean;
   vim: boolean;
+  outline: boolean;
 }
 
 export const defaults: Settings = {
   focusMode: "paragraph",
   typewriter: true,
-  theme: "Light",
+  theme: "System",
   size: "medium",
   font: "system",
   fontSize: 17,
   autocomplete: true,
   pairing: true,
   vim: false,
+  outline: false,
 };
 
 const KEY = "focusedit.settings.v1";
@@ -57,7 +60,7 @@ export const fontStack: Record<FontKind, string> = {
 };
 
 export const focusModes: FocusMode[] = ["off", "sentence", "paragraph"];
-export const themeNames: ThemeName[] = ["Light", "Dark", "Sepia"];
+export const themeNames: ThemeName[] = ["System", "Light", "Dark", "Sepia"];
 export const sizes: EditorSize[] = ["small", "medium", "large"];
 export const fonts: FontKind[] = ["system", "monospace", "serif"];
 

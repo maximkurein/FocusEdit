@@ -79,6 +79,8 @@ export interface EditorOptions {
   settings: Settings;
   hintsKey: string;
   onChange: (doc: Text) => void;
+  /** The cursor moved (or the text changed): its 1-based line. */
+  onCursor: (line: number) => void;
   /** Vim mode: the coach bar element and the app-level actions (:w, :q, …). */
   vim: { coach: HTMLElement; perform: (action: VimAction) => void };
 }
@@ -148,6 +150,7 @@ export class Editor {
       ]),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) this.options.onChange(u.state.doc);
+        if (u.docChanged || u.selectionSet) this.options.onCursor(u.state.doc.lineAt(u.state.selection.main.head).number);
       }),
     ];
     return EditorState.create({ doc, extensions });
@@ -210,6 +213,17 @@ export class Editor {
         this.pairs.reconfigure(s.pairing ? closeBrackets() : []),
       ],
     });
+  }
+
+  /** Move the cursor to the start of a line and bring it into view. */
+  goToLine(line: number): void {
+    const doc = this.view.state.doc;
+    const pos = doc.line(Math.min(Math.max(1, line), doc.lines)).from;
+    this.view.dispatch({
+      selection: { anchor: pos },
+      effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 24 }),
+    });
+    this.view.focus();
   }
 
   /** Turn Vim mode on or off; on starts in Normal mode. */

@@ -16,7 +16,9 @@ interface Palette {
   hover: string;
 }
 
-const palettes: Record<ThemeName, Palette> = {
+type Concrete = Exclude<ThemeName, "System">;
+
+const palettes: Record<Concrete, Palette> = {
   Light: {
     dark: false, bg: "#fffffd", fg: "#1c1c1f", dim: "#b8b8bd", muted: "#8a8a90",
     accent: "#2f7deb", cursor: "#337af2", selection: "rgba(51, 122, 242, 0.18)",
@@ -34,8 +36,16 @@ const palettes: Record<ThemeName, Palette> = {
   },
 };
 
+/** "System" becomes Light or Dark according to the system setting. */
+export function resolveTheme(name: ThemeName, systemIsDark: boolean): Concrete {
+  return name === "System" ? (systemIsDark ? "Dark" : "Light") : name;
+}
+
+const prefersDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+
 export function applyTheme(name: ThemeName): void {
-  const p = palettes[name];
+  const resolved = resolveTheme(name, prefersDark());
+  const p = palettes[resolved];
   const root = document.documentElement;
   const vars: Record<string, string> = {
     "--bg": p.bg, "--fg": p.fg, "--dim": p.dim, "--muted": p.muted, "--accent": p.accent,
@@ -44,5 +54,5 @@ export function applyTheme(name: ThemeName): void {
   };
   for (const [key, value] of Object.entries(vars)) root.style.setProperty(key, value);
   root.style.colorScheme = p.dark ? "dark" : "light";
-  root.dataset.theme = name.toLowerCase();
+  root.dataset.theme = resolved.toLowerCase();
 }
