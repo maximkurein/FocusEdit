@@ -178,6 +178,6 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             menu.addItem(mi)
         }
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Edit Themes…", action: Selector(("editThemes:")), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Edit Themes…", action: #selector(AppDelegate.editThemes(_:)), keyEquivalent: ""))
     }
 }

@@ -11,6 +11,7 @@ enum SelfTest {
         completion()
         editing()
         rtf()
+        markdown()
         newFile()
         focusUnit()
         vim()
@@ -233,6 +234,74 @@ enum SelfTest {
     }
 
     // MARK: Focus unit (Paragraph focus)
+
+    // MARK: Markdown preview (cases from windows/tests/markdown-html.test.ts)
+
+    private static func markdown() {
+        print("Markdown:")
+        func html(_ md: String) -> String {
+            MarkdownToHTML.render(md).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        func has(_ name: String, _ md: String, _ part: String, _ yes: Bool = true) {
+            check(name, html(md).contains(part) ? "yes" : "no", yes ? "yes" : "no")
+        }
+        check("heading and paragraph", html("# Title\n\nbody text"), "<h1>Title</h1>\n<p>body text</p>")
+        check("setext heading", html("Setext\n======"), "<h1>Setext</h1>")
+        check("setext h2 over a rule", html("Two\n---"), "<h2>Two</h2>")
+        check("inline marks", html("**b** *i* ~~s~~ `c<d>`"),
+              "<p><strong>b</strong> <em>i</em> <del>s</del> <code>c&lt;d&gt;</code></p>")
+        has("raw HTML is text", "<script>alert(1)</script>", "<script>", false)
+        has("inline HTML is text", "a <b>x</b> b", "&lt;b&gt;x&lt;/b&gt;")
+        check("web link", html("[x](https://example.com/a?b=1&c=2)"),
+              "<p><a href=\"https://example.com/a?b=1&amp;c=2\">x</a></p>")
+        check("javascript link is text", html("[x](javascript:alert(1))"), "<p>x</p>")
+        check("file link is text", html("[x](file:///C:/secret.txt)"), "<p>x</p>")
+        has("quote can't end the attribute", "[x](\" onmouseover=\"alert(1))", "onmouseover=\"", false)
+        has("reference link", "[see][r]\n\n[r]: https://ref.example.com", "<a href=\"https://ref.example.com\">see</a>")
+        has("shortcut reference", "[r]\n\n[R]: https://ref.example.com", "<a href=\"https://ref.example.com\">r</a>")
+        check("bare URL", html("go to https://auto.example.com now."),
+              "<p>go to <a href=\"https://auto.example.com\">https://auto.example.com</a> now.</p>")
+        check("link text that is a URL", html("[https://a.b](https://a.b)"),
+              "<p><a href=\"https://a.b\">https://a.b</a></p>")
+        has("bullet list", "- a\n- b", "<ul>")
+        check("tight list", html("- a\n- b"), "<ul>\n<li>a</li>\n<li>b</li>\n</ul>")
+        has("loose list", "- a\n\n- b", "<li><p>a</p></li>")
+        has("numbered start", "3. x\n4. y", "<ol start=\"3\">")
+        check("nested list", html("- a\n  - b\n- c"),
+              "<ul>\n<li>a\n<ul>\n<li>b</li>\n</ul></li>\n<li>c</li>\n</ul>")
+        has("task done", "- [x] done\n- [ ] todo", "<input type=\"checkbox\" disabled checked> done")
+        has("task open", "- [x] done\n- [ ] todo", "<input type=\"checkbox\" disabled> todo")
+        has("quote", "> quoted", "<blockquote>")
+        check("lazy quote line", html("> a\nb"), "<blockquote>\n<p>a\nb</p>\n</blockquote>")
+        check("rule", html("---"), "<hr>")
+        check("fenced code with language", html("```ts\nconst a = 1 < 2;\n```"),
+              "<pre><code class=\"language-ts\">const a = 1 &lt; 2;</code></pre>")
+        check("tilde fence keeps backticks", html("~~~\n```\n~~~"), "<pre><code>```</code></pre>")
+        check("indented code", html("    indented"), "<pre><code>indented</code></pre>")
+        let table = html("| a | b |\n|:--|--:|\n| 1 | 2 |")
+        check("table header", table.contains("<th style=\"text-align:left\">a</th><th style=\"text-align:right\">b</th>") ? "yes" : "no", "yes")
+        check("table cell", table.contains("<td style=\"text-align:left\">1</td>") ? "yes" : "no", "yes")
+        has("hard break", "one  \ntwo", "<br>")
+        check("escaped marks", html("\\*not em\\*"), "<p>*not em*</p>")
+        check("image", html("![alt text](pic.png)"), "<p><img alt=\"alt text\" src=\"pic.png\"></p>")
+        check("unsafe image is its alt text", html("![alt](javascript:x)"), "<p>alt</p>")
+        check("empty document", html(""), "")
+        check("underscores inside words", html("snake_case_name"), "<p>snake_case_name</p>")
+        check("emphasis inside strong", html("**a *b* c**"), "<p><strong>a <em>b</em> c</strong></p>")
+        check("marks inside code stay", html("`**x**`"), "<p><code>**x**</code></p>")
+        check("list after a paragraph", html("text\n- a"), "<p>text</p>\n<ul>\n<li>a</li>\n</ul>")
+        check("number in a sentence is not a list", html("year\n2024. was"), "<p>year\n2024. was</p>")
+        check("list ends at another marker", html("- a\n+ b"), "<ul>\n<li>a</li>\n</ul>\n<ul>\n<li>b</li>\n</ul>")
+        check("code in a list item", html("1. a\n\n   ```\n   x\n   ```"),
+              "<ol>\n<li><p>a</p>\n<pre><code>x</code></pre></li>\n</ol>")
+        check("mail link", html("[m](mailto:a@b.c)"), "<p><a href=\"mailto:a@b.c\">m</a></p>")
+        let big = String(repeating: "## Part\n\nSome **bold** and *italic* text with a [link](https://a.b) and `code`.\n- one\n- two\n\n", count: 2000)
+        let started = Date()
+        _ = MarkdownToHTML.render(big)
+        let seconds = Date().timeIntervalSince(started)
+        print("  (\(big.utf8.count / 1024) KB rendered in \(String(format: "%.2f", seconds)) s)")
+        check("large document renders quickly", seconds < 1.5 ? "yes" : "no", "yes")
+    }
 
     private static func focusUnit() {
         print("Focus unit:")

@@ -31,7 +31,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **New File…** — `⇧⌘N` opens a three-step dialog: pick the format (`.txt`, `.md` or `.rtf`), what to start from (blank, note, to-do list, meeting notes), then the name and the folder; the file is created and opened. The same dialog is in the Windows version (`Ctrl+Shift+N`).
 - **RTF** — `.rtf` files (TextEdit's default format) open as Markdown and save back as RTF: bold, italic, strikethrough, headings, lists, links and code survive the round trip; fonts, colours, images and tables do not, and FocusEdit warns when a file has them. **FocusEdit ▸ Make Default Editor for .txt and .rtf** makes double-clicked text and RTF files open in FocusEdit.
 - **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop, and autosave elsewhere every minute so unsaved text survives a crash. A library sidebar browses a linked folder; the outline jumps between headings; the window subtitle shows the word count and reading time; find and replace.
-- **Preview and export** — live HTML preview for Markdown in a pane beside the text, scrolling together with it, export as HTML or PDF, copy as HTML, print.
+- **Preview and export** — live HTML preview for Markdown in a pane beside the text (tables, task lists, strikethrough, nested lists, reference links), scrolling together with it, export as HTML or PDF, copy as HTML, print.
 - **Themes and type** — Light, Dark, Sepia and custom themes; system, monospaced or serif font; three column widths.
 - **Help where you are** — every toolbar button has a tooltip with its shortcut, and ⌘? opens a cheat sheet for the current document type.
 
