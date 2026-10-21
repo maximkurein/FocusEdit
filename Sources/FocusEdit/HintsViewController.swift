@@ -48,6 +48,7 @@ final class HintsViewController: NSViewController {
                 ("a number", "In the palette: set a word goal, or go to a line"),
                 ("Word goal", "Palette: progress bar under the toolbar, writing time"),
                 ("Select + ⌘V URL", "Makes a Markdown link"),
+                ("Markup", "Palette or Modus: hide the marks (#, **, [ ]) away from the cursor, or always show them"),
             ]),
             Section(title: "Writing", rows: [
                 ("Tab  →", "Accept the grey suggestion"),

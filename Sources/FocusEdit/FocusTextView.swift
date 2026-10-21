@@ -11,6 +11,8 @@ import QuartzCore
 ///  2. Focus highlighting — dims non-active paragraphs/sentences by blending the
 ///     resolved color toward the dimmed color, so markup styling survives dimming.
 ///  3. Typewriter scrolling — pins the caret line at ~`typewriterAnchor` height.
+///  4. Live Markdown — the marks of formatting away from the cursor get `.null`
+///     glyphs (`LiveMarkdown` finds them), and headings get their size.
 ///
 /// Dropping a .txt/.md/.fountain file opens it as a document instead of pasting.
 final class FocusTextView: NSTextView {
@@ -119,13 +121,74 @@ final class FocusTextView: NSTextView {
 
     func recomputeSyntax() {
         tokens = syntaxEngine?.tokens(for: string as NSString) ?? []
+        liveElements = liveMarkdownEnabled ? live.elements(in: string as NSString) : []
         applyTokenFonts()
+        updateLiveHiding()
     }
 
     /// Re-run focus + syntax color rendering and keep the caret pinned.
     func refreshFocusEffects() {
+        updateLiveHiding()
         renderFocus()
         centerCaretLineIfNeeded()
+    }
+
+    // MARK: Live Markdown (hidden marks, heading sizes)
+
+    var liveMarkdownEnabled = false {
+        didSet {
+            guard liveMarkdownEnabled != oldValue else { return }
+            // Glyph generation asks us what to hide; edits shift what is hidden.
+            layoutManager?.delegate = self
+            textStorage?.delegate = self
+            recomputeSyntax()
+        }
+    }
+    private let live = LiveMarkdown()
+    private var liveElements: [LiveElement] = []
+    /// Characters drawn as nothing (`.null` glyphs) right now.
+    private var hiddenMarks = IndexSet()
+    /// Edited since the last update: their glyphs are redone then.
+    private var staleGlyphs = IndexSet()
+
+    /// Hide the marks of what the selection doesn't touch; redo only the glyphs that change.
+    private func updateLiveHiding() {
+        let selection = selectedRanges.map(\.rangeValue)
+        let new = liveMarkdownEnabled ? LiveMarkdown.hidden(liveElements, selection: selection) : IndexSet()
+        guard new != hiddenMarks || !staleGlyphs.isEmpty,
+              let lm = layoutManager, let length = textStorage?.length else { return }
+        let changed = new.symmetricDifference(hiddenMarks).union(staleGlyphs.intersection(new))
+        hiddenMarks = new
+        staleGlyphs = IndexSet()
+        for r in changed.rangeView {
+            guard let range = clamp(NSRange(location: r.lowerBound, length: r.count), to: length) else { continue }
+            lm.invalidateGlyphs(forCharacterRange: range, changeInLength: 0, actualCharacterRange: nil)
+            lm.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
+        }
+    }
+
+    /// Heading sizes: the same wherever the cursor is, so lines don't jump.
+    private static let headingScale: [CGFloat] = [1.7, 1.4, 1.2, 1.1, 1, 1]
+
+    private func applyLiveFonts(_ ts: NSTextStorage) {
+        ts.removeAttribute(.strikethroughStyle, range: NSRange(location: 0, length: ts.length))
+        for e in liveElements {
+            switch e.kind {
+            case .heading(let level):
+                guard let r = clamp(e.range, to: ts.length) else { continue }
+                let size = baseFont.pointSize * Self.headingScale[min(max(level, 1), 6) - 1]
+                let bold = NSFont(descriptor: baseFont.fontDescriptor.withSymbolicTraits(.bold), size: size)
+                ts.addAttribute(.font, value: bold ?? baseFont, range: r)
+            case .image(let caption):
+                guard let r = clamp(caption, to: ts.length) else { continue }
+                ts.addAttribute(.font, value: styledFont(SyntaxRole.Style(bold: false, italic: true, mono: false)), range: r)
+            case .strikethrough:
+                guard let r = clamp(e.range, to: ts.length) else { continue }
+                ts.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: r)
+            case .inline:
+                break
+            }
+        }
     }
 
     // MARK: Drag & drop — open files as documents
@@ -226,6 +289,7 @@ final class FocusTextView: NSTextView {
                   let r = clamp(tok.range, to: ts.length) else { continue }
             ts.addAttribute(.font, value: styledFont(style), range: r)
         }
+        applyLiveFonts(ts)
         ts.endEditing()
     }
 
@@ -620,5 +684,42 @@ final class FocusTextView: NSTextView {
                        green: ca.greenComponent + (cb.greenComponent - ca.greenComponent) * tt,
                        blue: ca.blueComponent + (cb.blueComponent - ca.blueComponent) * tt,
                        alpha: ca.alphaComponent + (cb.alphaComponent - ca.alphaComponent) * tt)
+    }
+}
+
+// MARK: - Live Markdown plumbing
+
+extension FocusTextView: NSLayoutManagerDelegate, NSTextStorageDelegate {
+
+    /// Hidden marks become `.null` glyphs: no width, nothing drawn, no gap in the line.
+    func layoutManager(_ layoutManager: NSLayoutManager,
+                       shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>,
+                       properties props: UnsafePointer<NSLayoutManager.GlyphProperty>,
+                       characterIndexes charIndexes: UnsafePointer<Int>,
+                       font aFont: NSFont, forGlyphRange glyphRange: NSRange) -> Int {
+        let count = glyphRange.length
+        guard !hiddenMarks.isEmpty,
+              (0..<count).contains(where: { hiddenMarks.contains(charIndexes[$0]) }) else { return 0 }
+        var properties = Array(UnsafeBufferPointer(start: props, count: count))
+        for i in 0..<count where hiddenMarks.contains(charIndexes[i]) { properties[i] = .null }
+        properties.withUnsafeBufferPointer {
+            layoutManager.setGlyphs(glyphs, properties: $0.baseAddress!, characterIndexes: charIndexes,
+                                    font: aFont, forGlyphRange: glyphRange)
+        }
+        return count
+    }
+
+    /// An edit moves the text after it: move the hidden marks with it, so the set
+    /// keeps matching the glyphs. The edited range (often the whole paragraph, as
+    /// attribute fixes join it) gets new glyphs anyway: drop its marks now and
+    /// redo it at the next update.
+    func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions,
+                     range editedRange: NSRange, changeInLength delta: Int) {
+        guard editedMask.contains(.editedCharacters), liveMarkdownEnabled || !hiddenMarks.isEmpty else { return }
+        let oldEnd = NSMaxRange(editedRange) - delta
+        if oldEnd > editedRange.location { hiddenMarks.remove(integersIn: editedRange.location..<oldEnd) }
+        hiddenMarks.shift(startingAt: oldEnd, by: delta)
+        staleGlyphs.shift(startingAt: oldEnd, by: delta)
+        staleGlyphs.insert(integersIn: editedRange.location..<NSMaxRange(editedRange))
     }
 }

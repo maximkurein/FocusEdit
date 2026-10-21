@@ -351,6 +351,7 @@ enum MenuBuilder {
         modusMenu.addItem(focusParent)
 
         modusMenu.addItem(item("Typewriter Sounds", Selector(("toggleTypewriterSounds:")), "u"))
+        modusMenu.addItem(item("Live Markup (hide marks away from the cursor)", Selector(("toggleLiveMarkdown:")), ""))
         modusMenu.addItem(.separator())
         modusMenu.addItem(item("Vim Mode (learning)", Selector(("toggleVimMode:")), ""))
 

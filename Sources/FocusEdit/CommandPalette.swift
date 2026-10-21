@@ -419,6 +419,8 @@ extension MainSplitViewController {
         ]
         if markdown {
             list += [
+                command(Preferences.liveMarkdown ? "Markup: always show the marks" : "Markup: hide the marks away from the cursor",
+                        "toggleLiveMarkdown:", keywords: "markdown symbols asterisks hashes wysiwyg live"),
                 command("Format: Bold", "mdBold:"),
                 command("Format: Italic", "mdItalic:"),
                 command("Format: Link", "mdLink:"),

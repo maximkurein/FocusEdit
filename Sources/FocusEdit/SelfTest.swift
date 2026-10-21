@@ -16,6 +16,7 @@ enum SelfTest {
         palette()
         session()
         outline()
+        live()
         newFile()
         focusUnit()
         vim()
@@ -476,6 +477,94 @@ enum SelfTest {
         check("above the first heading",
               OutlineExtractor.active(OutlineExtractor.items(from: "text\n# A", kind: .markdown), cursor: 1)
                 .map(String.init) ?? "none", "none")
+    }
+
+    // MARK: Live Markdown (cases from windows/tests/live.test.ts)
+
+    private static func live() {
+        print("Live markup:")
+        /// What is hidden, written as the hidden text itself, sorted.
+        func hidden(_ doc: String, _ cursor: Int, _ length: Int = 0) -> String {
+            let ns = doc as NSString
+            let set = LiveMarkdown.hidden(LiveMarkdown().elements(in: ns),
+                                          selection: [NSRange(location: cursor, length: length)])
+            return set.rangeView.map { ns.substring(with: NSRange(location: $0.lowerBound, length: $0.count)) }
+                .sorted().joined(separator: " | ")
+        }
+        func headings(_ doc: String) -> String {
+            LiveMarkdown().elements(in: doc as NSString).compactMap {
+                if case .heading(let level) = $0.kind { return "h\(level)@\($0.range.location)" }
+                return nil
+            }.joined(separator: " ")
+        }
+        check("heading # and its space away from the cursor", hidden("# Title\n\ntext", 13), "# ")
+        check("shown with the cursor on the line", hidden("# Title\n\ntext", 3), "")
+        check("shown with the cursor at the line start", hidden("# Title\n\ntext", 0), "")
+        let doc = "# Title\n\nSome **bold**, *it* and `code` here.\n"
+        let away = (doc as NSString).length
+        check("bold, italic, code marks hidden", hidden(doc, away), "#  | * | * | ** | ** | ` | `")
+        let inBold = (doc as NSString).range(of: "bold").location + 1
+        check("the touched element shows its marks", hidden(doc, inBold), "#  | * | * | ` | `")
+        let edge = NSMaxRange((doc as NSString).range(of: "**bold**"))
+        check("touching the edge shows them", hidden(doc, edge).contains("**") ? "hidden" : "shown", "shown")
+        let from = (doc as NSString).range(of: "bold").location
+        check("a selection reaching it shows them", hidden(doc, from, 2).contains("**") ? "hidden" : "shown", "shown")
+        let md = "see [the docs](https://example.com/a) now\n\nend"
+        check("link brackets and address hidden", hidden(md, (md as NSString).length), "[ | ](https://example.com/a)")
+        check("link shown when touched", hidden(md, (md as NSString).range(of: "docs").location), "")
+        let img = "![a cat](cat.png)\n\nend"
+        check("image marks hidden", hidden(img, (img as NSString).length), "![ | ](cat.png)")
+        let caption = LiveMarkdown().elements(in: img as NSString).compactMap { e -> String? in
+            if case .image(let r) = e.kind { return (img as NSString).substring(with: r) }
+            return nil
+        }.first
+        check("image caption styled", caption, "a cat")
+        check("autolink brackets hidden", hidden("<https://a.b>\n\nend", 17), "< | >")
+        check("heading sizes wherever the cursor is", headings("# One\n\n### Three\n\nend"), "h1@0 h3@7")
+        check("setext heading size", headings("Title\n===\n\nSub\n---\n"), "h1@0 h2@11")
+        check("lists, quotes, code blocks left alone", hidden("- item\n\n> quote\n\n```\ncode\n```\n\nend", 30), "")
+        check("marks inside code stay", hidden("`**x**`\n\nend", 10), "` | `")
+        check("strikethrough", hidden("~~gone~~\n\nend", 12), "~~ | ~~")
+        check("closing hashes too", hidden("## Two ##\n\nend", 14), "## | ## ")
+        check("no heading without a space", hidden("#tag\n\nend", 8), "")
+        check("snake_case is not emphasis", hidden("a snake_case_name\n\nend", 20), "")
+        check("--- after a fence is not a heading", headings("```\nx\n```\n---"), "")
+
+        // In the text view: hidden marks are .null glyphs and follow edits.
+        let tv = makeView("top\n\nSome **bold** here\n\nend")
+        tv.syntaxEngine = SyntaxEngine(highlighter: MarkdownHighlighter())
+        tv.liveMarkdownEnabled = true
+        tv.refreshFocusEffects()
+        func glyphs() -> String {
+            guard let lm = tv.layoutManager else { return "" }
+            lm.ensureGlyphs(forCharacterRange: NSRange(location: 0, length: (tv.string as NSString).length))
+            let ns = tv.string as NSString
+            return (0..<ns.length).map { i -> String in
+                let g = lm.glyphIndexForCharacter(at: i)
+                return lm.propertyForGlyph(at: g) == .null ? "·" : ns.substring(with: NSRange(location: i, length: 1))
+            }.joined()
+        }
+        check("marks drawn as nothing", glyphs(), "top\n\nSome ··bold·· here\n\nend")
+        // An edit in another paragraph: their glyphs are kept and the set moves with them.
+        tv.insertText("x", replacementRange: NSRange(location: 0, length: 0))
+        check("glyphs and hidden set move together", glyphs(), "xtop\n\nSome ··bold·· here\n\nend")
+        tv.recomputeSyntax()   // as EditorViewController.textDidChange does
+        tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+        tv.refreshFocusEffects()
+        check("same after the update", glyphs(), "xtop\n\nSome ··bold·· here\n\nend")
+        // An edit in their own paragraph: redone at the update.
+        tv.insertText("A ", replacementRange: NSRange(location: 6, length: 0))
+        tv.recomputeSyntax()
+        tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+        tv.refreshFocusEffects()
+        check("an edit next to them keeps them hidden", glyphs(), "xtop\n\nA Some ··bold·· here\n\nend")
+        tv.setSelectedRange(NSRange(location: 17, length: 0))
+        tv.refreshFocusEffects()
+        check("the cursor in the word shows them", glyphs(), "xtop\n\nA Some **bold** here\n\nend")
+        tv.liveMarkdownEnabled = false
+        tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+        tv.refreshFocusEffects()
+        check("turned off: all shown", glyphs(), "xtop\n\nA Some **bold** here\n\nend")
     }
 
     private static func focusUnit() {

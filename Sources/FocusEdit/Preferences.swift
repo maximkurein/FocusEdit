@@ -41,6 +41,13 @@ enum Preferences {
         static let autocomplete = "edit.autocomplete"
         static let vimMode = "edit.vimMode"
         static let wordGoal = "session.wordGoal"
+        static let liveMarkdown = "edit.liveMarkdown"
+    }
+
+    /// Hide Markdown marks away from the cursor (on unless turned off).
+    static var liveMarkdown: Bool {
+        get { d.object(forKey: Key.liveMarkdown) as? Bool ?? true }
+        set { d.set(newValue, forKey: Key.liveMarkdown) }
     }
 
     /// Words to write in a session; 0 = no goal.

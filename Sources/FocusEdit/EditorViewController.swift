@@ -224,6 +224,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.syntaxEngine = kind.makeHighlighter().map { SyntaxEngine(highlighter: $0) }
         textView.listContinuationEnabled = kind == .markdown
         textView.linkPasteEnabled = kind != .fountain
+        textView.liveMarkdownEnabled = kind == .markdown && Preferences.liveMarkdown
         textView.placeholder = Self.placeholder(for: kind)
         completion.kind = kind
     }
@@ -483,6 +484,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.refreshFocusEffects()
     }
 
+    /// Modus ▸ Live Markup: hide the marks away from the cursor, or always show them.
+    @objc func toggleLiveMarkdown(_ sender: Any?) {
+        Preferences.liveMarkdown.toggle()
+        textView.liveMarkdownEnabled = documentKind == .markdown && Preferences.liveMarkdown
+        textView.refreshFocusEffects()
+    }
+
     @objc func toggleStatistics(_ sender: Any?) {
         showStatistics.toggle()
         Preferences.showStatistics = showStatistics
@@ -513,6 +521,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             item.state = (item.tag == fontKind.rawValue) ? .on : .off
         case #selector(toggleVimMode(_:)):
             item.state = vimEnabled ? .on : .off
+        case #selector(toggleLiveMarkdown(_:)):
+            item.state = Preferences.liveMarkdown ? .on : .off
+            return documentKind == .markdown
         case #selector(toggleStatistics(_:)):
             item.title = showStatistics ? "Hide Word Count" : "Show Word Count"
         default:
