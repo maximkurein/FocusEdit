@@ -12,6 +12,7 @@ extension NSToolbarItem.Identifier {
     static let newFile = NSToolbarItem.Identifier("focusedit.newFile")
     static let open = NSToolbarItem.Identifier("focusedit.open")
     static let save = NSToolbarItem.Identifier("focusedit.save")
+    static let saveAs = NSToolbarItem.Identifier("focusedit.saveAs")
 }
 
 /// SF Symbol images for toolbar items; an "on" state is drawn in the accent color.
@@ -77,8 +78,8 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         self.init(window: window)
         window.delegate = self
 
-        // v3: the file buttons; a saved v2 layout would hide them.
-        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v3")
+        // v4: the file buttons (Save As… since 1.6.2); a saved older layout would hide them.
+        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v4")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -99,7 +100,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
     // MARK: NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .flexibleSpace,
+        [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .saveAs, .flexibleSpace,
          .focusMode, .typewriter, .sounds, .vim, .theme, .space, .preview, .hints, .outline]
     }
 
@@ -162,6 +163,9 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             return button(id, "folder", "Open", "Open a file (⌘O)", "openDocument:")
         case .save:
             return button(id, "square.and.arrow.down", "Save", "Save (⌘S)", "saveDocument:")
+        case .saveAs:
+            return button(id, "square.and.arrow.down.on.square", "Save As",
+                          "Save As… — a new name, folder or format: .txt, .md, .rtf (⇧⌘S)", "saveDocumentAs:")
         default:
             return nil
         }

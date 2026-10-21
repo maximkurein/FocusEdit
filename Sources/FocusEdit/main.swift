@@ -457,6 +457,14 @@ enum MenuBuilder {
     }
 }
 
+// A snapshot must not reopen (and then close) the user's restored windows and autosaves:
+// ignore saved state for this launch only (argument domain, never written to disk).
+if Snapshot.isActive {
+    var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+    arguments["ApplePersistenceIgnoreState"] = true
+    UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-10-21
+
+### Added
+- Mac: a Save As… button in the toolbar next to Save (a customised toolbar starts from the default layout once more)
+
+### Fixed
+- Mac: `--snapshot` ignores the saved window state, so a check run never reopens (and then closes) your own windows
+
 ## [1.6.1] - 2026-10-21
 
 ### Added
