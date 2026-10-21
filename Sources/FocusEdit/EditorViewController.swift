@@ -208,9 +208,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     private func layoutWritingColumn() {
         let available = scrollView.contentSize
-        let side = max(24, (available.width - columnWidth) / 2)
+        // A narrow pane (the preview beside it, a small window) narrows the column too.
+        let width = max(120, min(columnWidth, available.width - 48))
+        let side = max(24, (available.width - width) / 2)
         let vertical = textView.verticalPadding(forViewportHeight: available.height)
-        textView.textContainer?.size = NSSize(width: columnWidth, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.size = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainerInset = NSSize(width: side, height: vertical)
     }
 

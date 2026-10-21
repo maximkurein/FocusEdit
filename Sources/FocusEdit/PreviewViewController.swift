@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-/// Live HTML preview shown beside the text (View ▸ Show Preview, ⇧⌘P).
+/// Live HTML preview beside the text or alone (View ▸ Preview, ⌥⌘P cycles Edit → Split → Preview).
 /// The page is loaded once and only its body is replaced while typing, so the
 /// scroll position stays where it is.
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
@@ -23,6 +23,10 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     /// Called when the reader scrolls the page: 0 is the top, 1 the bottom.
     var onScroll: ((Double) -> Void)?
     private var lastRatio = 0.0
+    /// Where the reader is (0 top, 1 bottom), as last read or set.
+    var currentRatio: Double { lastRatio }
+    /// A scroll asked for while the page was loading, applied when it is ready.
+    private var pendingRatio: Double?
     /// The page that was just moved by code ignores its own scrolling for a moment.
     private var quietUntil = Date.distantPast
     private var pollTimer: Timer?
@@ -65,8 +69,8 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     /// Put the page at the same relative place as the editor.
     func scroll(toRatio ratio: Double) {
-        guard ready else { return }
         lastRatio = ratio
+        guard ready else { pendingRatio = ratio; return }
         quietUntil = Date().addingTimeInterval(0.25)
         webView.evaluateJavaScript("""
             (function () { var m = document.documentElement.scrollHeight - window.innerHeight;
@@ -103,6 +107,10 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
         inject(latest) // anything typed while the page was loading
+        if let ratio = pendingRatio {
+            pendingRatio = nil
+            scroll(toRatio: ratio)
+        }
     }
 
     /// Only the app's own page load (about:blank) is allowed; every other navigation is

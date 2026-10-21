@@ -144,7 +144,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             return item
         case .preview:
             return button(id, "eye", "Preview",
-                          "Live HTML preview beside the text — Markdown only (⇧⌘P)", "togglePreview:")
+                          "View: Edit → Split → Preview — Markdown only (⌥⌘P)", "togglePreview:")
         case .hints:
             return button(id, "questionmark.circle", "Hints",
                           "Hints and shortcuts (⌘?)", "showHints:")

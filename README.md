@@ -44,7 +44,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 | ⇧⌘N | New File…: format, template, name |
 | ⌘T | Keep the active line centred |
 | ⌘U | Typewriter sounds |
-| ⇧⌘P | Live preview (Markdown) |
+| ⌥⌘P | View: Edit → Split (live preview) → Preview only; Esc leaves Preview (Markdown) |
 | ⌥⌘L · ⌥⌘O | Library · outline |
 | ⌘B · ⌘I · ⌘K | Bold · italic · link |
 | ⌃⌘F | Full screen |

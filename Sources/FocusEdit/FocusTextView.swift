@@ -140,22 +140,26 @@ final class FocusTextView: NSTextView {
     }
 
     private func centerCaretLineIfNeeded() {
-        guard typewriterScrollingEnabled,
-              let layoutManager = layoutManager,
+        guard typewriterScrollingEnabled else { return }
+        scrollLine(containing: selectedRange().location, toHeight: typewriterAnchor)
+    }
+
+    /// Scroll so the line holding `charIndex` sits at `anchor` of the viewport height.
+    func scrollLine(containing charIndex: Int, toHeight anchor: CGFloat) {
+        guard let layoutManager = layoutManager,
               let textContainer = textContainer,
               let clipView = enclosingScrollView?.contentView
         else { return }
 
         layoutManager.ensureLayout(for: textContainer)
 
-        let caret = selectedRange().location
-        let lineRect = lineFragmentRect(forCharacterAt: caret)
+        let lineRect = lineFragmentRect(forCharacterAt: charIndex)
         let lineMidYInView = lineRect.midY + textContainerOrigin.y
 
         let viewportHeight = clipView.bounds.height
         guard viewportHeight > 0 else { return }
 
-        var targetY = lineMidYInView - viewportHeight * typewriterAnchor
+        var targetY = lineMidYInView - viewportHeight * anchor
         let maxY = max(0, bounds.height - viewportHeight)
         targetY = min(max(targetY, 0), maxY)
 

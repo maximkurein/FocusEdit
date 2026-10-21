@@ -286,6 +286,12 @@ enum SelfTest {
         check("image", html("![alt text](pic.png)"), "<p><img alt=\"alt text\" src=\"pic.png\"></p>")
         check("unsafe image is its alt text", html("![alt](javascript:x)"), "<p>alt</p>")
         check("empty document", html(""), "")
+        check("view cycle", "\(ViewMode.edit.next) \(ViewMode.split.next) \(ViewMode.preview.next)", "split preview edit")
+        let five = "a\nb\nc\nd\ne"
+        check("caret line → ratio", String(ViewMode.ratio(forCaret: 4, in: five)), "0.5")
+        check("ratio → line start", String(ViewMode.lineStart(forRatio: 0.5, in: five)), "4")
+        check("ratio 1 → last line", String(ViewMode.lineStart(forRatio: 1, in: five)), "8")
+        check("one-line text", String(ViewMode.ratio(forCaret: 3, in: "abc")), "0.0")
         check("underscores inside words", html("snake_case_name"), "<p>snake_case_name</p>")
         check("emphasis inside strong", html("**a *b* c**"), "<p><strong>a <em>b</em> c</strong></p>")
         check("marks inside code stay", html("`**x**`"), "<p><code>**x**</code></p>")

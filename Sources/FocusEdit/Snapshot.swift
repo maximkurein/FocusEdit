@@ -1,4 +1,5 @@
 import AppKit
+import WebKit
 
 /// `FocusEdit <file> --snapshot out.png`: opens the document, types a short
 /// demo (list continuation + grey completion), renders the window including
@@ -13,9 +14,23 @@ enum Snapshot {
     static func schedule(to path: String) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { typeDemo() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
-            render(to: path)
-            NSDocumentController.shared.documents.forEach { $0.updateChangeCount(.changeCleared) }
-            NSApp.terminate(nil)
+            capturePreview {
+                render(to: path)
+                NSDocumentController.shared.documents.forEach { $0.updateChangeCount(.changeCleared) }
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    /// The web preview draws out of process: ask it for a picture first.
+    private static var previewImage: NSImage?
+
+    private static func capturePreview(then done: @escaping () -> Void) {
+        guard let split = window?.contentViewController as? MainSplitViewController,
+              split.viewMode != .edit, let web = split.preview.view as? WKWebView else { return done() }
+        web.takeSnapshot(with: nil) { image, _ in
+            previewImage = image
+            done()
         }
     }
 
@@ -33,6 +48,11 @@ enum Snapshot {
         }
         let tv = split.editor.textView
         window?.makeFirstResponder(tv)
+        // `--view split|preview`: the preview beside the text, or alone.
+        if let i = args.firstIndex(of: "--view"), i + 1 < args.count {
+            split.setView(args[i + 1] == "preview" ? .preview : args[i + 1] == "split" ? .split : .edit)
+            return
+        }
         // `--vim`: show the coach after a couple of Normal-mode commands instead of typing.
         if args.contains("--vim") {
             split.editor.showVimForSnapshot(keys: ["g", "g", "j", "j", "j", "2", "w", "c", "i", "w"])
@@ -76,6 +96,16 @@ enum Snapshot {
                     if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
                     coachRep.draw(in: rect)
                 }
+                NSGraphicsContext.restoreGraphicsState()
+            }
+            if let image = previewImage, !split.preview.view.isHiddenOrHasHiddenAncestor {
+                let web = split.preview.view
+                var rect = web.convert(web.bounds, to: frameView)
+                if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: frameRep)
+                NSBezierPath(rect: content).addClip()
+                image.draw(in: rect)
                 NSGraphicsContext.restoreGraphicsState()
             }
         }

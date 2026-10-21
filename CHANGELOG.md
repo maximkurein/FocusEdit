@@ -8,8 +8,13 @@
 
 ### Added
 - Mac: the Markdown preview and HTML export now render tables with column alignment, task lists, strikethrough, nested and loose lists, numbered lists that start at any number, setext headings, rules, hard line breaks, reference links (`[text][label]`), bare web addresses, backslash escapes, `~~~` fences and code blocks with `class="language-…"`. Raw HTML stays text and links stay limited to web and mail addresses, as before
+- Mac: View ▸ Preview (`⌥⌘P`, the eye button) cycles Edit → Split (live preview beside the text) → Preview (the page alone, opened where the cursor was); Esc in Preview goes back to editing with the cursor at the place being read. The button's tooltip names the current mode
+
+### Changed
+- Mac: the preview key is now `⌥⌘P` (`⇧⌘P` goes to the command palette)
 
 ### Fixed
+- Mac: with the preview beside it, the writing column narrows to fit its pane instead of running past the edge
 - Mac: clicking the Dock icon with no windows open makes a new document, also when the app was started with a file
 - Mac: the build has no compiler warnings (menu actions use `#selector`)
 

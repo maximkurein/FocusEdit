@@ -66,6 +66,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     }
 
     private func contentChanged() {
+        if !editor.documentKind.supportsHTML, viewMode != .edit { setView(.edit) }
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
         if !previewItem.isCollapsed {
             preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
@@ -143,14 +144,73 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
     // MARK: Preview beside the text / export
 
+    var viewMode: ViewMode {
+        if previewItem.isCollapsed { return .edit }
+        return editorItem.isCollapsed ? .preview : .split
+    }
+
+    /// View ▸ Preview (⌥⌘P) and the eye button: Edit → Split → Preview → Edit.
     @objc func togglePreview(_ sender: Any?) {
         guard editor.documentKind.supportsHTML else { NSSound.beep(); return }
-        let showing = previewItem.isCollapsed
-        if showing {
-            preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
-            syncScrolling()
+        setView(viewMode.next)
+    }
+
+    func setView(_ mode: ViewMode) {
+        let from = viewMode
+        guard mode != from else { return }
+        let tv = editor.textView
+        switch mode {
+        case .edit, .split:
+            if from == .edit {
+                preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
+                syncScrolling()
+            }
+            if from == .preview {
+                // Back to the text where the reader was.
+                let caret = ViewMode.lineStart(forRatio: preview.currentRatio, in: tv.string)
+                editorItem.isCollapsed = false
+                editorItem.canCollapse = false
+                tv.setSelectedRange(NSRange(location: caret, length: 0))
+                tv.scrollLine(containing: caret, toHeight: 0.5)
+                tv.refreshFocusEffects()
+            }
+            if mode == .edit { previewItem.animator().isCollapsed = true }
+            if mode == .split, previewItem.isCollapsed { previewItem.animator().isCollapsed = false }
+            view.window?.makeFirstResponder(tv)
+            stopEscapeMonitor()
+        case .preview:
+            // The page opens where the cursor was.
+            let ratio = ViewMode.ratio(forCaret: tv.selectedRange().location, in: tv.string)
+            if from == .edit {
+                preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
+                syncScrolling()
+            }
+            previewItem.isCollapsed = false
+            editorItem.canCollapse = true
+            editorItem.isCollapsed = true
+            preview.scroll(toRatio: ratio)
+            view.window?.makeFirstResponder(preview.view)
+            startEscapeMonitor()
         }
-        previewItem.animator().isCollapsed = !showing
+    }
+
+    /// Esc in Preview goes back to editing (the web view would swallow a menu key).
+    private var escapeMonitor: Any?
+
+    private func startEscapeMonitor() {
+        guard escapeMonitor == nil else { return }
+        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.keyCode == 53, event.window === self.view.window,
+                  event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+                  self.viewMode == .preview else { return event }
+            self.setView(.edit)
+            return nil
+        }
+    }
+
+    private func stopEscapeMonitor() {
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+        escapeMonitor = nil
     }
 
     /// Scrolling the editor scrolls the preview and the other way round (relative position).
@@ -182,6 +242,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
     deinit {
         if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+        stopEscapeMonitor()
     }
 
     @objc func exportAsHTML(_ sender: Any?) {
@@ -210,7 +271,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
         switch item.action {
         case #selector(togglePreview(_:)):
-            ToolbarSymbol.update(item, "eye", on: !previewItem.isCollapsed)
+            ToolbarSymbol.update(item, "eye", on: viewMode != .edit)
+            item.toolTip = "View: \(viewMode.title) — click for \(viewMode.next.title) (⌥⌘P)"
             return editor.documentKind.supportsHTML
         case #selector(toggleOutline(_:)):
             ToolbarSymbol.update(item, "sidebar.right", on: !outlineItem.isCollapsed)
@@ -227,7 +289,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         case #selector(toggleOutline(_:)):
             item.title = outlineItem.isCollapsed ? "Show Outline" : "Hide Outline"
         case #selector(togglePreview(_:)):
-            item.title = previewItem.isCollapsed ? "Show Preview" : "Hide Preview"
+            item.title = viewMode.menuTitle
             return editor.documentKind.supportsHTML
         case #selector(exportAsHTML(_:)), #selector(copyAsHTML(_:)):
             return editor.documentKind.supportsHTML
@@ -235,5 +297,64 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             break
         }
         return true
+    }
+}
+
+/// Edit (text only) → Split (text and live preview) → Preview (the page only).
+enum ViewMode {
+    case edit, split, preview
+
+    var next: ViewMode {
+        switch self {
+        case .edit: return .split
+        case .split: return .preview
+        case .preview: return .edit
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .edit: return "Edit"
+        case .split: return "Split"
+        case .preview: return "Preview"
+        }
+    }
+
+    /// The View menu item says what choosing it does.
+    var menuTitle: String {
+        switch self {
+        case .edit: return "Show Preview"
+        case .split: return "Preview Only"
+        case .preview: return "Back to Editing"
+        }
+    }
+
+    /// Where the cursor's line sits in the text, 0 (first line) to 1 (last line).
+    static func ratio(forCaret caret: Int, in text: String) -> Double {
+        let ns = text as NSString
+        let total = lineCount(ns)
+        guard total > 1 else { return 0 }
+        let line = lineCount(ns.substring(to: min(caret, ns.length)) as NSString) - 1
+        return Double(line) / Double(total - 1)
+    }
+
+    /// The start of the line at `ratio` of the text (the reading place in the preview).
+    static func lineStart(forRatio ratio: Double, in text: String) -> Int {
+        let ns = text as NSString
+        let total = lineCount(ns)
+        let target = Int((min(1, max(0, ratio)) * Double(total - 1)).rounded())
+        var line = 0, location = 0
+        while line < target, location < ns.length {
+            let range = ns.lineRange(for: NSRange(location: location, length: 0))
+            location = NSMaxRange(range)
+            line += 1
+        }
+        return location
+    }
+
+    private static func lineCount(_ ns: NSString) -> Int {
+        var count = 1
+        for i in 0..<ns.length where ns.character(at: i) == 10 { count += 1 }
+        return count
     }
 }
