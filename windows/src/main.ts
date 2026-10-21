@@ -104,7 +104,7 @@ function applyAppearance(): void {
   const focusLabel = { off: "Off", sentence: "Sentence", paragraph: "Paragraph" }[settings.focusMode];
   $("focus-label").textContent = focusLabel;
   $("btn-focus").classList.toggle("on", settings.focusMode !== "off");
-  $("btn-focus").title = `Focus highlighting: ${focusLabel} — click to change`;
+  $("btn-focus").title = `Focus highlighting: ${{ off: "off", sentence: "the sentence you are writing", paragraph: "the paragraph you are writing, up to the blank line" }[settings.focusMode]} — click to change`;
   $("btn-typewriter").classList.toggle("on", settings.typewriter);
   $("btn-vim").classList.toggle("on", settings.vim);
   $("btn-vim").title = settings.vim ? "Vim mode is on — click (or :novim) to turn it off" : "Vim mode: learn Vim as you write";
@@ -554,7 +554,7 @@ function allCommands(): Command[] {
     { title: settings.outline ? "Outline: hide" : "Outline: show", shortcut: key("Shift+O"), keywords: "headings", run: () => actions["btn-outline"]() },
     ...focusModes.map((mode): Command => ({
       title: `Focus: ${mode[0].toUpperCase()}${mode.slice(1)}`,
-      keywords: "highlight dim",
+      keywords: "highlight dim sentence paragraph block",
       run: () => changeSettings(() => (settings.focusMode = mode)),
     })),
     { title: settings.typewriter ? "Typewriter scrolling: off" : "Typewriter scrolling: on", shortcut: key("T"), keywords: "centre center", run: () => actions["btn-typewriter"]() },

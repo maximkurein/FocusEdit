@@ -1,12 +1,13 @@
 // Focus highlighting and typewriter scrolling for CodeMirror 6 — the
 // equivalents of FocusTextView's focus and typewriter layers on macOS.
 //
-// "Paragraph" is the line holding the cursor (a soft-wrapped paragraph in
-// prose), "sentence" narrows that to the sentence around the cursor.
+// "Paragraph" is the block of text around the cursor up to the blank lines
+// (a heading and a list item, with its continuation lines, count as blocks of
+// their own); "sentence" narrows that to the sentence around the cursor.
 // Dimming is a CSS class on lines/marks, so markup styling (bold, italic,
 // code) survives and only the colour fades; a CSS transition smooths it.
 
-import { EditorState, type Extension, RangeSetBuilder, type Transaction } from "@codemirror/state";
+import { EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { FocusMode } from "./settings";
 
@@ -17,7 +18,9 @@ const dimText = Decoration.mark({ class: "cm-dim-text" });
 export function sentenceRange(text: string, offset: number): [number, number] {
   const segmenter = new Intl.Segmenter(undefined, { granularity: "sentence" });
   let last: [number, number] = [0, text.length];
-  for (const s of segmenter.segment(text)) {
+  // A line break ends a sentence for the segmenter; in a hard-wrapped paragraph it does not.
+  // A space has the same length, so the offsets stay valid.
+  for (const s of segmenter.segment(text.replace(/\n/g, " "))) {
     const start = s.index;
     const end = s.index + s.segment.length;
     last = [start, end];
@@ -26,26 +29,50 @@ export function sentenceRange(text: string, offset: number): [number, number] {
   return last; // cursor at the very end of the line
 }
 
+const LIST_ITEM = /^\s*([-*+]|\d+[.)])\s+/;
+const HEADING = /^\s{0,3}#{1,6}\s/;
+
+/**
+ * The first and last line (1-based, inclusive) of the block around `line`: text up to the blank
+ * lines. A heading is a block of its own, and so is each list item with the lines that continue it.
+ * The same rule as `FocusUnit` in FocusTextView.swift.
+ */
+export function focusUnit(text: (line: number) => string, count: number, line: number): [number, number] {
+  const blank = (n: number) => text(n).trim() === "";
+  const starts = (n: number) => LIST_ITEM.test(text(n)) || HEADING.test(text(n));
+  if (blank(line)) return [line, line];
+  let first = line;
+  while (!starts(first) && first > 1 && !blank(first - 1) && !HEADING.test(text(first - 1))) first--;
+  let last = line;
+  if (!HEADING.test(text(first))) {
+    while (last < count && !blank(last + 1) && !starts(last + 1)) last++;
+  } else last = first;
+  return [first, last];
+}
+
 function buildDecorations(view: EditorView, mode: FocusMode): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>();
   const { doc } = view.state;
   const head = view.state.selection.main.head;
-  const active = doc.lineAt(head);
+  const [first, last] = focusUnit((n) => doc.line(n).text, doc.lines, doc.lineAt(head).number);
+  const ranges: Range<Decoration>[] = [];
 
   for (const { from, to } of view.visibleRanges) {
     for (let pos = from; pos <= to; ) {
       const line = doc.lineAt(pos);
-      if (line.number !== active.number) {
-        builder.add(line.from, line.from, dimLine);
-      } else if (mode === "sentence" && line.length > 0) {
-        const [s, e] = sentenceRange(line.text, head - line.from);
-        if (s > 0) builder.add(line.from, line.from + s, dimText);
-        if (e < line.length) builder.add(line.from + e, line.to, dimText);
-      }
+      if (line.number < first || line.number > last) ranges.push(dimLine.range(line.from));
       pos = line.to + 1;
     }
   }
-  return builder.finish();
+  if (mode === "sentence") {
+    const from = doc.line(first).from;
+    const to = doc.line(last).to;
+    if (to > from) {
+      const [s, e] = sentenceRange(doc.sliceString(from, to), head - from);
+      if (s > 0) ranges.push(dimText.range(from, from + s));
+      if (e < to - from) ranges.push(dimText.range(from + e, to));
+    }
+  }
+  return Decoration.set(ranges, true);
 }
 
 export function focusHighlighting(mode: FocusMode): Extension {

@@ -440,7 +440,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             ToolbarSymbol.update(item, sounds.enabled ? "speaker.wave.2" : "speaker.slash",
                                  on: sounds.enabled)
         case #selector(toggleVimMode(_:)):
-            ToolbarSymbol.update(item, "keyboard", on: vimEnabled)
+            ToolbarSymbol.update(item, "text:Vim", on: vimEnabled)
         case #selector(cycleFocusMode(_:)):
             ToolbarSymbol.update(item, "scope", on: textView.focusMode != .off)
             item.toolTip = "Focus: \(textView.focusMode.title) — click to change, arrow for the list"

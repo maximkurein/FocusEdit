@@ -14,6 +14,8 @@
 
 ### Changed
 - `⌘N` / `Ctrl+N` still makes an empty document; the hints (F1, ⌘?) list both
+- Focus ▸ Paragraph now lights the whole paragraph, up to the blank lines, instead of one line; a heading and each list item (with the lines that continue it) are blocks of their own. Focus ▸ Sentence follows a sentence across the lines of a hard-wrapped paragraph. The toolbar tooltip says what each mode keeps lit
+- The Vim button is the word "Vim" (Windows: no more doubled icon; Mac: instead of a bare keyboard)
 
 ## [1.4.0] - 2026-10-20
 

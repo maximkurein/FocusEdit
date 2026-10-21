@@ -282,15 +282,22 @@ final class FocusTextView: NSTextView {
     private func activeRange(for mode: FocusMode) -> NSRange {
         let ns = string as NSString
         let sel = selectedRange()
-        let paragraph = ns.paragraphRange(for: sel)
+        let paragraph = FocusUnit.range(in: ns, around: sel.location)
         guard mode == .sentence else { return paragraph }
 
+        // A line break ends a sentence for the enumerator; in a hard-wrapped paragraph it does not.
+        // A space has the same length, so the ranges stay valid.
+        let flat = ns.substring(with: paragraph)
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ") as NSString
         var result = paragraph
-        ns.enumerateSubstrings(in: paragraph, options: [.bySentences, .localized]) {
-            _, subRange, _, stop in
-            let end = subRange.location + subRange.length
-            if NSLocationInRange(sel.location, subRange) || sel.location == end {
-                result = subRange
+        flat.enumerateSubstrings(
+            in: NSRange(location: 0, length: flat.length), options: [.bySentences, .localized]
+        ) { _, subRange, _, stop in
+            let absolute = NSRange(location: paragraph.location + subRange.location, length: subRange.length)
+            let end = absolute.location + absolute.length
+            if NSLocationInRange(sel.location, absolute) || sel.location == end {
+                result = absolute
                 stop.pointee = true
             }
         }

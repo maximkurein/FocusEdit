@@ -14,11 +14,26 @@ extension NSToolbarItem.Identifier {
 /// SF Symbol images for toolbar items; an "on" state is drawn in the accent color.
 enum ToolbarSymbol {
     static func image(_ name: String, on: Bool = false) -> NSImage? {
+        // "text:Vim" draws the word itself: a button that is a name, not a picture.
+        if name.hasPrefix("text:") { return textImage(String(name.dropFirst(5)), on: on) }
         guard let base = NSImage(systemSymbolName: name, accessibilityDescription: name) else { return nil }
         guard on else { return base }
         let tinted = base.withSymbolConfiguration(.init(paletteColors: [.controlAccentColor]))
         tinted?.isTemplate = false
         return tinted
+    }
+
+    private static func textImage(_ text: String, on: Bool) -> NSImage {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+            .foregroundColor: on ? NSColor.controlAccentColor : NSColor.labelColor,
+        ]
+        let size = (text as NSString).size(withAttributes: attributes)
+        // A drawing handler is redrawn per appearance, so labelColor follows light and dark.
+        return NSImage(size: NSSize(width: ceil(size.width) + 4, height: ceil(size.height)), flipped: false) { _ in
+            (text as NSString).draw(at: NSPoint(x: 2, y: 0), withAttributes: attributes)
+            return true
+        }
     }
 
     /// Swap the image only when the state actually changes (validation runs often).
@@ -96,7 +111,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             item.image = ToolbarSymbol.image("scope")
             item.label = "Focus"
             item.paletteLabel = "Focus"
-            item.toolTip = "Focus highlighting — click to cycle Off · Sentence · Paragraph, arrow for the list"
+            item.toolTip = "Focus highlighting — click to cycle Off · Sentence · Paragraph (up to the blank line), arrow for the list"
             item.action = Selector(("cycleFocusMode:"))
             item.showsIndicator = true
             let menu = NSMenu()
@@ -115,7 +130,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             return button(id, "speaker.wave.2", "Sounds",
                           "Typewriter sounds (⌘U)", "toggleTypewriterSounds:")
         case .vim:
-            return button(id, "keyboard", "Vim",
+            return button(id, "text:Vim", "Vim",
                           "Vim mode for learning — Normal/Insert modes with a coach under the text", "toggleVimMode:")
         case .theme:
             let item = NSMenuToolbarItem(itemIdentifier: id)

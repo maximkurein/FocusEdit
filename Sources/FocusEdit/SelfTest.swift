@@ -12,6 +12,7 @@ enum SelfTest {
         editing()
         rtf()
         newFile()
+        focusUnit()
         vim()
         print(failures == 0 ? "\nAll self-tests passed." : "\n\(failures) self-test(s) FAILED.")
         return failures == 0 ? 0 : 1
@@ -229,6 +230,27 @@ enum SelfTest {
             print("  FAIL  RTF conversion threw: \(error)")
         }
         check("rtf opens as Markdown", "\(DocumentKind(fileExtension: "RTF"))", "markdown")
+    }
+
+    // MARK: Focus unit (Paragraph focus)
+
+    private static func focusUnit() {
+        print("Focus unit:")
+        let prose = "First line\nsecond line\n\nNext paragraph\nwith two lines" as NSString
+        func unit(_ text: NSString, at location: Int) -> String {
+            text.substring(with: FocusUnit.range(in: text, around: location))
+        }
+        check("paragraph covers its lines", unit(prose, at: 3), "First line\nsecond line\n")
+        check("second line is the same paragraph", unit(prose, at: 15), "First line\nsecond line\n")
+        check("next paragraph", unit(prose, at: 30), "Next paragraph\nwith two lines")
+        let heading = "# Title\nText under it\nmore" as NSString
+        check("heading is its own block", unit(heading, at: 2), "# Title\n")
+        check("text under a heading", unit(heading, at: 12), "Text under it\nmore")
+        let list = "- one\n- two\n  still two\n- three" as NSString
+        check("first list item", unit(list, at: 1), "- one\n")
+        check("list item with continuation", unit(list, at: 8), "- two\n  still two\n")
+        check("last list item", unit(list, at: 26), "- three")
+        check("empty text", "\(FocusUnit.range(in: "" as NSString, around: 0))", "{0, 0}")
     }
 
     // MARK: New File…
