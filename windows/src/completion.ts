@@ -7,7 +7,8 @@ export type DocKind = "plain" | "markdown" | "fountain";
 
 export function kindForPath(path: string | null): DocKind {
   const ext = (path ?? "").toLowerCase().split(".").pop() ?? "";
-  if (["md", "markdown", "mdown", "mkd", "mdwn"].includes(ext)) return "markdown";
+  // RTF is edited as Markdown (rtf.ts converts both ways).
+  if (["md", "markdown", "mdown", "mkd", "mdwn", "rtf"].includes(ext)) return "markdown";
   if (ext === "fountain") return "fountain";
   return "plain";
 }

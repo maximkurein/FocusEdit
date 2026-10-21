@@ -11,6 +11,7 @@ enum SelfTest {
         completion()
         editing()
         rtf()
+        newFile()
         vim()
         print(failures == 0 ? "\nAll self-tests passed." : "\n\(failures) self-test(s) FAILED.")
         return failures == 0 ? 0 : 1
@@ -228,6 +229,39 @@ enum SelfTest {
             print("  FAIL  RTF conversion threw: \(error)")
         }
         check("rtf opens as Markdown", "\(DocumentKind(fileExtension: "RTF"))", "markdown")
+    }
+
+    // MARK: New File…
+
+    private static func newFile() {
+        print("New File:")
+        check("file name gets the extension", NewFile.fileName("notes", format: .md), "notes.md")
+        check("typed extension is not doubled", NewFile.fileName("notes.txt", format: .md), "notes.md")
+        check("forbidden characters go", NewFile.cleanName("a<b>c:d/e"), "a b c d e")
+        check("empty name becomes Untitled", NewFile.cleanName("  . "), "Untitled")
+        check("Russian name is kept", NewFile.cleanName(" Заметка про дом. "), "Заметка про дом")
+        check("default name has the date", NewFile.defaultName(.note, date: "2026-10-21"), "Note 2026-10-21")
+        check("blank is empty", NewFile.startingText(.blank, format: .md, title: "x", date: "d"), "")
+        check("note is Markdown", NewFile.startingText(.note, format: .md, title: "Trip", date: "2026-10-21"),
+              "# Trip\n\n2026-10-21\n")
+        let plain = NewFile.startingText(.meeting, format: .txt, title: "Weekly", date: "2026-10-21")
+        check("plain text has no Markdown marks", "\(plain.contains("#") || plain.contains("**"))", "false")
+        check("plain text is headed in capitals", "\(plain.hasPrefix("WEEKLY"))", "true")
+        let taken: Set<String> = ["a.md", "a (2).md"]
+        let free = NewFile.freeURL(folder: URL(fileURLWithPath: "/tmp"), name: "a.md") {
+            taken.contains($0.lastPathComponent)
+        }
+        check("a taken name is counted up", free.lastPathComponent, "a (3).md")
+        do {
+            let text = NewFile.startingText(.meeting, format: .rtf, title: "Weekly", date: "2026-10-21")
+            let data = try NewFile.data(format: .rtf, text: text)
+            check("rtf file is RTF", String(decoding: data.prefix(5), as: UTF8.self), "{\\rtf")
+            let back = try RTFMarkdown.markdown(fromRTF: data).markdown
+            check("rtf template reads back", "\(back.contains("# Weekly") && back.contains("## Agenda"))", "true")
+        } catch {
+            failures += 1
+            print("  FAIL  New File RTF threw: \(error)")
+        }
     }
 
     // MARK: Text view writing aids

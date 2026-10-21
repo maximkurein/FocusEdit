@@ -1,10 +1,23 @@
 // Platform bridge: real files and dialogs under Tauri, browser fallbacks
 // otherwise (so the UI can be developed and screenshot-tested in a browser).
 
+import { markdownToRtf, rtfToMarkdown } from "./rtf";
+
 export interface OpenedFile {
   path: string | null; // null in the browser fallback
   name: string;
   text: string;
+  /** Formatting of an .rtf file that the Markdown text cannot keep ("underline", "fonts"…). */
+  lost?: string[];
+}
+
+const isRtf = (name: string) => /\.rtf$/i.test(name);
+
+/** An .rtf file is edited as Markdown: convert what was read. */
+function decode(name: string, raw: string): { text: string; lost?: string[] } {
+  if (!isRtf(name)) return { text: raw };
+  const imported = rtfToMarkdown(raw);
+  return { text: imported.markdown, lost: imported.lost };
 }
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -12,10 +25,11 @@ export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.pl
 export const modKey = isMac ? "⌘" : "Ctrl+";
 
 const FILTERS = [
-  { name: "Documents", extensions: ["md", "markdown", "fountain", "txt"] },
+  { name: "Documents", extensions: ["md", "markdown", "fountain", "txt", "rtf"] },
   { name: "Markdown", extensions: ["md", "markdown"] },
   { name: "Fountain", extensions: ["fountain"] },
   { name: "Plain Text", extensions: ["txt"] },
+  { name: "Rich Text", extensions: ["rtf"] },
 ];
 
 export function baseName(path: string): string {
@@ -28,8 +42,8 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 }
 
 export async function readFile(path: string): Promise<OpenedFile> {
-  const text = await invoke<string>("read_text", { path });
-  return { path, name: baseName(path), text };
+  const raw = await invoke<string>("read_text", { path });
+  return { path, name: baseName(path), ...decode(path, raw) };
 }
 
 export async function openFile(): Promise<OpenedFile | null> {
@@ -41,10 +55,10 @@ export async function openFile(): Promise<OpenedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".md,.markdown,.fountain,.txt,text/plain";
+    input.accept = ".md,.markdown,.fountain,.txt,.rtf,text/plain";
     input.onchange = async () => {
       const file = input.files?.[0];
-      resolve(file ? { path: null, name: file.name, text: await file.text() } : null);
+      resolve(file ? { path: null, name: file.name, ...decode(file.name, await file.text()) } : null);
     };
     input.click();
   });
@@ -53,7 +67,7 @@ export async function openFile(): Promise<OpenedFile | null> {
 /** Write to `path`; returns false if the write failed (an error was shown). */
 export async function writeFile(path: string, text: string): Promise<boolean> {
   try {
-    await invoke("write_text", { path, text });
+    await invoke("write_text", { path, text: isRtf(path) ? markdownToRtf(text) : text });
     return true;
   } catch (error) {
     await showError(`Could not save ${baseName(path)}: ${String(error)}`);
@@ -145,7 +159,7 @@ export async function onCloseRequested(guard: () => Promise<boolean>): Promise<v
   }
 }
 
-const OPENABLE = /\.(md|markdown|fountain|txt)$/i;
+const OPENABLE = /\.(md|markdown|fountain|txt|rtf)$/i;
 
 /**
  * Files dropped onto the window. `onFile` gets the first supported file (the
@@ -154,7 +168,7 @@ const OPENABLE = /\.(md|markdown|fountain|txt)$/i;
  * the HTML5 events carry the file itself.
  */
 export async function onFileDrop(onFile: (file: OpenedFile) => void, over: (hovering: boolean) => void): Promise<void> {
-  const reject = (name: string) => showError(`“${name}” is not a document FocusEdit opens (.md, .markdown, .fountain, .txt).`);
+  const reject = (name: string) => showError(`“${name}” is not a document FocusEdit opens (.md, .markdown, .fountain, .txt, .rtf).`);
   if (isTauri) {
     const { getCurrentWebview } = await import("@tauri-apps/api/webview");
     await getCurrentWebview().onDragDropEvent(async ({ payload }) => {
@@ -193,7 +207,7 @@ export async function onFileDrop(onFile: (file: OpenedFile) => void, over: (hove
     over(false);
     const files = [...(e.dataTransfer?.files ?? [])];
     const file = files.find((f) => OPENABLE.test(f.name));
-    if (file) onFile({ path: null, name: file.name, text: await file.text() });
+    if (file) onFile({ path: null, name: file.name, ...decode(file.name, await file.text()) });
     else if (files.length > 0) await reject(files[0].name);
   });
 }
@@ -212,4 +226,44 @@ export async function closeWindow(): Promise<void> {
   } else {
     window.close();
   }
+}
+
+// ------------------------------------------------------------ new files
+
+/** The folder new files go to by default (Documents); null in the browser, which has no folders. */
+export async function defaultFolder(): Promise<string | null> {
+  if (!isTauri) return null;
+  try {
+    const { documentDir } = await import("@tauri-apps/api/path");
+    return await documentDir();
+  } catch {
+    return null;
+  }
+}
+
+/** Pick a folder; null if cancelled. */
+export async function chooseFolder(start?: string | null): Promise<string | null> {
+  if (!isTauri) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const path = await open({ directory: true, multiple: false, defaultPath: start ?? undefined });
+  return typeof path === "string" ? path : null;
+}
+
+/** Whether a file is already there (a read that works means it is). */
+export async function fileExists(path: string): Promise<boolean> {
+  if (!isTauri) return false;
+  try {
+    await invoke<string>("read_text", { path });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Browser only: hand the file to the user as a download. */
+export function download(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.click();
+  URL.revokeObjectURL(url);
 }

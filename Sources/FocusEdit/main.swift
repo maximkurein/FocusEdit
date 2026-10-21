@@ -74,6 +74,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newFountainTemplate(_ sender: Any?) {
         openTemplate(ext: "fountain", text: Templates.fountain)
     }
+    /// File ▸ New File…: the three-step dialog, then the file on disk, opened in a window.
+    @objc func newFileWizard(_ sender: Any?) {
+        guard let choice = NewFileWizard().run() else { return }
+        let url = NewFile.freeURL(
+            folder: choice.folder, name: NewFile.fileName(choice.name, format: choice.format))
+        let text = NewFile.startingText(
+            choice.template, format: choice.format, title: choice.name, date: NewFile.isoDate())
+        do {
+            try NewFile.data(format: choice.format, text: text).write(to: url, options: .atomic)
+        } catch {
+            NSAlert(error: error).runModal()
+            return
+        }
+        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+            if let error { NSAlert(error: error).runModal() }
+        }
+    }
+
     private func openTemplate(ext: String, text: String) {
         guard let doc = try? NSDocumentController.shared
             .openUntitledDocumentAndDisplay(true) as? FocusDocument else { return }
@@ -177,6 +195,9 @@ enum MenuBuilder {
         let fileMenu = NSMenu(title: "File")
         fileItem.submenu = fileMenu
         fileMenu.addItem(withTitle: "New", action: Selector(("newDocument:")), keyEquivalent: "n")
+        let newFile = NSMenuItem(title: "New File…", action: Selector(("newFileWizard:")), keyEquivalent: "N")
+        newFile.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.addItem(newFile)
         let tmplParent = NSMenuItem(title: "New From Template", action: nil, keyEquivalent: "")
         let tmplMenu = NSMenu(title: "New From Template")
         tmplParent.submenu = tmplMenu

@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-21
+
+### Added
+- New File… (`⌘⇧N` on the Mac, `Ctrl+Shift+N` on Windows, File menu, the new-file button and the palette): a dialog of three steps that makes a file and opens it. Step 1 picks the format (plain text `.txt`, Markdown `.md` or rich text `.rtf`), step 2 what to start from (blank, note, to-do list, meeting notes), step 3 the name and the folder, with the final path shown before the file is made. A name that is taken becomes `name (2)`; forbidden characters are removed from names
+- Windows: `.rtf` files open as Markdown and save back as RTF, as on the Mac: bold, italic, strikethrough, headings, lists, quotes, links and code survive; underline, colours, images, tables and other fonts do not, and the status line says so when such a file is opened. `.rtf` is also accepted by Open and by drag and drop
+
+### Changed
+- `⌘N` / `Ctrl+N` still makes an empty document; the hints (F1, ⌘?) list both
+
 ## [1.4.0] - 2026-10-20
 
 ### Added

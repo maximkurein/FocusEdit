@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.4.0`, released 20.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.5.0`, released 21.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -28,6 +28,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **Writing aids** — a grey suggestion completes the word you are typing from words already in the document, then from the system dictionary (English and Russian); brackets and quotes close themselves and wrap a selection; Return continues Markdown lists, task lists and quotes. In Fountain, scene headings and character names you have used are suggested.
 - **Plain text, styled on screen** — Markdown headings, emphasis, code, quotes, lists, links and CriticMarkup; Fountain scene headings, characters, parentheticals and transitions. Styling is display-only: the file on disk stays clean plain text.
 - **Vim mode for learning** — Modus ▸ Vim Mode: Normal, Insert and Visual modes with the operator + motion grammar (`dw`, `ciw`, `3j`, `.`), and a coach bar under the text that explains every command and suggests faster ways. Leave it with the Exit Vim button on the coach bar or `:novim`. Works in the Russian keyboard layout too. A lesson-by-lesson course is in [VIM_GUIDE.md](VIM_GUIDE.md).
+- **New File…** — `⇧⌘N` opens a three-step dialog: pick the format (`.txt`, `.md` or `.rtf`), what to start from (blank, note, to-do list, meeting notes), then the name and the folder; the file is created and opened. The same dialog is in the Windows version (`Ctrl+Shift+N`).
 - **RTF** — `.rtf` files (TextEdit's default format) open as Markdown and save back as RTF: bold, italic, strikethrough, headings, lists, links and code survive the round trip; fonts, colours, images and tables do not, and FocusEdit warns when a file has them. **FocusEdit ▸ Make Default Editor for .txt and .rtf** makes double-clicked text and RTF files open in FocusEdit.
 - **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop, and autosave elsewhere every minute so unsaved text survives a crash. A library sidebar browses a linked folder; the outline jumps between headings; the window subtitle shows the word count and reading time; find and replace.
 - **Preview and export** — live HTML preview for Markdown in a pane beside the text, scrolling together with it, export as HTML or PDF, copy as HTML, print.
@@ -40,6 +41,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 |---|---|
 | Tab or → | Accept the grey suggestion |
 | Esc · ⌥Esc | Dismiss the suggestion · list all completions |
+| ⇧⌘N | New File…: format, template, name |
 | ⌘T | Keep the active line centred |
 | ⌘U | Typewriter sounds |
 | ⇧⌘P | Live preview (Markdown) |
@@ -94,13 +96,14 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 
 <sub>Rendered from the same web UI in Chrome by <code>npm run snapshot</code> in <code>windows/</code>.</sub>
 
-- **Status:** stage 2. Ported: focus and typewriter, writing aids, Vim mode, Markdown preview (edit, split, preview), outline, recent files, export (HTML, print or PDF, copy as HTML), crash recovery, themes including System, drag-and-drop open. Not yet ported: the library, Fountain highlighting, CriticMarkup and typewriter sounds.
+- **Status:** stage 2. Ported: focus and typewriter, writing aids, Vim mode, Markdown preview (edit, split, preview), outline, recent files, export (HTML, print or PDF, copy as HTML), crash recovery, themes including System, drag-and-drop open. `.rtf` open and save (as Markdown), New File… (three steps). Not yet ported: the library, Fountain highlighting, CriticMarkup and typewriter sounds.
 - **Installers:** GitHub Actions builds the `.exe` installer on Windows for every push to `main` that changes `windows/` (**Actions** → latest run → artifact **FocusEdit-windows**). They cannot be built on a Mac.
 - **Keys:** Ctrl replaces ⌘; F1 opens the hints (with the version and the developer), F11 toggles full screen. Focus modes have no shortcuts: use the focus button in the toolbar.
 
   | Keys | Action |
   |---|---|
   | Ctrl+Shift+P | Command palette: type what you want to do (themes, view, export, word goal, recent files…) |
+  | Ctrl+Shift+N | New file…: pick txt, md or rtf, a template, a name and a folder |
   | Ctrl+Shift+V | View: Edit → Split → Preview (Esc leaves the preview) |
   | Ctrl+Shift+O | Outline of headings |
   | Ctrl+P | Print, or save as PDF from the print dialog |

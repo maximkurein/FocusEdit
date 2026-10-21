@@ -11,12 +11,15 @@ import { copyAsHtml, htmlDocument, printMarkdown, titleOf } from "./export";
 import { appendAbout, renderHints } from "./hints";
 import { renderMarkdown } from "./markdown-html";
 import { closeMenu, type MenuItem, showMenu } from "./menu";
+import { fileContents, fileName, freeName, isoDate, joinPath, startingText } from "./newfile";
 import { type Command, filterCommands, Palette } from "./palette";
 import { extractHeadings, OutlinePanel } from "./outline";
+import { describeLost } from "./rtf";
 import { addRecent, folderOf, loadRecent, removeRecent, saveRecent } from "./recent";
 import { countWords, formatDuration, Session } from "./session";
 import type { VimAction } from "./vim";
 import { markWelcomed, wasWelcomed, welcomeText } from "./welcome";
+import { NewFileWizard } from "./wizard";
 import * as platform from "./platform";
 import {
   columnWidth,
@@ -193,24 +196,58 @@ async function newDocument(): Promise<void> {
   if (await canDiscard()) load("", null, "Untitled");
 }
 
+/** The three-step dialog, then the file on disk: format, template, name and folder. */
+async function newFile(): Promise<void> {
+  if (wizard.isOpen || !(await canDiscard())) return;
+  const result = await wizard.ask({
+    date: isoDate(),
+    folder: await platform.defaultFolder(),
+    chooseFolder: () => platform.chooseFolder(),
+  });
+  if (!result) return;
+  const text = startingText(result.template, result.format, result.name, isoDate());
+  const wanted = fileName(result.name, result.format);
+  if (result.folder === null) {
+    // No folders in a browser: the file is downloaded and the editor starts from it.
+    platform.download(wanted, fileContents(result.format, text));
+    load(text, null, wanted);
+    editor.goToLine(Number.MAX_SAFE_INTEGER);
+    return;
+  }
+  const folder = result.folder;
+  const name = await freeName(wanted, (candidate) => platform.fileExists(joinPath(folder, candidate)));
+  const path = joinPath(folder, name);
+  if (!(await platform.writeFile(path, fileContents(result.format, text)))) return;
+  load(text, path, name);
+  remember(path, name);
+  editor.goToLine(Number.MAX_SAFE_INTEGER); // ready to write under the template
+  notify(`Created ${name}`);
+}
+
 async function openDocument(): Promise<void> {
   if (!(await canDiscard())) return;
   const file = await platform.openFile();
-  if (file) load(file.text, file.path, file.name);
+  if (file) loadFile(file);
 }
 
 /** A file dropped on the window: ask before discarding unsaved changes, then open it. */
 async function openDropped(file: platform.OpenedFile): Promise<void> {
-  if (await canDiscard()) load(file.text, file.path, file.name);
+  if (await canDiscard()) loadFile(file);
 }
 
 async function openPath(path: string): Promise<void> {
   try {
     const file = await platform.readFile(path);
-    load(file.text, file.path, file.name);
+    loadFile(file);
   } catch (error) {
     await platform.showError(`Could not open ${platform.baseName(path)}: ${String(error)}`);
   }
+}
+
+/** Show a file that was just read; an .rtf file may have formatting that Markdown cannot keep. */
+function loadFile(file: platform.OpenedFile): void {
+  load(file.text, file.path, file.name);
+  if (file.lost?.length) notify(`Saving this RTF file drops its ${describeLost(file.lost)}`, 8000);
 }
 
 function contents(): string {
@@ -276,7 +313,7 @@ async function openRecent(path: string): Promise<void> {
   if (!(await canDiscard())) return;
   try {
     const file = await platform.readFile(path);
-    load(file.text, file.path, file.name);
+    loadFile(file);
   } catch {
     removeRecent(path);
     await platform.showError(`Could not open ${platform.baseName(path)}. It was moved or deleted, so it was removed from the recent list.`);
@@ -303,13 +340,13 @@ function scheduleOutline(): void {
 // ------------------------------------------------------- file menu, export
 
 /** A short message in place of the word count. */
-function notify(message: string): void {
+function notify(message: string, ms = 2500): void {
   notice = message;
   renderStats();
   window.setTimeout(() => {
     notice = "";
     renderStats();
-  }, 2500);
+  }, ms);
 }
 
 async function exportHtml(): Promise<void> {
@@ -328,7 +365,12 @@ function printDocument(): void {
 
 function openFileMenu(): void {
   if (closeMenu()) return; // the click that closes it must not open it again
-  const items: MenuItem[] = [];
+  const items: MenuItem[] = [
+    { label: "New", heading: true },
+    { label: "New file…", detail: `${mod}Shift+N`, run: () => void newFile() },
+    { label: "New document", detail: `${mod}N`, run: () => void newDocument() },
+    { label: "", separator: true },
+  ];
   if (platform.isTauri) {
     const recent = loadRecent();
     items.push({ label: "Recent files", heading: true });
@@ -482,6 +524,7 @@ async function performVim(action: VimAction): Promise<void> {
 // ----------------------------------------------------------- command palette
 
 const palette = new Palette($("palette"), () => editor.focusEditor());
+const wizard = new NewFileWizard($("wizard"), () => editor.focusEditor());
 
 async function showWelcome(): Promise<void> {
   if (!(await canDiscard())) return;
@@ -497,6 +540,7 @@ function allCommands(): Command[] {
     editor.focusEditor();
   };
   const list: Command[] = [
+    { title: "New file…", shortcut: key("Shift+N"), keywords: "create wizard steps template txt text md markdown rtf rich", run: () => void newFile() },
     { title: "New document", shortcut: key("N"), run: () => void newDocument() },
     { title: "Open…", shortcut: key("O"), run: () => void openDocument() },
     { title: "Save", shortcut: key("S"), run: () => void save() },
@@ -568,6 +612,7 @@ function openPalette(): void {
 // ----------------------------------------------------------------- toolbar
 
 const actions: Record<string, () => void> = {
+  "btn-new": () => void newFile(),
   "btn-open": () => void openDocument(),
   "btn-save": () => void save(),
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
@@ -610,6 +655,7 @@ window.addEventListener(
     else if (cmd && e.shiftKey && key === "o") actions["btn-outline"]();
     else if (cmd && key === "o") void openDocument();
     else if (cmd && !e.shiftKey && key === "p") printDocument();
+    else if (cmd && e.shiftKey && key === "n") void newFile();
     else if (cmd && key === "n") void newDocument();
     else if (cmd && e.shiftKey && key === "p") openPalette();
     else if (cmd && e.shiftKey && key === "v") actions["btn-view"]();
@@ -678,7 +724,7 @@ async function start(): Promise<void> {
   if (last) {
     try {
       const file = await platform.readFile(last.path);
-      load(file.text, file.path, file.name);
+      loadFile(file);
       opened = true;
     } catch {
       removeRecent(last.path); // gone since last time: start with an empty document
