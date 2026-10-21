@@ -104,7 +104,8 @@ extension EditorViewController {
     // MARK: Print / PDF
 
     @objc func printEditor(_ sender: Any?) {
-        let op = NSPrintOperation(view: textView)
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        let op = NSPrintOperation(view: printableView(for: info), printInfo: info)
         op.printInfo.horizontalPagination = .fit
         op.run()
     }
@@ -115,8 +116,41 @@ extension EditorViewController {
         panel.nameFieldStringValue = "export.pdf"
         panel.beginSheetModal(for: view.window ?? NSApp.keyWindow ?? NSWindow()) { [weak self] resp in
             guard resp == .OK, let url = panel.url, let self else { return }
-            let data = self.textView.dataWithPDF(inside: self.textView.bounds)
-            try? data.write(to: url)
+            self.writePDF(to: url)
         }
+    }
+
+    /// Paged PDF of the printable text (a print job saved to a file).
+    func writePDF(to url: URL) {
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        info.horizontalPagination = .fit
+        info.jobDisposition = .save
+        info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
+        let op = NSPrintOperation(view: printableView(for: info), printInfo: info)
+        op.showsPrintPanel = false
+        op.showsProgressPanel = false
+        op.run()
+    }
+
+    /// The text as it goes on paper: dark on white whatever the theme, nothing
+    /// faded by focus, the page width instead of the writing column.
+    func printableView(for info: NSPrintInfo) -> NSTextView {
+        let width = info.paperSize.width - info.leftMargin - info.rightMargin
+        let page = NSTextView(frame: NSRect(x: 0, y: 0, width: width, height: 100))
+        page.isRichText = true
+        page.backgroundColor = .white
+        page.textContainerInset = .zero
+        page.textContainer?.lineFragmentPadding = 0
+        let text = NSMutableAttributedString(attributedString: textView.attributedString())
+        let all = NSRange(location: 0, length: text.length)
+        text.removeAttribute(.backgroundColor, range: all)
+        text.addAttribute(.foregroundColor, value: NSColor.black, range: all)
+        page.textStorage?.setAttributedString(text)
+        page.sizeToFit()
+        if let layout = page.layoutManager, let container = page.textContainer {
+            layout.ensureLayout(for: container)
+            page.setFrameSize(NSSize(width: width, height: max(100, layout.usedRect(for: container).height)))
+        }
+        return page
     }
 }

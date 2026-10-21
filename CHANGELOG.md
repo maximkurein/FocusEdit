@@ -14,8 +14,10 @@
 - Mac: the first start without a file opens a welcome document (as on Windows, with the Mac keys) instead of an empty one; Help ▸ Welcome Tour and the palette ("Open the welcome tour") open it again. It is untitled, so Save asks for a name
 - Mac: the outline follows the Windows rules: it skips `#` lines inside ``` and ~~~ code blocks and the YAML front matter, reads setext headings (`===`, `---` under a line), lists the headings of plain-text files too, and puts Fountain scenes under the sections. The heading the cursor is in stays selected as you move, and choosing one puts it near the top of the view
 - Mac: View ▸ Preview (`⌥⌘P`, the eye button) cycles Edit → Split (live preview beside the text) → Preview (the page alone, opened where the cursor was); Esc in Preview goes back to editing with the cursor at the place being read. The button's tooltip names the current mode
+- Mac: theme System (View ▸ Theme, the palette): Light or Dark following the macOS appearance, switching with it. The preview follows a theme change
 
 ### Changed
+- Mac: print and Export as PDF print the text dark on white whatever the theme, with nothing faded by focus, across the page width and split into pages (the PDF was one long page in the editor's colours)
 - Mac: the preview key is now `⌥⌘P` (`⇧⌘P` goes to the command palette)
 
 ### Fixed

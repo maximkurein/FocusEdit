@@ -18,6 +18,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     private(set) var textView = FocusTextView(frame: .zero)
     let sounds = TypewriterSounds()
     private let completion = CompletionEngine()
+    private var appearanceObservation: NSKeyValueObservation?
     private var showStatistics = Preferences.showStatistics
     private var session = Session()
     private var wordCount = 0
@@ -34,6 +35,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     var onTextChanged: (() -> Void)?
     /// Called when the cursor moves (the outline follows it).
     var onCursorMoved: ((Int) -> Void)?
+    /// Called after a theme change (the preview follows light/dark).
+    var onThemeChanged: (() -> Void)?
 
     var plainText: String { textView.string }
     var themeIsDark: Bool { theme.isDark }
@@ -104,6 +107,14 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
         apply(theme: theme)
         if vimEnabled { enableVim() }
+        // The System theme follows macOS light/dark as it changes.
+        appearanceObservation = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
+            DispatchQueue.main.async {
+                guard let self, self.theme.name == Theme.systemName,
+                      self.theme.isDark != Theme.systemIsDark else { return }
+                self.apply(theme: .system())
+            }
+        }
     }
 
     override func viewDidAppear() {
@@ -291,6 +302,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         view.window?.appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
         textView.refreshFocusEffects()
         textView.needsDisplay = true
+        onThemeChanged?()
     }
 
     // MARK: Statistics (window subtitle)

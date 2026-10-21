@@ -49,6 +49,19 @@ struct Theme {
 
     static let all: [Theme] = [.light, .dark, .sepia]
 
+    /// "System": Light or Dark, following the macOS appearance (and changing with it).
+    static let systemName = "System"
+
+    static func system(dark: Bool = systemIsDark) -> Theme {
+        let base = dark ? Theme.dark : Theme.light
+        return Theme(name: systemName, isDark: dark, background: base.background,
+                     foreground: base.foreground, dimmed: base.dimmed, cursor: base.cursor)
+    }
+
+    static var systemIsDark: Bool {
+        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
     // MARK: Serialization (for custom themes)
 
     func toDict() -> [String: Any] {
@@ -87,7 +100,7 @@ enum ThemeStore {
         (d.array(forKey: key) as? [[String: Any]])?.compactMap(Theme.init(dict:)) ?? []
     }
 
-    static func allThemes() -> [Theme] { Theme.all + custom }
+    static func allThemes() -> [Theme] { [Theme.system()] + Theme.all + custom.filter { $0.name != Theme.systemName } }
 
     static func addOrUpdate(_ theme: Theme) {
         var dicts = (d.array(forKey: key) as? [[String: Any]]) ?? []

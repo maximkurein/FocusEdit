@@ -1,4 +1,5 @@
 import AppKit
+import PDFKit
 
 /// `FocusEdit --selftest`: headless checks for the syntax engine, completion
 /// engine and the text view's writing aids. Exit code 1 if any check fails.
@@ -344,6 +345,26 @@ enum SelfTest {
         check("go to line 2", String(editor.textView.selectedRange().location), "4")
         editor.goToLine(99)
         check("go to a line past the end", String(editor.textView.selectedRange().location), "8")
+
+        check("System theme is first", ThemeStore.allThemes().first?.name, "System")
+        check("System follows dark", Theme.system(dark: true).isDark ? "dark" : "light", "dark")
+        check("System follows light", Theme.system(dark: false).background == Theme.light.background ? "light" : "?", "light")
+
+        // Print and PDF ignore the theme and the focus fading.
+        editor.apply(theme: .dark)
+        editor.loadContent(String(repeating: "# Dark theme\n\nSome **text** to print.\n\n", count: 120), fileExtension: "md")
+        let info = NSPrintInfo()
+        let page = editor.printableView(for: info)
+        check("print page is white", page.backgroundColor == .white ? "white" : "not white", "white")
+        let ink = page.textStorage?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+        check("print text is black", ink == .black ? "black" : "not black", "black")
+        let pdfURL = FileManager.default.temporaryDirectory.appendingPathComponent("focusedit-selftest-\(ProcessInfo.processInfo.processIdentifier).pdf")
+        editor.writePDF(to: pdfURL)
+        let pages = CGPDFDocument(pdfURL as CFURL)?.numberOfPages ?? 0
+        check("PDF has several pages", pages > 1 ? "yes" : "no (\(pages))", "yes")
+        let pdfText = PDFDocument(url: pdfURL)?.page(at: 0)?.string ?? ""
+        check("PDF has the text", pdfText.contains("Some **text** to print.") ? "yes" : "no", "yes")
+        try? FileManager.default.removeItem(at: pdfURL)
     }
 
     // MARK: Writing session (cases from windows/tests/palette-session-links.test.ts)

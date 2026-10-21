@@ -396,7 +396,7 @@ extension MainSplitViewController {
             command(editor.sounds.enabled ? "Typewriter sounds: off" : "Typewriter sounds: on",
                     "toggleTypewriterSounds:", keywords: "audio click keys"),
         ]
-        let themeWords = ["Light": "day white", "Dark": "night black", "Sepia": "paper warm"]
+        let themeWords = ["System": "auto follow macos appearance", "Light": "day white", "Dark": "night black", "Sepia": "paper warm"]
         for (i, theme) in ThemeStore.allThemes().enumerated() {
             list.append(tagged("Theme: \(theme.name)", "selectTheme:", i, keywords: themeWords[theme.name] ?? "colours"))
         }
