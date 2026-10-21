@@ -440,6 +440,7 @@ extension MainSplitViewController {
         list += [
             command("Hints and shortcuts", "showHints:", keywords: "help keys"),
             command("About FocusEdit", "showAbout:", keywords: "version developer github"),
+            command("Open the welcome tour", "showWelcomeTour:", keywords: "introduction help start"),
         ]
         for url in NSDocumentController.shared.recentDocumentURLs {
             list.append(PaletteCommand(title: "Open recent: \(url.lastPathComponent)",

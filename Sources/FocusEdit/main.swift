@@ -32,8 +32,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return nil
     }()
 
+    /// The first start without a file shows the welcome tour instead of an empty document.
+    /// (`--snapshot out.png --welcome` shows it without touching the remembered flag.)
+    private lazy var welcomeDue = Snapshot.isActive
+        ? CommandLine.arguments.contains("--welcome")
+        : !Welcome.wasShown && launchFileURL == nil
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MenuBuilder.build()
+        // Remembered on every start, as on Windows: a first start with a file skips the tour.
+        if !welcomeDue, !Snapshot.isActive { Welcome.markShown() }
         // Autosave elsewhere: after a crash the unsaved text is offered back at the next launch.
         NSDocumentController.shared.autosavingDelay = 60
         if let url = launchFileURL {
@@ -55,6 +63,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Auto-open an untitled document only when no file was provided.
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         launchFileURL == nil
+    }
+
+    /// No file and nothing restored: the welcome tour once, then empty documents.
+    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        if welcomeDue {
+            welcomeDue = false
+            if !Snapshot.isActive { Welcome.markShown() }
+            Welcome.open()
+            return true
+        }
+        return (try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true)) != nil
+    }
+
+    @objc func showWelcomeTour(_ sender: Any?) {
+        Welcome.open()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -418,6 +441,7 @@ enum MenuBuilder {
         let helpMenu = NSMenu(title: "Help")
         helpItem.submenu = helpMenu
         helpMenu.addItem(item("FocusEdit Hints", Selector(("showHints:")), "?"))
+        helpMenu.addItem(item("Welcome Tour", #selector(AppDelegate.showWelcomeTour(_:)), ""))
         NSApp.helpMenu = helpMenu
 
         return mainMenu

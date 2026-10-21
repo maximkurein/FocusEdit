@@ -15,7 +15,7 @@ cd ~/Project/rea-lab/work/uFocus/FocusEdit
 ./package.sh && ./install.sh
 ```
 
-`package.sh` собирает DMG, `install.sh` ставит его в `/Applications` (прежняя копия уходит в Корзину) и открывает приложение. `examples/welcome.md` — короткая демонстрация: откройте его первым (**File ▸ Open…**).
+`package.sh` собирает DMG, `install.sh` ставит его в `/Applications` (прежняя копия уходит в Корзину) и открывает приложение. При первом запуске без файла открывается приветственный документ (Welcome) — он учит, пока вы его правите; повторно — **Help ▸ Welcome Tour** или палитра (⇧⌘P) «Open the welcome tour». `examples/welcome.md` — ещё одна короткая демонстрация (**File ▸ Open…**).
 
 ## Первые пять минут
 

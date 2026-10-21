@@ -79,7 +79,7 @@
 | 2.3 Edit → Split → Preview | ✅ Unreleased: `ViewMode` в `MainSplitViewController.swift`, ⌥⌘P; Esc — локальный монитор клавиш (WKWebView глотает клавишу меню); `--snapshot … --view split\|preview` снимает режимы |
 | 2.4 Полный Markdown в превью | ✅ Unreleased: группа `Markdown` в `--selftest` (случаи из `markdown-html.test.ts` + свои). Отличие: картинки с безопасным адресом показываются (в Windows — подпись); картинки по относительному пути в превью не грузятся (`baseURL: nil`), в экспорте HTML рядом с документом — да |
 | 2.5 Ссылка из вставки | ✅ Unreleased: `LinkPaste.swift`, `FocusTextView.paste(_:)` → `pasteLink(from:)`; группа `Link paste` в `--selftest` (с отдельным pasteboard, буфер обмена не трогается) |
-| 2.6 Приветственный документ | не начато (есть только `examples/welcome.md`) |
+| 2.6 Приветственный документ | ✅ Unreleased: `Welcome.swift` (текст Windows-тура с клавишами Mac), `AppDelegate.applicationOpenUntitledFile`, Help ▸ Welcome Tour, команда палитры; флаг `welcome.shown.v1` в `UserDefaults` ставится при каждом запуске не из снимка; `--snapshot out.png --welcome` (без файла) показывает тур, не трогая флаг |
 | 2.7 Outline по правилам Windows | частично: панель есть (`OutlineViewController`), правила блоков кода, YAML, setext и подсветка текущего заголовка не сверены |
 | 2.8 Мелочи | частично: открытие перетаскиванием (`enableFileDropOpening`) и автосохранение есть; разделы подсказок ⌘? не добавлены |
 | 2.9 Живая разметка | не начато |
