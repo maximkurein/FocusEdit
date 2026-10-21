@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-21
+
+### Added
+- Mac: New File…, Open and Save buttons in the toolbar, as on Windows (a toolbar you had customised starts from the new default layout once)
+- Mac: the start screen, as on Windows: an empty untitled document shows New File…, Open… and up to five recent files; the first letter you type removes it. A file opened while only such an empty document is on screen takes its window
+- Mac: File ▸ Close File (`⌘W`) keeps a window when it closes the last document: an empty one with the start screen, like Close file on Windows. The window's close button still closes everything
+
 ## [1.6.0] - 2026-10-21
 
 ### Added

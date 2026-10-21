@@ -53,7 +53,7 @@ CI (`.github/workflows/windows.yml`) runs `npm ci`, `npm test`, `tauri build` on
 - Window: `DocumentWindowController` → `MainSplitViewController` hosting `LibraryViewController`, `EditorViewController`, `OutlineViewController`. `EditorViewController` owns theme/size/font/focus-mode state and the writing aids, and forwards edits to outline/preview.
 - Editing surface: `FocusTextView` (focus fade, typewriter scrolling) with `EditorCommands` (formatting, CriticMarkup). Highlighting is split in `SyntaxHighlighter` (semantic `SyntaxRole` tokens via `SyntaxEngine`) with `MarkdownHighlighter` / `FountainHighlighter`; roles are resolved to colours/traits at render time from `Theme`, so theme switches do not retokenise.
 - `CompletionEngine` (grey inline word suggestion), `VimEngine` (pure operator+motion grammar, teaching mode with explanations) driven by `VimController` in the view; `MarkdownToHTML` + `PreviewViewController` (split pane beside the editor) for preview; `Snapshot` for headless rendering; `IconFactory` draws the app icon in code (no PNG assets).
-- `--snapshot` extras for checking UI headlessly: `--view split|preview`, `--palette QUERY`, `--goal N`, `--welcome` (no file). `--theme`/`--view` values need a file argument, otherwise AppKit takes them for files to open. The glass outline inspector and a dark toolbar don't render off-screen.
+- `--snapshot` extras for checking UI headlessly: `--view split|preview`, `--palette QUERY`, `--goal N`, `--welcome` and `--start` (both with no file). `--theme`/`--view` values need a file argument, otherwise AppKit takes them for files to open. The glass outline inspector and a dark toolbar don't render off-screen.
 - Live Markdown: `LiveMarkdown` finds elements per line; `FocusTextView` draws hidden marks as `.null` glyphs (`NSLayoutManagerDelegate`) and keeps the hidden index set in step with edits (`NSTextStorageDelegate`) so only changed glyphs are regenerated. `ToolbarSymbol` can draw a word instead of a symbol (`text:Vim`).
 
 ## Documents: create, open, save, close
@@ -62,11 +62,12 @@ Formats on both sides: `.txt` (plain), `.md` / `.markdown` / `.mdown` / `.mkd` /
 
 | | Mac (`NSDocument`, one window per document) | Windows (one document per window, `main.ts` + `platform.ts`) |
 |---|---|---|
-| New | ⌘N untitled; File ▸ New From Template; ⇧⌘N New File… writes the file first (`NewFile.data`), then opens it | `newDocument()`; `newFile()` → `wizard.ts`, writes via `platform.writeFile`, then `load()` |
+| New | ⌘N untitled; File ▸ New From Template; ⇧⌘N New File… (also a toolbar button and the start screen) writes the file first (`NewFile.data`), then opens it | `newDocument()`; `newFile()` → `wizard.ts`, writes via `platform.writeFile`, then `load()` |
 | Open | `NSDocumentController` (Open…, Open Recent, Dock / Finder, drop on the window via `enableFileDropOpening`, Library sidebar); types declared in `Info.plist` | `openDocument()` / `openRecent()` / `openDropped()` → `platform.readFile` → `decode()` (RTF → Markdown) → `load()`; recents in `recent.ts` |
 | Save | `FocusDocument.data(ofType:)` writes `textView.string` (RTF via `RTFMarkdown.rtf(fromMarkdown:)`); classic Save / Save As / Revert (`autosavesInPlace = false`) | `save()` / `saveAs()` → `platform.writeFile` (RTF via `markdownToRtf`), BOM put back by `contents()` |
 | Unsaved changes | the system's Save / Don't Save / Cancel sheet on close and quit | `canDiscard()` → `platform.confirmClose()` before close, new, open, drop |
-| Close | ⌘W closes the window, the app stays (`applicationShouldTerminateAfterLastWindowClosed` = false; Dock click → new document) | `closeDocument()` → empty "Untitled" + the start screen |
+| Close | ⌘W = File ▸ Close File (`MainSplitViewController.closeFile`): closing the last document leaves an empty untitled window with the start screen; the window's close button closes it all, the app stays (Dock click → new document) | `closeDocument()` → empty "Untitled" + the start screen |
+| Start screen | `StartView` over a pristine document (`EditorViewController.isPristine`: untitled, unedited, empty); a file opened then takes its window (`FocusDocument.replacePristineDocuments`) | `updateStart()` in `main.ts` |
 | Crash recovery | autosave elsewhere every 60 s (`autosavingDelay`), offered back by the system at the next launch | `draft.ts` in localStorage, `platform.confirmRestore()` at start |
 
 Display attributes (fonts, colours, hidden marks) live only in the text view; both sides save the raw text, never attributes.

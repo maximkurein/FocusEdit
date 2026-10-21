@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.6.0`, released 21.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.6.1`, released 21.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -29,6 +29,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **Live Markdown** — the marks of formatting (`#`, `**`, `*`, `~~`, `` ` ``, `[ ](…)`, `<…>`) are hidden away from the cursor and appear as it comes close; headings get their size. Modus ▸ Live Markup or the palette (*Markup*) turns it off.
 - **Plain text, styled on screen** — Markdown headings, emphasis, code, quotes, lists, links and CriticMarkup; Fountain scene headings, characters, parentheticals and transitions. Styling is display-only: the file on disk stays clean plain text.
 - **Vim mode for learning** — Modus ▸ Vim Mode: Normal, Insert and Visual modes with the operator + motion grammar (`dw`, `ciw`, `3j`, `.`), and a coach bar under the text that explains every command and suggests faster ways. Leave it with the Exit Vim button on the coach bar or `:novim`. Works in the Russian keyboard layout too. A lesson-by-lesson course is in [VIM_GUIDE.md](VIM_GUIDE.md).
+- **Files** — New File…, Open and Save buttons in the toolbar; an empty untitled document shows a start screen (New File…, Open…, recent files); `⌘W` closes the file and leaves that start screen, as on Windows.
 - **New File…** — `⇧⌘N` opens a three-step dialog: pick the format (`.txt`, `.md` or `.rtf`), what to start from (blank, note, to-do list, meeting notes), then the name and the folder; the file is created and opened. The same dialog is in the Windows version (`Ctrl+Shift+N`).
 - **RTF** — `.rtf` files (TextEdit's default format) open as Markdown and save back as RTF: bold, italic, strikethrough, headings, lists, links and code survive the round trip; fonts, colours, images and tables do not, and FocusEdit warns when a file has them. **FocusEdit ▸ Make Default Editor for .txt and .rtf** makes double-clicked text and RTF files open in FocusEdit.
 - **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop, and autosave elsewhere every minute so unsaved text survives a crash. A library sidebar browses a linked folder; the outline jumps between headings and keeps the one you are in selected; the window subtitle shows the word count and reading time, the words in the selection, or — with a word goal set from the palette — the words written this session, the time spent writing and a thin progress bar under the toolbar; find and replace.

@@ -92,6 +92,28 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         toggleLibrary(sender)
     }
 
+    // MARK: Close file
+
+    /// File ▸ Close File (⌘W): as on Windows, closing the last document keeps a window
+    /// with an empty one and the start screen. (The window's close button closes it all.)
+    @objc func closeFile(_ sender: Any?) {
+        guard let window = view.window else { return }
+        let frame = window.frame
+        if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+        // (If the Save sheet is cancelled the window stays; the observer only acts on a real close.)
+        closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { _ in
+            DispatchQueue.main.async {
+                guard NSDocumentController.shared.documents.isEmpty,
+                      let doc = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) else { return }
+                doc.windowControllers.first?.window?.setFrame(frame, display: true)
+            }
+        }
+        window.performClose(sender)
+    }
+    private var closeObserver: NSObjectProtocol?
+
     // MARK: Hints popover
 
     private var hintsPopover: NSPopover?
@@ -249,6 +271,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     deinit {
         if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
         stopEscapeMonitor()
+        if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
     }
 
     @objc func exportAsHTML(_ sender: Any?) {

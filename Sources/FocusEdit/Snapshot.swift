@@ -56,6 +56,8 @@ enum Snapshot {
             savedGoal = Preferences.wordGoal
             split.editor.setWordGoal(goal)
         }
+        // `--start` (no file): the start screen over the empty document, nothing typed.
+        if args.contains("--start") { split.editor.updateStart(); return }
         // `--palette QUERY`: the command palette over the window.
         if let i = args.firstIndex(of: "--palette"), i + 1 < args.count {
             split.showCommandPalette(nil)
@@ -103,6 +105,12 @@ enum Snapshot {
                 tv.backgroundColor.setFill()            // covers the scroller gutter too
                 NSBezierPath(rect: content).fill()
                 textRep.draw(in: target)
+                let start = split.editor.startView
+                if !start.isHidden, let startRep = capture(start, start.bounds) {
+                    var rect = start.convert(start.bounds, to: frameView)
+                    if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
+                    startRep.draw(in: rect)
+                }
                 let bar = split.editor.goalBar
                 if !bar.isHidden, let barRep = capture(bar, bar.bounds) {
                     var rect = bar.convert(bar.bounds, to: frameView)

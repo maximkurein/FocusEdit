@@ -11,6 +11,7 @@ final class FocusDocument: NSDocument {
     override var fileURL: URL? {
         didSet {
             if let ext = fileURL?.pathExtension { editor?.updateKind(fileExtension: ext) }
+            editor?.updateStart()
         }
     }
     private weak var editor: EditorViewController?
@@ -36,6 +37,20 @@ final class FocusDocument: NSDocument {
             NSApp.activate(ignoringOtherApps: true)
         }
         warnAboutLostFormatting(in: controller.window)
+        replacePristineDocuments(with: controller.window)
+    }
+
+    var isPristine: Bool { editor?.isPristine ?? false }
+
+    /// As on Windows, a file opened while the only thing on screen is an empty untitled
+    /// document takes its place: same window frame, and the empty one goes away.
+    private func replacePristineDocuments(with window: NSWindow?) {
+        guard fileURL != nil, let window, !Snapshot.isActive else { return }
+        for case let other as FocusDocument in NSDocumentController.shared.documents
+        where other !== self && other.isPristine {
+            if let frame = other.windowControllers.first?.window?.frame { window.setFrame(frame, display: true) }
+            other.close()
+        }
     }
 
     // MARK: Reading / writing

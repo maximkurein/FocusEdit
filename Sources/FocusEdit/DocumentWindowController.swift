@@ -9,6 +9,9 @@ extension NSToolbarItem.Identifier {
     static let preview = NSToolbarItem.Identifier("focusedit.preview")
     static let hints = NSToolbarItem.Identifier("focusedit.hints")
     static let outline = NSToolbarItem.Identifier("focusedit.outline")
+    static let newFile = NSToolbarItem.Identifier("focusedit.newFile")
+    static let open = NSToolbarItem.Identifier("focusedit.open")
+    static let save = NSToolbarItem.Identifier("focusedit.save")
 }
 
 /// SF Symbol images for toolbar items; an "on" state is drawn in the accent color.
@@ -74,7 +77,8 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         self.init(window: window)
         window.delegate = self
 
-        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v2")
+        // v3: the file buttons; a saved v2 layout would hide them.
+        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v3")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -95,7 +99,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
     // MARK: NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace,
+        [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .flexibleSpace,
          .focusMode, .typewriter, .sounds, .vim, .theme, .space, .preview, .hints, .outline]
     }
 
@@ -151,6 +155,13 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         case .outline:
             return button(id, "sidebar.right", "Outline",
                           "Show or hide the outline (⌥⌘O)", "toggleOutline:")
+        case .newFile:
+            return button(id, "doc.badge.plus", "New File",
+                          "New File… — .txt, .md or .rtf, from a template (⇧⌘N)", "newFileWizard:")
+        case .open:
+            return button(id, "folder", "Open", "Open a file (⌘O)", "openDocument:")
+        case .save:
+            return button(id, "square.and.arrow.down", "Save", "Save (⌘S)", "saveDocument:")
         default:
             return nil
         }

@@ -24,6 +24,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     private var wordCount = 0
     private var sessionTimer: Timer?
     let goalBar = GoalBar()
+    let startView = StartView()
     private var lastEditWasTyping = false
     let vimCoach = VimCoachView()
     private(set) var vimEnabled = Preferences.vimMode
@@ -97,6 +98,21 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             goalBar.trailingAnchor.constraint(equalTo: stack.trailingAnchor),
             goalBar.heightAnchor.constraint(equalToConstant: 2),
         ])
+        // The start screen sits over an empty untitled document (as on Windows).
+        startView.isHidden = true
+        startView.translatesAutoresizingMaskIntoConstraints = false
+        stack.addSubview(startView)
+        NSLayoutConstraint.activate([
+            startView.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            startView.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20),
+        ])
+        startView.onNewFile = { NSApp.sendAction(#selector(AppDelegate.newFileWizard(_:)), to: nil, from: nil) }
+        startView.onOpen = { NSDocumentController.shared.openDocument(nil) }
+        startView.onOpenRecent = { url in
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
+                if let error { NSAlert(error: error).runModal() }
+            }
+        }
 
         textView.enableFileDropOpening()
         textView.openFileURLs = { urls in
@@ -120,6 +136,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     override func viewDidAppear() {
         super.viewDidAppear()
         updateStatistics()
+        updateStart()
         guard sessionTimer == nil else { return }
         // The session timer counts the seconds spent writing; the subtitle is redrawn while a goal is set.
         sessionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
@@ -203,7 +220,28 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         wordCount = Session.countWords(text)
         session.reset(words: wordCount)
         updateStatistics()
+        updateStart()
         onTextChanged?()
+    }
+
+    /// An untitled, untouched, empty document: nothing to edit yet, so offer the start screen.
+    var isPristine: Bool {
+        guard let document else { return false }
+        return document.fileURL == nil && !document.isDocumentEdited && textView.string.isEmpty
+    }
+
+    func updateStart() {
+        let show = isPristine && view.window != nil
+        if show {
+            startView.reload(recent: NSDocumentController.shared.recentDocumentURLs,
+                             foreground: theme.foreground, dimmed: theme.dimmed, background: theme.background)
+        }
+        // The editor's own "Start writing…" line would sit under the panel.
+        textView.placeholder = show ? "" : Self.placeholder(for: documentKind)
+        if show != !startView.isHidden {
+            startView.isHidden = !show
+            textView.needsDisplay = true
+        }
     }
 
     /// After Save As / rename to another extension: switch highlighting,
@@ -303,6 +341,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         view.window?.appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
         textView.refreshFocusEffects()
         textView.needsDisplay = true
+        if !startView.isHidden { updateStart() }
         onThemeChanged?()
     }
 
@@ -366,6 +405,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         wordCount = Session.countWords(textView.string)
         session.note(words: wordCount)
         updateStatistics()
+        updateStart()
         onTextChanged?()
     }
 

@@ -361,7 +361,7 @@ extension MainSplitViewController {
             command("Open…", "openDocument:"),
             command("Save", "saveDocument:"),
             command("Save As…", "saveDocumentAs:"),
-            command("Close file", "performClose:", keywords: "close window"),
+            command("Close file", "closeFile:", keywords: "close window start screen"),
         ]
         if html {
             list += [

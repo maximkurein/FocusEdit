@@ -243,7 +243,7 @@ enum MenuBuilder {
         fileMenu.addItem(openRecent)
 
         fileMenu.addItem(.separator())
-        fileMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        fileMenu.addItem(item("Close File", Selector(("closeFile:")), "w"))
         fileMenu.addItem(withTitle: "Save", action: #selector(NSDocument.save(_:)), keyEquivalent: "s")
         let saveAs = NSMenuItem(title: "Save As…", action: #selector(NSDocument.saveAs(_:)), keyEquivalent: "S")
         saveAs.keyEquivalentModifierMask = [.command, .shift]
