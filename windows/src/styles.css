@@ -1104,3 +1104,115 @@ body[data-view="split"] .preview {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ------------------------------------------------------------------ start screen */
+/* Shown over an empty, unsaved document: what to do next, without closing the app. */
+
+.workspace {
+  position: relative;
+}
+
+.start {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.start[hidden] {
+  display: none;
+}
+
+.start-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 48px));
+  padding: 22px;
+  pointer-events: auto;
+  color: var(--fg);
+  font: 13px var(--ui-font);
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+}
+
+.start-title {
+  margin: 0 0 2px;
+  font: 600 16px var(--ui-font);
+}
+
+.start-hint {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+
+.start-button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.start-button:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.start-button.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.start-key {
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  opacity: 0.7;
+}
+
+.start-recent {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.start-file {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 8px;
+  overflow: hidden;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.start-file:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.start-file small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The start screen says "just start typing" itself: hide the editor's own placeholder under it. */
+.workspace:has(.start:not([hidden])) .cm-placeholder {
+  opacity: 0;
+}

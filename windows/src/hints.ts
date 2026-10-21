@@ -70,6 +70,7 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
     rows: [
       [`${mod}Shift+N`, "New file…: pick txt, md or rtf, a template, a name"],
       [`${mod}N  ${mod}O`, "New empty document · open"],
+      [`${mod}W`, "Close the file and keep the app: a start screen offers New file… and Open…"],
       ["⋯ toolbar", "Recent files · export HTML · copy as HTML"],
       [`${mod}P`, "Print, or save as PDF from the print dialog"],
       [`${mod}Shift+O`, "Outline: headings of the document"],

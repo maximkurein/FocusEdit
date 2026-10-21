@@ -126,7 +126,38 @@ function changeSettings(update: () => void): void {
 
 // ------------------------------------------------------------------- title
 
+/** The start screen over an empty, unsaved document: new file, open, or a recent file. */
+function updateStart(): void {
+  const start = $("start");
+  const show = doc.path === null && !doc.dirty && editor.text === "";
+  start.hidden = !show;
+  if (!show) return;
+  const panel = document.createElement("div");
+  panel.className = "start-panel";
+  const title = Object.assign(document.createElement("h2"), { className: "start-title", textContent: "Start" });
+  const hint = Object.assign(document.createElement("p"), { className: "start-hint", textContent: "Make a file, open one, or just start typing." });
+  const action = (label: string, key: string, run: () => void, primary = false) => {
+    const button = Object.assign(document.createElement("button"), { type: "button", className: "start-button" + (primary ? " primary" : "") });
+    button.append(Object.assign(document.createElement("span"), { textContent: label }), Object.assign(document.createElement("span"), { className: "start-key", textContent: key }));
+    button.addEventListener("click", run);
+    return button;
+  };
+  panel.append(title, hint, action("New file…", `${mod}Shift+N`, () => void newFile(), true), action("Open…", `${mod}O`, () => void openDocument()));
+  const recent = platform.isTauri ? loadRecent().slice(0, 5) : [];
+  if (recent.length > 0) {
+    panel.append(Object.assign(document.createElement("div"), { className: "start-recent", textContent: "Recent" }));
+    for (const file of recent) {
+      const row = Object.assign(document.createElement("button"), { type: "button", className: "start-file" });
+      row.append(Object.assign(document.createElement("span"), { textContent: file.name }), Object.assign(document.createElement("small"), { textContent: folderOf(file.path) }));
+      row.addEventListener("click", () => void openRecent(file.path));
+      panel.append(row);
+    }
+  }
+  start.replaceChildren(panel);
+}
+
 function updateTitle(): void {
+  updateStart();
   nameEl.textContent = (doc.dirty ? "• " : "") + doc.name;
   void platform.setWindowTitle(`${doc.dirty ? "• " : ""}${doc.name} — FocusEdit`);
   (window as unknown as { focusEditDirty: boolean }).focusEditDirty = doc.dirty;
@@ -190,6 +221,12 @@ function load(text: string, path: string | null, name: string, keepDraft = false
 
 async function canDiscard(): Promise<boolean> {
   return !doc.dirty || platform.confirmDiscard(doc.name);
+}
+
+/** Close the file but not the app: back to an empty document and the start screen. */
+async function closeDocument(): Promise<void> {
+  if (!(await canDiscard())) return;
+  load("", null, "Untitled");
 }
 
 async function newDocument(): Promise<void> {
@@ -369,6 +406,7 @@ function openFileMenu(): void {
     { label: "New", heading: true },
     { label: "New file…", detail: `${mod}Shift+N`, run: () => void newFile() },
     { label: "New document", detail: `${mod}N`, run: () => void newDocument() },
+    { label: "Close file", detail: `${mod}W`, run: () => void closeDocument() },
     { label: "", separator: true },
   ];
   if (platform.isTauri) {
@@ -542,6 +580,7 @@ function allCommands(): Command[] {
   const list: Command[] = [
     { title: "New file…", shortcut: key("Shift+N"), keywords: "create wizard steps template txt text md markdown rtf rich", run: () => void newFile() },
     { title: "New document", shortcut: key("N"), run: () => void newDocument() },
+    { title: "Close file", shortcut: key("W"), keywords: "close without quitting start screen", run: () => void closeDocument() },
     { title: "Open…", shortcut: key("O"), run: () => void openDocument() },
     { title: "Save", shortcut: key("S"), run: () => void save() },
     { title: "Save as…", shortcut: key("Shift+S"), run: () => void saveAs() },
@@ -657,6 +696,7 @@ window.addEventListener(
     else if (cmd && !e.shiftKey && key === "p") printDocument();
     else if (cmd && e.shiftKey && key === "n") void newFile();
     else if (cmd && key === "n") void newDocument();
+    else if (cmd && key === "w") void closeDocument();
     else if (cmd && e.shiftKey && key === "p") openPalette();
     else if (cmd && e.shiftKey && key === "v") actions["btn-view"]();
     else if (cmd && key === "t") actions["btn-typewriter"]();

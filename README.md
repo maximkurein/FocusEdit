@@ -2,7 +2,7 @@
 
 FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.5.0`, released 21.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.5.1`, released 21.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -104,6 +104,7 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
   |---|---|
   | Ctrl+Shift+P | Command palette: type what you want to do (themes, view, export, word goal, recent files…) |
   | Ctrl+Shift+N | New file…: pick txt, md or rtf, a template, a name and a folder |
+  | Ctrl+W | Close the file, keep the app: a start screen offers New file… and Open… |
   | Ctrl+Shift+V | View: Edit → Split → Preview (Esc leaves the preview) |
   | Ctrl+Shift+O | Outline of headings |
   | Ctrl+P | Print, or save as PDF from the print dialog |
