@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-10-21
+
+### Added
+- Mac: quitting (`⌘Q`) with unsaved changes always asks: Save / Don't Save / Cancel, or Review Changes… for several documents. Before, with autosave and window restoration, macOS could quit without asking and only offer the text back at the next launch
+- Mac: the Library sidebar explains itself: a header with the folder's name and buttons to reload it and to choose another; when no folder is chosen, a short explanation and a Choose Folder… button. Dropping a folder on the sidebar chooses it (the hint promised this but it did not work); the folder is read again whenever the sidebar is shown, so new files appear; double-clicking a subfolder opens or closes it
+
 ## [1.6.2] - 2026-10-21
 
 ### Added

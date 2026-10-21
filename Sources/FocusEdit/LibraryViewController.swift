@@ -36,7 +36,10 @@ final class FileNode {
     }
 }
 
-/// Leading sidebar: browse a linked folder; double-click opens a document.
+/// Leading sidebar, the Library: one folder you choose, shown as a tree of the
+/// documents FocusEdit opens (txt, md, rtf, fountain) and its subfolders.
+/// Double-click opens a document (or opens and closes a subfolder). Choose the folder with the header
+/// button, Library ▸ Link Directory…, or by dropping a folder on the sidebar.
 final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
 
     var onOpenFile: ((URL) -> Void)?
@@ -44,7 +47,11 @@ final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NS
     private let scrollView = NSScrollView()
     private let outlineView = NSOutlineView()
     private let placeholder = NSTextField(wrappingLabelWithString:
-        "No library linked.\nLibrary ▸ Link Directory… or drag a folder here.")
+        "Keep a folder of your writing here: its documents (.txt, .md, .rtf, .fountain) "
+        + "are listed and open with a double-click.")
+    private let chooseButton = NSButton(title: "Choose Folder…", target: nil, action: #selector(MainSplitViewController.linkLibraryDirectory(_:)))
+    private let titleLabel = NSTextField(labelWithString: "LIBRARY")
+    private let folderLabel = NSTextField(labelWithString: "")
     private var root: FileNode?
 
     override func loadView() {
@@ -59,30 +66,62 @@ final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NS
         outlineView.rowSizeStyle = .default
         outlineView.target = self
         outlineView.doubleAction = #selector(doubleClicked)
-        outlineView.registerForDraggedTypes([.fileURL])
 
         scrollView.documentView = outlineView
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
 
-        placeholder.textColor = .tertiaryLabelColor
+        placeholder.textColor = .secondaryLabelColor
         placeholder.font = .systemFont(ofSize: 11)
         placeholder.alignment = .center
-        placeholder.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        chooseButton.bezelStyle = .rounded
+        chooseButton.controlSize = .small
+        let empty = NSStackView(views: [placeholder, chooseButton])
+        empty.orientation = .vertical
+        empty.spacing = 10
+        empty.translatesAutoresizingMaskIntoConstraints = false
+        emptyState = empty
 
-        let container = NSView()
+        // Header: what this is, which folder, and buttons to change or reload it.
+        titleLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        titleLabel.textColor = .secondaryLabelColor
+        folderLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        folderLabel.lineBreakMode = .byTruncatingMiddle
+        folderLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let change = headerButton("folder.badge.gearshape", "Choose another folder (Library ▸ Link Directory…)",
+                                  #selector(MainSplitViewController.linkLibraryDirectory(_:)))
+        let reload = headerButton("arrow.clockwise", "Reload the folder", #selector(reloadFolder))
+        reload.target = self
+        let names = NSStackView(views: [titleLabel, folderLabel])
+        names.orientation = .vertical
+        names.alignment = .leading
+        names.spacing = 1
+        let header = NSStackView(views: [names, NSView(), reload, change])
+        header.orientation = .horizontal
+        header.spacing = 4
+        header.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 6, right: 8)
+        header.translatesAutoresizingMaskIntoConstraints = false
+        headerView = header
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        let container = DropView()
+        container.onDropFolder = { [weak self] url in self?.link(url: url) }
+        container.addSubview(header)
         container.addSubview(scrollView)
-        container.addSubview(placeholder)
+        container.addSubview(empty)
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            header.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor, constant: 6),
+            header.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor),
             scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            placeholder.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            placeholder.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            placeholder.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 12),
-            placeholder.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -12),
+            empty.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            empty.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            empty.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 14),
+            empty.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -14),
+            placeholder.widthAnchor.constraint(lessThanOrEqualToConstant: 220),
         ])
         view = container
 
@@ -98,20 +137,63 @@ final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NS
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return }
         Preferences.libraryPath = url.path
         root = FileNode(url: url, isDirectory: true)
+        folderLabel.stringValue = url.lastPathComponent
+        folderLabel.toolTip = url.path
         outlineView.reloadData()
         refreshPlaceholder()
     }
 
+    private var emptyState: NSView?
+    private var headerView: NSView?
+
     private func refreshPlaceholder() {
-        placeholder.isHidden = root != nil
+        emptyState?.isHidden = root != nil
+        headerView?.isHidden = root == nil
         scrollView.isHidden = root == nil
+    }
+
+    private func headerButton(_ symbol: String, _ tip: String, _ action: Selector) -> NSButton {
+        let button = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: tip) ?? NSImage(),
+                              target: nil, action: action)
+        button.isBordered = false
+        button.toolTip = tip
+        button.contentTintColor = .secondaryLabelColor
+        return button
+    }
+
+    /// Files added or removed outside the app appear when the folder is read again.
+    @objc func reloadFolder() {
+        guard let url = root?.url else { return }
+        let expanded = (0..<outlineView.numberOfRows).compactMap { row -> URL? in
+            guard let node = outlineView.item(atRow: row) as? FileNode, outlineView.isItemExpanded(node) else { return nil }
+            return node.url
+        }
+        link(url: url)
+        // Open the same subfolders again (rows appear as their parents expand).
+        var row = 0
+        while row < outlineView.numberOfRows {
+            if let node = outlineView.item(atRow: row) as? FileNode, expanded.contains(node.url) {
+                outlineView.expandItem(node)
+            }
+            row += 1
+        }
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        reloadFolder()
     }
 
     @objc private func doubleClicked() {
         let row = outlineView.clickedRow
-        guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode, !node.isDirectory else { return }
-        onOpenFile?(node.url)
+        guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
+        if node.isDirectory {
+            outlineView.isItemExpanded(node) ? outlineView.collapseItem(node) : outlineView.expandItem(node)
+        } else {
+            onOpenFile?(node.url)
+        }
     }
+
 
     // MARK: Data source
 
@@ -157,5 +239,31 @@ final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NS
         cell.textField?.stringValue = node.title
         cell.imageView?.image = NSWorkspace.shared.icon(forFile: node.url.path)
         return cell
+    }
+}
+
+/// The sidebar accepts a folder dropped on it: that folder becomes the library.
+private final class DropView: NSView {
+    var onDropFolder: ((URL) -> Void)?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        registerForDraggedTypes([.fileURL])
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    private func folder(_ sender: NSDraggingInfo) -> URL? {
+        let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                                                         options: [.urlReadingFileURLsOnly: true]) as? [URL]
+        guard let url = urls?.first,
+              (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else { return nil }
+        return url
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { folder(sender) == nil ? [] : .link }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let url = folder(sender) else { return false }
+        onDropFolder?(url)
+        return true
     }
 }

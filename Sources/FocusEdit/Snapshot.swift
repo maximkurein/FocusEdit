@@ -56,6 +56,8 @@ enum Snapshot {
             savedGoal = Preferences.wordGoal
             split.editor.setWordGoal(goal)
         }
+        // `--library`: the Library sidebar open for the shot (the saved setting is not changed).
+        if args.contains("--library") { split.libraryItem.isCollapsed = false }
         // `--start` (no file): the start screen over the empty document, nothing typed.
         if args.contains("--start") { split.editor.updateStart(); return }
         // `--palette QUERY`: the command palette over the window.
@@ -105,6 +107,14 @@ enum Snapshot {
                 tv.backgroundColor.setFill()            // covers the scroller gutter too
                 NSBezierPath(rect: content).fill()
                 textRep.draw(in: target)
+                let library = split.library.view
+                if !split.libraryItem.isCollapsed, let libraryRep = capture(library, library.bounds) {
+                    var rect = library.convert(library.bounds, to: frameView)
+                    if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
+                    NSColor.windowBackgroundColor.setFill()
+                    rect.fill()
+                    libraryRep.draw(in: rect)
+                }
                 let start = split.editor.startView
                 if !start.isHidden, let startRep = capture(start, start.bounds) {
                     var rect = start.convert(start.bounds, to: frameView)

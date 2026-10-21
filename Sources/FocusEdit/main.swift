@@ -82,6 +82,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// Quitting with unsaved changes always asks (Save / Don't Save / Cancel, or Review
+    /// Changes… for several). With autosave elsewhere and window restoration macOS would
+    /// otherwise quit silently and only offer the text back at the next launch.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let controller = NSDocumentController.shared
+        guard !Snapshot.isActive, controller.documents.contains(where: \.isDocumentEdited) else { return .terminateNow }
+        controller.reviewUnsavedDocuments(
+            withAlertTitle: nil, cancellable: true, delegate: self,
+            didReviewAllSelector: #selector(documentController(_:didReviewAll:contextInfo:)), contextInfo: nil)
+        return .terminateLater
+    }
+
+    @objc private func documentController(_ controller: NSDocumentController, didReviewAll: Bool,
+                                          contextInfo: UnsafeMutableRawPointer?) {
+        NSApp.reply(toApplicationShouldTerminate: didReviewAll)
+    }
+
     // Dock click with no windows: a new document, also after a launch with a file.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { NSDocumentController.shared.newDocument(nil) }
