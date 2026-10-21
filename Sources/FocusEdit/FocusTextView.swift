@@ -85,11 +85,35 @@ final class FocusTextView: NSTextView {
     var placeholder = "Start writing…"
     var autoPairingEnabled = true
     var listContinuationEnabled = false
+    /// Selected text + a pasted web address = a Markdown link (not in Fountain).
+    var linkPasteEnabled = false
     var autocompleteEnabled = true
     /// Returns the text to append after the typed `prefix` (grey inline suggestion).
     var completionProvider: ((_ prefix: String, _ linePrefix: String) -> String?)?
     private(set) var ghostSuffix = ""
     private var ghostLocation = NSNotFound
+
+    override func paste(_ sender: Any?) {
+        if !pasteLink(from: .general) { super.paste(sender) }
+    }
+
+    /// Replace the selection with a Markdown link when `pasteboard` holds one web address.
+    func pasteLink(from pasteboard: NSPasteboard) -> Bool {
+        let sel = selectedRange()
+        let ns = string as NSString
+        guard linkPasteEnabled, sel.length > 0, NSMaxRange(sel) <= ns.length,
+              selectedRanges.count == 1,
+              let clip = pasteboard.string(forType: .string),
+              let link = LinkPaste.link(selected: ns.substring(with: sel), clipboard: clip),
+              shouldChangeText(in: sel, replacementString: link)
+        else { return false }
+        textStorage?.replaceCharacters(in: sel, with: link)
+        didChangeText()
+        let end = sel.location + (link as NSString).length
+        setSelectedRange(NSRange(location: end, length: 0))
+        scrollRangeToVisible(NSRange(location: end, length: 0))
+        return true
+    }
 
     // MARK: Public entry points
 

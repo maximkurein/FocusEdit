@@ -210,6 +210,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         documentKind = kind
         textView.syntaxEngine = kind.makeHighlighter().map { SyntaxEngine(highlighter: $0) }
         textView.listContinuationEnabled = kind == .markdown
+        textView.linkPasteEnabled = kind != .fountain
         textView.placeholder = Self.placeholder(for: kind)
         completion.kind = kind
     }

@@ -389,6 +389,37 @@ enum SelfTest {
         check("0:00", Session.formatDuration(ms: 0), "0:00")
         check("1:15", Session.formatDuration(ms: 75_000), "1:15")
         check("1:02:05", Session.formatDuration(ms: 3_725_000), "1:02:05")
+
+        // Pasting a link over selected text (cases from the same Windows tests).
+        print("Link paste:")
+        check("selection + address", LinkPaste.link(selected: "my site", clipboard: "https://example.com/a?b=1"),
+              "[my site](https://example.com/a?b=1)")
+        check("address is trimmed", LinkPaste.link(selected: "x", clipboard: "  http://example.com \n"),
+              "[x](http://example.com)")
+        check("trailing space stays outside", LinkPaste.link(selected: "click here ", clipboard: "https://a.b"),
+              "[click here](https://a.b) ")
+        check("leading space stays outside", LinkPaste.link(selected: " word", clipboard: "https://a.b"),
+              " [word](https://a.b)")
+        check("not an address", LinkPaste.link(selected: "word", clipboard: "just some text"), nil)
+        check("address and more", LinkPaste.link(selected: "word", clipboard: "https://a.b and more"), nil)
+        check("not a web address", LinkPaste.link(selected: "word", clipboard: "ftp://a.b"), nil)
+        check("nothing selected", LinkPaste.link(selected: "", clipboard: "https://a.b"), nil)
+        check("two lines selected", LinkPaste.link(selected: "two\nlines", clipboard: "https://a.b"), nil)
+        check("brackets and parentheses escaped", LinkPaste.link(selected: "a [b]", clipboard: "https://a.b/x_(y)"),
+              "[a \\[b\\]](https://a.b/x_%28y%29)")
+
+        let board = NSPasteboard(name: NSPasteboard.Name("FocusEdit.selftest.\(ProcessInfo.processInfo.processIdentifier)"))
+        board.clearContents()
+        board.setString("https://a.b", forType: .string)
+        let tv = makeView("see this now")
+        tv.linkPasteEnabled = true
+        tv.setSelectedRange(NSRange(location: 4, length: 5))
+        check("paste makes the link", tv.pasteLink(from: board) ? tv.string : nil, "see [this](https://a.b) now")
+        check("caret after the link and its space", String(tv.selectedRange().location), "24")
+        tv.linkPasteEnabled = false
+        tv.setSelectedRange(NSRange(location: 0, length: 3))
+        check("off in Fountain", tv.pasteLink(from: board) ? "pasted" : "normal paste", "normal paste")
+        board.releaseGlobally()
     }
 
     private static func focusUnit() {

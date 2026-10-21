@@ -78,7 +78,7 @@
 | 2.2 Цель по словам, таймер, слова в выделении | ✅ Unreleased: `Session.swift` (порт `session.ts`), `Preferences.wordGoal`, `GoalBar` в `EditorViewController`; группа `Session` в `--selftest`; `--snapshot … --goal N` (настройка возвращается) |
 | 2.3 Edit → Split → Preview | ✅ Unreleased: `ViewMode` в `MainSplitViewController.swift`, ⌥⌘P; Esc — локальный монитор клавиш (WKWebView глотает клавишу меню); `--snapshot … --view split\|preview` снимает режимы |
 | 2.4 Полный Markdown в превью | ✅ Unreleased: группа `Markdown` в `--selftest` (случаи из `markdown-html.test.ts` + свои). Отличие: картинки с безопасным адресом показываются (в Windows — подпись); картинки по относительному пути в превью не грузятся (`baseURL: nil`), в экспорте HTML рядом с документом — да |
-| 2.5 Ссылка из вставки | не начато |
+| 2.5 Ссылка из вставки | ✅ Unreleased: `LinkPaste.swift`, `FocusTextView.paste(_:)` → `pasteLink(from:)`; группа `Link paste` в `--selftest` (с отдельным pasteboard, буфер обмена не трогается) |
 | 2.6 Приветственный документ | не начато (есть только `examples/welcome.md`) |
 | 2.7 Outline по правилам Windows | частично: панель есть (`OutlineViewController`), правила блоков кода, YAML, setext и подсветка текущего заголовка не сверены |
 | 2.8 Мелочи | частично: открытие перетаскиванием (`enableFileDropOpening`) и автосохранение есть; разделы подсказок ⌘? не добавлены |
