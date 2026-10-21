@@ -1,7 +1,7 @@
 import AppKit
 
 /// Trailing sidebar listing the document headings; selecting one jumps the
-/// editor to that line.
+/// editor to that line. The heading the cursor is under stays selected.
 final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
 
     var onSelect: ((NSRange) -> Void)?
@@ -10,6 +10,7 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
     private let tableView = NSTableView()
     private let placeholder = NSTextField(labelWithString: "No outline available.")
     private var items: [OutlineItem] = []
+    private var cursor = 0
 
     override func loadView() {
         let column = NSTableColumn(identifier: .init("title"))
@@ -53,6 +54,24 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         placeholder.isHidden = !items.isEmpty
         scrollView.isHidden = items.isEmpty
         tableView.reloadData()
+        showActive(force: true)
+    }
+
+    /// The cursor moved: select the heading it belongs to (cheap; runs on every move).
+    func setCursor(_ location: Int) {
+        cursor = location
+        showActive(force: false)
+    }
+
+    private func showActive(force: Bool) {
+        let active = OutlineExtractor.active(items, cursor: cursor) ?? -1
+        guard force || active != tableView.selectedRow else { return }
+        if active >= 0 {
+            tableView.selectRowIndexes([active], byExtendingSelection: false)
+            tableView.scrollRowToVisible(active)
+        } else {
+            tableView.deselectAll(nil)
+        }
     }
 
     @objc private func rowClicked() {

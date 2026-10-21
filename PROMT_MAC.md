@@ -80,7 +80,7 @@
 | 2.4 Полный Markdown в превью | ✅ Unreleased: группа `Markdown` в `--selftest` (случаи из `markdown-html.test.ts` + свои). Отличие: картинки с безопасным адресом показываются (в Windows — подпись); картинки по относительному пути в превью не грузятся (`baseURL: nil`), в экспорте HTML рядом с документом — да |
 | 2.5 Ссылка из вставки | ✅ Unreleased: `LinkPaste.swift`, `FocusTextView.paste(_:)` → `pasteLink(from:)`; группа `Link paste` в `--selftest` (с отдельным pasteboard, буфер обмена не трогается) |
 | 2.6 Приветственный документ | ✅ Unreleased: `Welcome.swift` (текст Windows-тура с клавишами Mac), `AppDelegate.applicationOpenUntitledFile`, Help ▸ Welcome Tour, команда палитры; флаг `welcome.shown.v1` в `UserDefaults` ставится при каждом запуске не из снимка; `--snapshot out.png --welcome` (без файла) показывает тур, не трогая флаг |
-| 2.7 Outline по правилам Windows | частично: панель есть (`OutlineViewController`), правила блоков кода, YAML, setext и подсветка текущего заголовка не сверены |
+| 2.7 Outline по правилам Windows | ✅ Unreleased: `OutlineExtractor` (в `DocumentKind.swift`) переписан по `outline.ts` + `active(_:cursor:)`; `EditorViewController.onCursorMoved` → `OutlineViewController.setCursor`; группа `Outline` в `--selftest`. Отличие: принудительные сцены Fountain `.SCENE` на Mac остаются |
 | 2.8 Мелочи | частично: открытие перетаскиванием (`enableFileDropOpening`) и автосохранение есть; разделы подсказок ⌘? не добавлены |
 | 2.9 Живая разметка | не начато |
 | 2.10 Стартовый экран | не начато, необязательно |

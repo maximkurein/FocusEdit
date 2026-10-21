@@ -32,6 +32,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     /// Called after any content change (text edit or load) so the split
     /// controller can refresh the outline and preview.
     var onTextChanged: (() -> Void)?
+    /// Called when the cursor moves (the outline follows it).
+    var onCursorMoved: ((Int) -> Void)?
 
     var plainText: String { textView.string }
     var themeIsDark: Bool { theme.isDark }
@@ -229,7 +231,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         view.window?.makeFirstResponder(textView)
         let safe = NSRange(location: min(range.location, textView.string.utf16.count), length: 0)
         textView.setSelectedRange(safe)
-        textView.scrollRangeToVisible(safe)
+        textView.scrollLine(containing: safe.location, toHeight: 0.3)
         textView.refreshFocusEffects()
     }
 
@@ -369,6 +371,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.clearGhostIfMoved()
         textView.refreshFocusEffects()
         updateStatistics()
+        onCursorMoved?(textView.selectedRange().location)
     }
 
     /// Full completion list (⌥Esc): document words and Fountain cues first,

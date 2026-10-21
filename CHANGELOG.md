@@ -12,6 +12,7 @@
 - Mac: word goal (palette: Word goal 250 / 500 / 1000 / 2000 / off, or any number) with a thin progress bar under the toolbar, green when reached; the subtitle shows `+written / goal words · m:ss` with a timer that counts only the time spent writing (30 s after the last change, a sleeping computer is not counted). While text is selected the subtitle shows the number of selected words
 - Mac: pasting a web address over selected text makes a Markdown link `[text](address)`, as on Windows; brackets in the text and parentheses in the address are escaped, spaces at the edges of the selection stay outside (not in Fountain)
 - Mac: the first start without a file opens a welcome document (as on Windows, with the Mac keys) instead of an empty one; Help ▸ Welcome Tour and the palette ("Open the welcome tour") open it again. It is untitled, so Save asks for a name
+- Mac: the outline follows the Windows rules: it skips `#` lines inside ``` and ~~~ code blocks and the YAML front matter, reads setext headings (`===`, `---` under a line), lists the headings of plain-text files too, and puts Fountain scenes under the sections. The heading the cursor is in stays selected as you move, and choosing one puts it near the top of the view
 - Mac: View ▸ Preview (`⌥⌘P`, the eye button) cycles Edit → Split (live preview beside the text) → Preview (the page alone, opened where the cursor was); Esc in Preview goes back to editing with the cursor at the place being read. The button's tooltip names the current mode
 
 ### Changed

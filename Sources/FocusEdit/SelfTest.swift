@@ -14,6 +14,7 @@ enum SelfTest {
         markdown()
         palette()
         session()
+        outline()
         newFile()
         focusUnit()
         vim()
@@ -420,6 +421,40 @@ enum SelfTest {
         tv.setSelectedRange(NSRange(location: 0, length: 3))
         check("off in Fountain", tv.pasteLink(from: board) ? "pasted" : "normal paste", "normal paste")
         board.releaseGlobally()
+    }
+
+    // MARK: Outline (cases from windows/tests/outline.test.ts)
+
+    private static func outline() {
+        print("Outline:")
+        func titles(_ text: String, _ kind: DocumentKind = .markdown) -> String {
+            OutlineExtractor.items(from: text as NSString, kind: kind)
+                .map { "\($0.level):\($0.line):\($0.title)" }.joined(separator: " | ")
+        }
+        check("ATX headings", titles("# One\n\ntext\n\n## Two ##\n### Three"), "1:1:One | 2:5:Two | 3:6:Three")
+        check("space and text needed", titles("#nospace\n#\n# \n####### seven"), "")
+        check("setext headings", titles("Title\n=====\n\nSub\n---\n"), "1:1:Title | 2:4:Sub")
+        check("list item and rule are not headings", titles("- item\n---\n\n***\n"), "")
+        check("# inside code fences", titles("# Real\n```\n# not a heading\n```\n~~~\n# nor this\n~~~\n## After"),
+              "1:1:Real | 2:8:After")
+        check("a ~~~ line does not close ```", titles("```\n~~~\n# no\n```\n# yes"), "1:5:yes")
+        check("YAML front matter", titles("---\ntitle: x\n---\n# Heading"), "1:4:Heading")
+        check("Fountain scenes and sections",
+              titles("# Act One\n\nINT. HOUSE - DAY\n\nMARY\nHi.\n\next. street - night", .fountain),
+              "1:1:Act One | 2:3:INT. HOUSE - DAY | 2:8:ext. street - night")
+        check("Fountain forced scene", titles(".SNIPER SCOPE POV", .fountain), "2:1:SNIPER SCOPE POV")
+        check("Windows line endings", titles("# A\r\n\r\n## B\r\n"), "1:1:A | 2:3:B")
+        check("plain text has Markdown headings too", titles("# Notes\ntext", .plain), "1:1:Notes")
+
+        let h = OutlineExtractor.items(from: "# A\n\ntext\n\n## B\n\nmore\n\n## C" as NSString, kind: .markdown)
+        func active(_ cursor: Int) -> String { OutlineExtractor.active(h, cursor: cursor).map(String.init) ?? "none" }
+        check("current heading on its line", active(0), "0")
+        check("current heading below it", active(6), "0")
+        check("next heading", active(11), "1")
+        check("past the end", active(999), "2")
+        check("above the first heading",
+              OutlineExtractor.active(OutlineExtractor.items(from: "text\n# A", kind: .markdown), cursor: 1)
+                .map(String.init) ?? "none", "none")
     }
 
     private static func focusUnit() {

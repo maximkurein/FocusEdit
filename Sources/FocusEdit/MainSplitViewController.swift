@@ -56,6 +56,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
         editor.onTextChanged = { [weak self] in self?.contentChanged() }
         outline.onSelect = { [weak self] range in self?.editor.scrollTo(range: range) }
+        editor.onCursorMoved = { [weak self] location in self?.outline.setCursor(location) }
         library.onOpenFile = { url in
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
