@@ -219,8 +219,19 @@ function load(text: string, path: string | null, name: string, keepDraft = false
   editor.focusEditor();
 }
 
+/**
+ * Before something replaces the document: with unsaved changes, ask Save / Don't Save / Cancel.
+ * True when it is fine to go on (saved, or thrown away on purpose).
+ */
 async function canDiscard(): Promise<boolean> {
-  return !doc.dirty || platform.confirmDiscard(doc.name);
+  if (!doc.dirty) return true;
+  const choice = await platform.confirmClose(doc.name);
+  if (choice === "cancel") return false;
+  if (choice === "save") {
+    await save();
+    return !doc.dirty; // a cancelled Save As or a failed write keeps the document open
+  }
+  return true;
 }
 
 /** Close the file but not the app: back to an empty document and the start screen. */
@@ -740,7 +751,7 @@ void platform.onFileDrop(
 );
 
 void platform.onCloseRequested(async () => {
-  const leave = !doc.dirty || (await platform.confirmDiscard(doc.name));
+  const leave = await canDiscard();
   if (leave) dropDraft(); // a clean exit leaves nothing to recover
   return leave;
 });

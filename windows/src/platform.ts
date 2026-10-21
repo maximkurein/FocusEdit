@@ -91,13 +91,25 @@ export async function chooseSavePath(suggestedName: string, text: string, filter
   return null;
 }
 
-export async function confirmDiscard(name: string): Promise<boolean> {
-  const message = `“${name}” has unsaved changes. Discard them?`;
+export type CloseChoice = "save" | "discard" | "cancel";
+
+/** "Save changes to X?" with the three usual answers: save, don't save, cancel. */
+export async function confirmClose(name: string): Promise<CloseChoice> {
+  const text = `Do you want to save the changes to “${name}”?`;
   if (isTauri) {
-    const { ask } = await import("@tauri-apps/plugin-dialog");
-    return ask(message, { title: "FocusEdit", kind: "warning", okLabel: "Discard", cancelLabel: "Keep Editing" });
+    const { message } = await import("@tauri-apps/plugin-dialog");
+    const answer = await message(text, {
+      title: "FocusEdit",
+      kind: "warning",
+      buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" },
+    });
+    if (answer === "Save" || answer === "Yes") return "save";
+    if (answer === "Don't Save" || answer === "No") return "discard";
+    return "cancel";
   }
-  return window.confirm(message);
+  // A browser has no three-button dialog: OK saves; Cancel asks once more whether to throw it away.
+  if (window.confirm(`${text}\n\nOK = save, Cancel = more options`)) return "save";
+  return window.confirm(`Discard the changes to “${name}”?`) ? "discard" : "cancel";
 }
 
 /** After a crash: offer the unsaved text back. True = restore it. */

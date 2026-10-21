@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-21
+
+### Changed
+- Windows: closing the window, Close file, New, Open and New file… with unsaved changes ask "Do you want to save the changes to …?" with Save, Don't Save and Cancel (it was only Discard / Keep Editing, with no way to save from the question). Save on an untitled document opens Save As; cancelling it keeps the document open
+
 ## [1.5.1] - 2026-10-21
 
 ### Added
