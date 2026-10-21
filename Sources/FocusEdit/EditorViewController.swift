@@ -126,11 +126,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     private func performVim(_ action: VimAction) {
         switch action {
         case .save:
-            NSApp.sendAction(Selector(("saveDocument:")), to: nil, from: textView)
+            NSApp.sendAction(#selector(NSDocument.save(_:)), to: nil, from: textView)
         case .close:
             view.window?.performClose(nil)
         case .saveAndClose:
-            NSApp.sendAction(Selector(("saveDocument:")), to: nil, from: textView)
+            NSApp.sendAction(#selector(NSDocument.save(_:)), to: nil, from: textView)
             view.window?.performClose(nil)
         case .discardAndClose:
             document?.updateChangeCount(.changeCleared)

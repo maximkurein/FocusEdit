@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Fixed
+- Mac: clicking the Dock icon with no windows open makes a new document, also when the app was started with a file
+- Mac: the build has no compiler warnings (menu actions use `#selector`)
+
 ## [1.5.2] - 2026-10-21
 
 ### Changed

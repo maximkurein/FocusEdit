@@ -59,6 +59,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    // Dock click with no windows: a new document, also after a launch with a file.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { NSDocumentController.shared.newDocument(nil) }
+        return false
+    }
+
     // LaunchServices "Open With" / drag-to-dock.
     func application(_ sender: NSApplication, open urls: [URL]) {
         for url in urls {
@@ -179,9 +185,9 @@ enum MenuBuilder {
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
-        appMenu.addItem(item("About FocusEdit", Selector(("showAbout:")), ""))
+        appMenu.addItem(item("About FocusEdit", #selector(AppDelegate.showAbout(_:)), ""))
         appMenu.addItem(.separator())
-        appMenu.addItem(item("Make Default Editor for .txt and .rtf", Selector(("makeDefaultEditor:")), ""))
+        appMenu.addItem(item("Make Default Editor for .txt and .rtf", #selector(AppDelegate.makeDefaultEditor(_:)), ""))
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide FocusEdit",
                         action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
@@ -194,33 +200,33 @@ enum MenuBuilder {
         mainMenu.addItem(fileItem)
         let fileMenu = NSMenu(title: "File")
         fileItem.submenu = fileMenu
-        fileMenu.addItem(withTitle: "New", action: Selector(("newDocument:")), keyEquivalent: "n")
-        let newFile = NSMenuItem(title: "New File…", action: Selector(("newFileWizard:")), keyEquivalent: "N")
+        fileMenu.addItem(withTitle: "New", action: #selector(NSDocumentController.newDocument(_:)), keyEquivalent: "n")
+        let newFile = NSMenuItem(title: "New File…", action: #selector(AppDelegate.newFileWizard(_:)), keyEquivalent: "N")
         newFile.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(newFile)
         let tmplParent = NSMenuItem(title: "New From Template", action: nil, keyEquivalent: "")
         let tmplMenu = NSMenu(title: "New From Template")
         tmplParent.submenu = tmplMenu
-        tmplMenu.addItem(item("Markdown", Selector(("newMarkdownTemplate:")), ""))
-        tmplMenu.addItem(item("Fountain", Selector(("newFountainTemplate:")), ""))
+        tmplMenu.addItem(item("Markdown", #selector(AppDelegate.newMarkdownTemplate(_:)), ""))
+        tmplMenu.addItem(item("Fountain", #selector(AppDelegate.newFountainTemplate(_:)), ""))
         fileMenu.addItem(tmplParent)
-        fileMenu.addItem(withTitle: "Open…", action: Selector(("openDocument:")), keyEquivalent: "o")
+        fileMenu.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
 
         let openRecent = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
         let recentMenu = NSMenu(title: "Open Recent")
         openRecent.submenu = recentMenu
         recentMenu.addItem(withTitle: "Clear Menu",
-                           action: Selector(("clearRecentDocuments:")), keyEquivalent: "")
+                           action: #selector(NSDocumentController.clearRecentDocuments(_:)), keyEquivalent: "")
         fileMenu.addItem(openRecent)
 
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        fileMenu.addItem(withTitle: "Save", action: Selector(("saveDocument:")), keyEquivalent: "s")
-        let saveAs = NSMenuItem(title: "Save As…", action: Selector(("saveDocumentAs:")), keyEquivalent: "S")
+        fileMenu.addItem(withTitle: "Save", action: #selector(NSDocument.save(_:)), keyEquivalent: "s")
+        let saveAs = NSMenuItem(title: "Save As…", action: #selector(NSDocument.saveAs(_:)), keyEquivalent: "S")
         saveAs.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(saveAs)
         fileMenu.addItem(withTitle: "Revert to Saved",
-                         action: Selector(("revertDocumentToSaved:")), keyEquivalent: "")
+                         action: #selector(NSDocument.revertToSaved(_:)), keyEquivalent: "")
         fileMenu.addItem(.separator())
         fileMenu.addItem(item("Print…", Selector(("printEditor:")), "p"))
         fileMenu.addItem(item("Export as HTML…", Selector(("exportAsHTML:")), ""))
@@ -248,7 +254,7 @@ enum MenuBuilder {
         findParent.submenu = findMenu
         func findItem(_ title: String, _ tag: Int, _ key: String,
                       _ mask: NSEvent.ModifierFlags = [.command]) -> NSMenuItem {
-            let it = NSMenuItem(title: title, action: Selector(("performFindPanelAction:")), keyEquivalent: key)
+            let it = NSMenuItem(title: title, action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: key)
             it.tag = tag
             it.keyEquivalentModifierMask = mask
             it.target = nil
@@ -340,7 +346,7 @@ enum MenuBuilder {
             themeMenu.addItem(it)
         }
         themeMenu.addItem(.separator())
-        themeMenu.addItem(item("Edit Themes…", Selector(("editThemes:")), ""))
+        themeMenu.addItem(item("Edit Themes…", #selector(AppDelegate.editThemes(_:)), ""))
         viewMenu.addItem(themeParent)
 
         let sizeParent = NSMenuItem(title: "Editor Size", action: nil, keyEquivalent: "")
