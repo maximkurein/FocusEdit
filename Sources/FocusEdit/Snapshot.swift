@@ -16,6 +16,7 @@ enum Snapshot {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
             capturePreview {
                 render(to: path)
+                if let savedGoal { Preferences.wordGoal = savedGoal }
                 NSDocumentController.shared.documents.forEach { $0.updateChangeCount(.changeCleared) }
                 NSApp.terminate(nil)
             }
@@ -25,6 +26,8 @@ enum Snapshot {
     /// The web preview draws out of process: ask it for a picture first.
     private static var previewImage: NSImage?
     private static var paletteQuery: String?
+    /// `--goal N` sets a word goal for the shot only; the saved one is put back.
+    private static var savedGoal: Int?
 
     private static func capturePreview(then done: @escaping () -> Void) {
         guard let split = window?.contentViewController as? MainSplitViewController,
@@ -49,6 +52,10 @@ enum Snapshot {
         }
         let tv = split.editor.textView
         window?.makeFirstResponder(tv)
+        if let i = args.firstIndex(of: "--goal"), i + 1 < args.count, let goal = Int(args[i + 1]) {
+            savedGoal = Preferences.wordGoal
+            split.editor.setWordGoal(goal)
+        }
         // `--palette QUERY`: the command palette over the window.
         if let i = args.firstIndex(of: "--palette"), i + 1 < args.count {
             split.showCommandPalette(nil)
@@ -96,6 +103,12 @@ enum Snapshot {
                 tv.backgroundColor.setFill()            // covers the scroller gutter too
                 NSBezierPath(rect: content).fill()
                 textRep.draw(in: target)
+                let bar = split.editor.goalBar
+                if !bar.isHidden, let barRep = capture(bar, bar.bounds) {
+                    var rect = bar.convert(bar.bounds, to: frameView)
+                    if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
+                    barRep.draw(in: rect)
+                }
                 // The Vim coach bar sits in the content area too.
                 let coach = split.editor.vimCoach
                 if !coach.isHidden, let coachRep = capture(coach, coach.bounds) {

@@ -19,6 +19,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     let sounds = TypewriterSounds()
     private let completion = CompletionEngine()
     private var showStatistics = Preferences.showStatistics
+    private var session = Session()
+    private var wordCount = 0
+    private var sessionTimer: Timer?
+    let goalBar = GoalBar()
     private var lastEditWasTyping = false
     let vimCoach = VimCoachView()
     private(set) var vimEnabled = Preferences.vimMode
@@ -78,6 +82,16 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         stack.spacing = 0
         stack.distribution = .fill
         view = stack
+        // The word-goal bar lies over the top edge of the text, so showing it moves nothing.
+        goalBar.translatesAutoresizingMaskIntoConstraints = false
+        stack.addSubview(goalBar)
+        NSLayoutConstraint.activate([
+            // Under the toolbar: the content runs beneath it (full-size content view).
+            goalBar.topAnchor.constraint(equalTo: stack.safeAreaLayoutGuide.topAnchor),
+            goalBar.leadingAnchor.constraint(equalTo: stack.leadingAnchor),
+            goalBar.trailingAnchor.constraint(equalTo: stack.trailingAnchor),
+            goalBar.heightAnchor.constraint(equalToConstant: 2),
+        ])
 
         textView.enableFileDropOpening()
         textView.openFileURLs = { urls in
@@ -92,6 +106,22 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     override func viewDidAppear() {
         super.viewDidAppear()
+        updateStatistics()
+        guard sessionTimer == nil else { return }
+        // The session timer counts the seconds spent writing; the subtitle is redrawn while a goal is set.
+        sessionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            self.session.tick()
+            if Preferences.wordGoal > 0 { self.updateStatistics() }
+        }
+    }
+
+    deinit { sessionTimer?.invalidate() }
+
+    /// Palette "Word goal: N words" (0 = off); the session counts from now.
+    func setWordGoal(_ words: Int) {
+        Preferences.wordGoal = words
+        session.reset(words: wordCount)
         updateStatistics()
     }
 
@@ -157,6 +187,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.recomputeSyntax()
         textView.refreshFocusEffects()
         textView.needsDisplay = true
+        wordCount = Session.countWords(text)
+        session.reset(words: wordCount)
         updateStatistics()
         onTextChanged?()
     }
@@ -260,13 +292,35 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     // MARK: Statistics (window subtitle)
 
+    /// The subtitle: words selected, or the session towards the goal, or the word count and
+    /// reading time; the bar under the toolbar shows the progress while a goal is set.
     private func updateStatistics() {
+        let goal = Preferences.wordGoal
+        goalBar.isHidden = goal <= 0
+        goalBar.progress = session.progress(goal: goal)
         guard let window = view.window else { return }
         guard showStatistics else { window.subtitle = ""; return }
-        let words = textView.string.split { $0.isWhitespace }.count
-        guard words > 0 else { window.subtitle = ""; return }
-        let minutes = max(1, Int((Double(words) / 200.0).rounded(.up)))
-        window.subtitle = "\(words) word\(words == 1 ? "" : "s") · \(minutes) min read"
+        let selected = selectedWords()
+        if selected > 0 {
+            window.subtitle = "\(Session.plural(selected)) selected"
+        } else if goal > 0 {
+            let reached = session.progress(goal: goal) >= 1 ? " · goal reached" : ""
+            window.subtitle = "+\(session.written) / \(goal) words · "
+                + Session.formatDuration(ms: session.activeMs) + reached
+        } else if wordCount > 0 {
+            let minutes = max(1, Int((Double(wordCount) / 200.0).rounded(.up)))
+            window.subtitle = "\(Session.plural(wordCount)) · \(minutes) min read"
+        } else {
+            window.subtitle = ""
+        }
+    }
+
+    /// Words in the selection (a huge selection is not counted).
+    private func selectedWords() -> Int {
+        let sel = textView.selectedRange()
+        guard sel.length > 0, sel.length <= 200_000, NSMaxRange(sel) <= (textView.string as NSString).length
+        else { return 0 }
+        return Session.countWords((textView.string as NSString).substring(with: sel))
     }
 
     // MARK: NSTextViewDelegate
@@ -293,6 +347,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.updateGhost(afterTyping: lastEditWasTyping)
         lastEditWasTyping = false
         if textView.string.utf16.count <= 1 { textView.needsDisplay = true }   // placeholder on/off
+        wordCount = Session.countWords(textView.string)
+        session.note(words: wordCount)
         updateStatistics()
         onTextChanged?()
     }
@@ -311,6 +367,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         }
         textView.clearGhostIfMoved()
         textView.refreshFocusEffects()
+        updateStatistics()
     }
 
     /// Full completion list (⌥Esc): document words and Fountain cues first,
@@ -467,4 +524,18 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         }
         return true
     }
+}
+
+/// The thin word-goal progress line under the toolbar: accent colour, green when reached.
+final class GoalBar: NSView {
+    var progress: Double = 0 { didSet { if progress != oldValue { needsDisplay = true } } }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.separatorColor.withAlphaComponent(0.25).setFill()
+        bounds.fill()
+        (progress >= 1 ? NSColor.systemGreen : NSColor.controlAccentColor).setFill()
+        NSRect(x: 0, y: 0, width: bounds.width * CGFloat(progress), height: bounds.height).fill()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

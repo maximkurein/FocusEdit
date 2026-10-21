@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var launchFileURL: URL? = {
         let args = Array(CommandLine.arguments.dropFirst())
         for (i, arg) in args.enumerated() where !arg.hasPrefix("-") {
-            if i > 0, ["--snapshot", "--theme", "--view", "--palette"].contains(args[i - 1]) { continue }   // option values
+            if i > 0, ["--snapshot", "--theme", "--view", "--palette", "--goal"].contains(args[i - 1]) { continue }   // option values
             let url = URL(fileURLWithPath: arg)
             if FileManager.default.fileExists(atPath: url.path) { return url }
         }

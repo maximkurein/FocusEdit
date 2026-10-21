@@ -323,14 +323,15 @@ extension MainSplitViewController {
         })
     }
 
-    /// What the palette lists for what has been typed; a number also offers a line to go to.
+    /// What the palette lists for what has been typed; a number also offers a word goal and a line.
     func paletteCommands(_ query: String) -> [PaletteCommand] {
         var list = PaletteSearch.filter(allCommands(), query)
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         if let number = Int(trimmed), number > 0, trimmed.allSatisfy(\.isNumber) {
-            list.insert(PaletteCommand(title: "Go to line \(number)") { [weak self] in
-                self?.editor.goToLine(number)
-            }, at: 0)
+            list.insert(contentsOf: [
+                PaletteCommand(title: "Word goal: \(number) words") { [weak self] in self?.editor.setWordGoal(number) },
+                PaletteCommand(title: "Go to line \(number)") { [weak self] in self?.editor.goToLine(number) },
+            ], at: 0)
         }
         return list
     }
@@ -428,6 +429,14 @@ extension MainSplitViewController {
                 command("Format: Numbered List", "mdOrderedList:", keywords: "ordered"),
             ]
         }
+        for goal in [250, 500, 1000, 2000] {
+            list.append(PaletteCommand(title: "Word goal: \(goal) words", keywords: "target session progress timer") {
+                [weak self] in self?.editor.setWordGoal(goal)
+            })
+        }
+        list.append(PaletteCommand(title: "Word goal: off", keywords: "target session progress timer") {
+            [weak self] in self?.editor.setWordGoal(0)
+        })
         list += [
             command("Hints and shortcuts", "showHints:", keywords: "help keys"),
             command("About FocusEdit", "showAbout:", keywords: "version developer github"),

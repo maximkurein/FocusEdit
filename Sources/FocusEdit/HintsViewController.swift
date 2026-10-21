@@ -45,7 +45,8 @@ final class HintsViewController: NSViewController {
         var list = [
             Section(title: "Commands", rows: [
                 ("⇧⌘P", "Command palette: type what you want to do"),
-                ("a number", "In the palette: go to that line"),
+                ("a number", "In the palette: set a word goal, or go to a line"),
+                ("Word goal", "Palette: progress bar under the toolbar, writing time"),
             ]),
             Section(title: "Writing", rows: [
                 ("Tab  →", "Accept the grey suggestion"),

@@ -13,6 +13,7 @@ enum SelfTest {
         rtf()
         markdown()
         palette()
+        session()
         newFile()
         focusUnit()
         vim()
@@ -342,6 +343,52 @@ enum SelfTest {
         check("go to line 2", String(editor.textView.selectedRange().location), "4")
         editor.goToLine(99)
         check("go to a line past the end", String(editor.textView.selectedRange().location), "8")
+    }
+
+    // MARK: Writing session (cases from windows/tests/palette-session-links.test.ts)
+
+    private static func session() {
+        print("Session:")
+        check("no words", String(Session.countWords("")), "0")
+        check("words across spaces and lines", String(Session.countWords("  one  two\nthree\t")), "3")
+        check("Russian words", String(Session.countWords("слова по-русски")), "2")
+
+        var s = Session()
+        s.reset(words: 100, now: 0)
+        s.note(words: 130, now: 1000)
+        check("written since the start", String(s.written), "30")
+        s.note(words: 60, now: 2000)
+        check("never below zero", String(s.written), "0")
+
+        s = Session()
+        s.reset(words: 0, now: 0)
+        s.note(words: 50, now: 1)
+        check("progress", String(s.progress(goal: 200)), "0.25")
+        check("no goal, no progress", String(s.progress(goal: 0)), "0.0")
+        s.note(words: 500, now: 2)
+        check("progress stops at 1", String(s.progress(goal: 200)), "1.0")
+
+        s = Session()
+        s.reset(words: 0, now: 0)
+        s.tick(now: 1000)
+        check("nothing typed, no time", String(s.activeMs), "0")
+        s.note(words: 1, now: 1500)
+        s.tick(now: 2000)
+        s.tick(now: 3000)
+        check("seconds spent writing", String(s.activeMs), "2000")
+        s.tick(now: 3000 + Session.idleMs + 5000)
+        check("idle time not counted", String(s.activeMs), "2000")
+
+        s = Session()
+        s.reset(words: 0, now: 0)
+        s.note(words: 1, now: 100)
+        s.tick(now: 1000)
+        s.tick(now: 1000 + 60_000)
+        check("a long gap (sleep) not counted", String(s.activeMs), "1000")
+
+        check("0:00", Session.formatDuration(ms: 0), "0:00")
+        check("1:15", Session.formatDuration(ms: 75_000), "1:15")
+        check("1:02:05", Session.formatDuration(ms: 3_725_000), "1:02:05")
     }
 
     private static func focusUnit() {

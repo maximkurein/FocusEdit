@@ -40,6 +40,13 @@ enum Preferences {
         static let autoPairing = "edit.autoPairing"
         static let autocomplete = "edit.autocomplete"
         static let vimMode = "edit.vimMode"
+        static let wordGoal = "session.wordGoal"
+    }
+
+    /// Words to write in a session; 0 = no goal.
+    static var wordGoal: Int {
+        get { max(0, d.integer(forKey: Key.wordGoal)) }
+        set { d.set(max(0, newValue), forKey: Key.wordGoal) }
     }
 
     static var vimMode: Bool {
