@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-21
+
 ### Added
 - Mac: the Markdown preview and HTML export now render tables with column alignment, task lists, strikethrough, nested and loose lists, numbered lists that start at any number, setext headings, rules, hard line breaks, reference links (`[text][label]`), bare web addresses, backslash escapes, `~~~` fences and code blocks with `class="language-…"`. Raw HTML stays text and links stay limited to web and mail addresses, as before
 - Mac: command palette (`⇧⌘P`, View ▸ Command Palette…): every action by typing a few letters, as on Windows — files, export, view modes, outline and library, focus, typewriter, themes, column width, fonts, text size, full screen, Vim, writing aids, Markdown formatting, hints, About and the recent files. The shortcuts shown are read from the menus. A number offers "Word goal: N words" and "Go to line N"
