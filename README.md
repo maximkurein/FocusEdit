@@ -33,6 +33,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop, and autosave elsewhere every minute so unsaved text survives a crash. A library sidebar browses a linked folder; the outline jumps between headings; the window subtitle shows the word count and reading time; find and replace.
 - **Preview and export** — live HTML preview for Markdown in a pane beside the text (tables, task lists, strikethrough, nested lists, reference links), scrolling together with it, export as HTML or PDF, copy as HTML, print.
 - **Themes and type** — Light, Dark, Sepia and custom themes; system, monospaced or serif font; three column widths.
+- **Command palette** — `⇧⌘P`: type a few letters of what you want to do (a theme, a view, export, a recent file…) and press Return; a number jumps to that line.
 - **Help where you are** — every toolbar button has a tooltip with its shortcut, and ⌘? opens a cheat sheet for the current document type.
 
 ## Shortcuts
@@ -41,6 +42,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 |---|---|
 | Tab or → | Accept the grey suggestion |
 | Esc · ⌥Esc | Dismiss the suggestion · list all completions |
+| ⇧⌘P | Command palette: every action by typing a few letters; a number goes to that line |
 | ⇧⌘N | New File…: format, template, name |
 | ⌘T | Keep the active line centred |
 | ⌘U | Typewriter sounds |

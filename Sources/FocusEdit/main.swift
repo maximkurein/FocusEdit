@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var launchFileURL: URL? = {
         let args = Array(CommandLine.arguments.dropFirst())
         for (i, arg) in args.enumerated() where !arg.hasPrefix("-") {
-            if i > 0, ["--snapshot", "--theme", "--view"].contains(args[i - 1]) { continue }   // option values
+            if i > 0, ["--snapshot", "--theme", "--view", "--palette"].contains(args[i - 1]) { continue }   // option values
             let url = URL(fileURLWithPath: arg)
             if FileManager.default.fileExists(atPath: url.path) { return url }
         }
@@ -380,6 +380,9 @@ enum MenuBuilder {
         let previewToggle = item("Show Preview", Selector(("togglePreview:")), "p")
         previewToggle.keyEquivalentModifierMask = [.command, .option]
         viewMenu.addItem(previewToggle)
+        let paletteItem = item("Command Palette…", Selector(("showCommandPalette:")), "p")
+        paletteItem.keyEquivalentModifierMask = [.command, .shift]
+        viewMenu.addItem(paletteItem)
         viewMenu.addItem(.separator())
         let toolbarToggle = item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)), "t")
         toolbarToggle.keyEquivalentModifierMask = [.command, .option]

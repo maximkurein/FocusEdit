@@ -74,7 +74,7 @@
 
 | Пункт | На Mac сейчас |
 |---|---|
-| 2.1 Палитра команд | не начато (⇧⌘P занят превью) |
+| 2.1 Палитра команд | ✅ Unreleased: `CommandPalette.swift` (`PaletteSearch` — порт `matchScore`, панель `CommandPaletteController`, команды в расширении `MainSplitViewController`), ⇧⌘P; группа `Palette` в `--selftest`; `--snapshot … --palette QUERY`. Команды цели по словам и «Open the welcome tour» добавляются в 2.2 и 2.6 |
 | 2.2 Цель по словам, таймер, слова в выделении | не начато (в подзаголовке только число слов и время чтения) |
 | 2.3 Edit → Split → Preview | ✅ Unreleased: `ViewMode` в `MainSplitViewController.swift`, ⌥⌘P; Esc — локальный монитор клавиш (WKWebView глотает клавишу меню); `--snapshot … --view split\|preview` снимает режимы |
 | 2.4 Полный Markdown в превью | ✅ Unreleased: группа `Markdown` в `--selftest` (случаи из `markdown-html.test.ts` + свои). Отличие: картинки с безопасным адресом показываются (в Windows — подпись); картинки по относительному пути в превью не грузятся (`baseURL: nil`), в экспорте HTML рядом с документом — да |

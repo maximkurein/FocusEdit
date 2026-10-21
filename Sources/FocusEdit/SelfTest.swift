@@ -12,6 +12,7 @@ enum SelfTest {
         editing()
         rtf()
         markdown()
+        palette()
         newFile()
         focusUnit()
         vim()
@@ -307,6 +308,40 @@ enum SelfTest {
         let seconds = Date().timeIntervalSince(started)
         print("  (\(big.utf8.count / 1024) KB rendered in \(String(format: "%.2f", seconds)) s)")
         check("large document renders quickly", seconds < 1.5 ? "yes" : "no", "yes")
+    }
+
+    // MARK: Command palette (cases from windows/tests/palette-session-links.test.ts)
+
+    private static func palette() {
+        print("Palette:")
+        func cmd(_ title: String, _ keywords: String = "") -> PaletteCommand {
+            PaletteCommand(title: title, keywords: keywords) {}
+        }
+        let all = [cmd("Save"), cmd("Save As…"), cmd("Theme: Dark", "night"), cmd("Theme: Light", "day"),
+                   cmd("Theme: Sepia"), cmd("View: Preview"), cmd("Export as HTML…")]
+        func titles(_ q: String) -> String { PaletteSearch.filter(all, q).map(\.title).joined(separator: " | ") }
+        let everything = all.map(\.title).joined(separator: " | ")
+        check("empty query lists all in order", titles(""), everything)
+        check("blank query lists all", titles("   "), everything)
+        check("letters anywhere, any case", titles("sepia"), "Theme: Sepia")
+        check("upper case query", titles("HTML"), "Export as HTML…")
+        check("every word must match", titles("theme dark"), "Theme: Dark")
+        check("an unknown word matches nothing", titles("theme zebra"), "")
+        check("finds by keyword", titles("night"), "Theme: Dark")
+        check("start of a title first", PaletteSearch.filter(all, "sa").first?.title, "Save")
+        check("save, then save as", titles("save"), "Save | Save As…")
+        check("letters in order", titles("thdk"), "Theme: Dark")
+        check("no match is nil", PaletteSearch.matchScore("zzz", "Save").map(String.init), nil)
+        check("shortcut text", PaletteSearch.format("p", [.command, .shift]), "⇧⌘P")
+        check("upper-case key means shift", PaletteSearch.format("N", [.command]), "⇧⌘N")
+        check("option key", PaletteSearch.format("p", [.command, .option]), "⌥⌘P")
+
+        let editor = EditorViewController()
+        editor.loadContent("one\ntwo\nthree", fileExtension: "md")
+        editor.goToLine(2)
+        check("go to line 2", String(editor.textView.selectedRange().location), "4")
+        editor.goToLine(99)
+        check("go to a line past the end", String(editor.textView.selectedRange().location), "8")
     }
 
     private static func focusUnit() {

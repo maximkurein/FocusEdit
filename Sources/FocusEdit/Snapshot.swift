@@ -24,6 +24,7 @@ enum Snapshot {
 
     /// The web preview draws out of process: ask it for a picture first.
     private static var previewImage: NSImage?
+    private static var paletteQuery: String?
 
     private static func capturePreview(then done: @escaping () -> Void) {
         guard let split = window?.contentViewController as? MainSplitViewController,
@@ -48,6 +49,12 @@ enum Snapshot {
         }
         let tv = split.editor.textView
         window?.makeFirstResponder(tv)
+        // `--palette QUERY`: the command palette over the window.
+        if let i = args.firstIndex(of: "--palette"), i + 1 < args.count {
+            split.showCommandPalette(nil)
+            paletteQuery = args[i + 1]
+            return
+        }
         // `--view split|preview`: the preview beside the text, or alone.
         if let i = args.firstIndex(of: "--view"), i + 1 < args.count {
             split.setView(args[i + 1] == "preview" ? .preview : args[i + 1] == "split" ? .split : .edit)
@@ -108,6 +115,17 @@ enum Snapshot {
                 image.draw(in: rect)
                 NSGraphicsContext.restoreGraphicsState()
             }
+        }
+
+        if let query = paletteQuery, let split = window.contentViewController as? MainSplitViewController,
+           let (rep, frame) = split.palette.snapshot(query: query) {
+            var rect = NSRect(origin: window.convertPoint(fromScreen: frame.origin), size: frame.size)
+            rect = frameView.convert(rect, from: nil)
+            if frameView.isFlipped { rect.origin.y = frameView.bounds.height - rect.maxY }
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: frameRep)
+            rep.draw(in: rect)
+            NSGraphicsContext.restoreGraphicsState()
         }
 
         // `--content`: keep only the area below the toolbar. The toolbar glass

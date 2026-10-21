@@ -200,6 +200,22 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.refreshFocusEffects()
     }
 
+    /// Palette "Go to line N": the start of line N (or the last line), in the middle of the view.
+    func goToLine(_ number: Int) {
+        let ns = textView.string as NSString
+        var location = 0
+        for _ in 1..<max(1, number) where location < ns.length {
+            location = NSMaxRange(ns.lineRange(for: NSRange(location: location, length: 0)))
+        }
+        if location == ns.length, location > 0, number > 1, ns.character(at: location - 1) != 10 {
+            location = ns.lineRange(for: NSRange(location: location - 1, length: 0)).location
+        }
+        view.window?.makeFirstResponder(textView)
+        textView.setSelectedRange(NSRange(location: location, length: 0))
+        textView.scrollLine(containing: location, toHeight: 0.5)
+        textView.refreshFocusEffects()
+    }
+
     override func viewDidLayout() {
         super.viewDidLayout()
         layoutWritingColumn()

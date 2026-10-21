@@ -10,13 +10,14 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     let preview = PreviewViewController()
     let outline = OutlineViewController()
 
-    private var libraryItem: NSSplitViewItem!
+    private(set) var libraryItem: NSSplitViewItem!
     private var editorItem: NSSplitViewItem!
     private var previewItem: NSSplitViewItem!
     private var scrollObserver: NSObjectProtocol?
     /// The editor that was just moved by code ignores its own scrolling for a moment.
     private var editorQuietUntil = Date.distantPast
-    private var outlineItem: NSSplitViewItem!
+    private(set) var outlineItem: NSSplitViewItem!
+    let palette = CommandPaletteController()
 
     override func viewDidLoad() {
         super.viewDidLoad()

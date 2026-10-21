@@ -43,6 +43,10 @@ final class HintsViewController: NSViewController {
 
     private var sections: [Section] {
         var list = [
+            Section(title: "Commands", rows: [
+                ("⇧⌘P", "Command palette: type what you want to do"),
+                ("a number", "In the palette: go to that line"),
+            ]),
             Section(title: "Writing", rows: [
                 ("Tab  →", "Accept the grey suggestion"),
                 ("Esc", "Dismiss it  ·  ⌥Esc lists all completions"),
