@@ -1,7 +1,7 @@
 {
   "name": "focusedit-windows",
   "private": true,
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "FocusEdit for Windows (experimental): Tauri 2 + CodeMirror 6",
   "type": "module",
   "scripts": {

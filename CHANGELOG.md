@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-10-22
+
+### Added
+- Mac: Column width, font and full screen buttons in the toolbar, as on Windows. Column width uses the same horizontal icon (two bars and a left-right arrow) and cycles Small, Medium and Large; the arrow lists them. Font cycles System, Monospace and Serif. Full screen hides the toolbar and the menu bar (⌃⌘F). A customised toolbar starts from the new default layout once
+
 ## [1.6.3] - 2026-10-21
 
 ### Added

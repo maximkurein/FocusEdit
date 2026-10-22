@@ -498,6 +498,30 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.refreshFocusEffects()
     }
 
+    /// Toolbar Full Screen. (Not `toggleFullScreen:` itself: NSWindow validates that one
+    /// as a menu item and crashes on a toolbar item.)
+    @objc func fullScreenFromToolbar(_ sender: Any?) {
+        view.window?.toggleFullScreen(sender)
+    }
+
+    /// Toolbar: Small → Medium → Large → Small (as the Windows button).
+    @objc func cycleEditorSize(_ sender: Any?) {
+        let all = EditorSize.allCases
+        let next = all[((all.firstIndex(of: editorSize) ?? 0) + 1) % all.count]
+        let item = NSMenuItem()
+        item.tag = Int(next.rawValue)
+        selectEditorSize(item)
+    }
+
+    /// Toolbar: System → Monospace → Serif → System.
+    @objc func cycleFontKind(_ sender: Any?) {
+        let all = FontKind.allCases
+        let next = all[((all.firstIndex(of: fontKind) ?? 0) + 1) % all.count]
+        let item = NSMenuItem()
+        item.tag = next.rawValue
+        selectFontKind(item)
+    }
+
     @objc func selectFontKind(_ sender: NSMenuItem) {
         guard let kind = FontKind(rawValue: sender.tag) else { return }
         fontKind = kind
@@ -583,6 +607,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
                                  on: sounds.enabled)
         case #selector(toggleVimMode(_:)):
             ToolbarSymbol.update(item, "text:Vim", on: vimEnabled)
+        case #selector(cycleEditorSize(_:)):
+            item.toolTip = "Column width: \(editorSize.title) — click to change, arrow for the list"
+        case #selector(cycleFontKind(_:)):
+            item.toolTip = "Font: \(fontKind.title) — click to change, arrow for the list"
         case #selector(cycleFocusMode(_:)):
             ToolbarSymbol.update(item, "scope", on: textView.focusMode != .off)
             item.toolTip = "Focus: \(textView.focusMode.title) — click to change, arrow for the list"

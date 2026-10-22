@@ -13,6 +13,9 @@ extension NSToolbarItem.Identifier {
     static let open = NSToolbarItem.Identifier("focusedit.open")
     static let save = NSToolbarItem.Identifier("focusedit.save")
     static let saveAs = NSToolbarItem.Identifier("focusedit.saveAs")
+    static let columnWidth = NSToolbarItem.Identifier("focusedit.columnWidth")
+    static let font = NSToolbarItem.Identifier("focusedit.font")
+    static let fullScreen = NSToolbarItem.Identifier("focusedit.fullScreen")
 }
 
 /// SF Symbol images for toolbar items; an "on" state is drawn in the accent color.
@@ -20,6 +23,9 @@ enum ToolbarSymbol {
     static func image(_ name: String, on: Bool = false) -> NSImage? {
         // "text:Vim" draws the word itself: a button that is a name, not a picture.
         if name.hasPrefix("text:") { return textImage(String(name.dropFirst(5)), on: on) }
+        // Same glyph as the Windows column-width button: a horizontal arrow between two bars.
+        // `arrow.left.and.right.text.vertical` draws vertical lines and reads as vertical alignment.
+        if name == "draw:column" { return columnWidthImage(on: on) }
         guard let base = NSImage(systemSymbolName: name, accessibilityDescription: name) else { return nil }
         guard on else { return base }
         let tinted = base.withSymbolConfiguration(.init(paletteColors: [.controlAccentColor]))
@@ -38,6 +44,33 @@ enum ToolbarSymbol {
             (text as NSString).draw(at: NSPoint(x: 2, y: 0), withAttributes: attributes)
             return true
         }
+    }
+
+    /// The Windows toolbar's column-width icon (two margins, arrow between them), as a template.
+    private static func columnWidthImage(on: Bool) -> NSImage {
+        let side: CGFloat = 18
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: true) { rect in
+            let scale = rect.width / 20
+            func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
+                NSPoint(x: rect.minX + x * scale, y: rect.minY + y * scale)
+            }
+            let path = NSBezierPath()
+            path.lineWidth = 1.4 * scale
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            path.move(to: p(3, 4.5)); path.line(to: p(3, 15.5))
+            path.move(to: p(17, 4.5)); path.line(to: p(17, 15.5))
+            path.move(to: p(6.5, 10)); path.line(to: p(13.5, 10))
+            path.move(to: p(6.5, 10)); path.line(to: p(8.5, 8))
+            path.move(to: p(6.5, 10)); path.line(to: p(8.5, 12))
+            path.move(to: p(13.5, 10)); path.line(to: p(11.5, 8))
+            path.move(to: p(13.5, 10)); path.line(to: p(11.5, 12))
+            (on ? NSColor.controlAccentColor : NSColor.black).setStroke()
+            path.stroke()
+            return true
+        }
+        image.isTemplate = !on
+        return image
     }
 
     /// Swap the image only when the state actually changes (validation runs often).
@@ -78,8 +111,9 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         self.init(window: window)
         window.delegate = self
 
-        // v4: the file buttons (Save As… since 1.6.2); a saved older layout would hide them.
-        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v4")
+        // v5: file buttons (1.6.1–1.6.2), column width, font and full screen (1.6.4);
+        // a saved older layout would hide them.
+        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v5")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -101,7 +135,8 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .saveAs, .flexibleSpace,
-         .focusMode, .typewriter, .sounds, .vim, .theme, .space, .preview, .hints, .outline]
+         .focusMode, .typewriter, .sounds, .vim, .theme, .columnWidth, .font, .fullScreen,
+         .space, .preview, .hints, .outline]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -156,6 +191,16 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         case .outline:
             return button(id, "sidebar.right", "Outline",
                           "Show or hide the outline (⌥⌘O)", "toggleOutline:")
+        case .columnWidth:
+            return cycleMenu(id, "draw:column", "Column Width",
+                             "cycleEditorSize:", "selectEditorSize:",
+                             EditorSize.allCases.map { ($0.title, Int($0.rawValue)) })
+        case .font:
+            return cycleMenu(id, "textformat", "Font", "cycleFontKind:", "selectFontKind:",
+                             FontKind.allCases.map { ($0.title, $0.rawValue) })
+        case .fullScreen:
+            return button(id, "arrow.up.left.and.arrow.down.right", "Full Screen",
+                          "Full screen — the toolbar and the menu bar hide (⌃⌘F)", "fullScreenFromToolbar:")
         case .newFile:
             return button(id, "doc.badge.plus", "New File",
                           "New File… — .txt, .md or .rtf, from a template (⇧⌘N)", "newFileWizard:")
@@ -169,6 +214,25 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         default:
             return nil
         }
+    }
+
+    /// A button that steps through the choices on click; its arrow lists them (like Focus).
+    private func cycleMenu(_ id: NSToolbarItem.Identifier, _ symbol: String, _ label: String,
+                           _ cycle: String, _ select: String, _ choices: [(String, Int)]) -> NSToolbarItem {
+        let item = NSMenuToolbarItem(itemIdentifier: id)
+        item.image = ToolbarSymbol.image(symbol)
+        item.label = label
+        item.paletteLabel = label
+        item.action = Selector(cycle)
+        item.showsIndicator = true
+        let menu = NSMenu()
+        for (title, tag) in choices {
+            let mi = NSMenuItem(title: title, action: Selector(select), keyEquivalent: "")
+            mi.tag = tag
+            menu.addItem(mi)
+        }
+        item.menu = menu
+        return item
     }
 
     private func button(_ id: NSToolbarItem.Identifier, _ symbol: String, _ label: String,
