@@ -684,6 +684,9 @@ enum SelfTest {
         let editor = EditorViewController()
         editor.loadContent("# Title\n- item", fileExtension: "txt")
         check("untitled is plain text", "\(editor.documentKind)", "plain")
+        check("plain text can be previewed", DocumentKind.plain.supportsHTML ? "yes" : "no", "yes")
+        check("markdown can be previewed", DocumentKind.markdown.supportsHTML ? "yes" : "no", "yes")
+        check("fountain is not previewed", DocumentKind.fountain.supportsHTML ? "yes" : "no", "no")
         editor.updateKind(fileExtension: "md")
         check("save as .md turns on Markdown", "\(editor.documentKind)", "markdown")
         check("list continuation follows the type",

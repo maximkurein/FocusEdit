@@ -312,7 +312,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         // A narrow pane (the preview beside it, a small window) narrows the column too.
         let width = max(120, min(columnWidth, available.width - 48))
         let side = max(24, (available.width - width) / 2)
-        let vertical = textView.verticalPadding(forViewportHeight: available.height)
+        // The page runs under the toolbar. That band is not part of the writing area,
+        // so a half-window pad measured from the whole window shoved the line downward.
+        let covered = scrollView.contentInsets.top
+        let visible = max(0, available.height - covered - scrollView.contentInsets.bottom)
+        let vertical = textView.verticalPadding(forViewportHeight: visible, coveredTop: covered)
         textView.textContainer?.size = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainerInset = NSSize(width: side, height: vertical)
     }
@@ -404,6 +408,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         if textView.string.utf16.count <= 1 { textView.needsDisplay = true }   // placeholder on/off
         wordCount = Session.countWords(textView.string)
         session.note(words: wordCount)
+        if textView.typewriterScrollingEnabled {
+            textView.scrollLine(containing: textView.selectedRange().location, toHeight: textView.typewriterAnchor)
+        }
         updateStatistics()
         updateStart()
         onTextChanged?()
@@ -447,7 +454,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     @objc func toggleTypewriterScrolling(_ sender: Any?) {
         textView.typewriterScrollingEnabled.toggle()
+        layoutWritingColumn()
         textView.refreshFocusEffects()
+        if textView.typewriterScrollingEnabled {
+            textView.scrollLine(containing: textView.selectedRange().location, toHeight: textView.typewriterAnchor)
+        }
     }
 
     @objc func selectFocusMode(_ sender: NSMenuItem) {

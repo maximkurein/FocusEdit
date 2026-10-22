@@ -184,7 +184,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             return item
         case .preview:
             return button(id, "eye", "Preview",
-                          "View: Edit → Split → Preview — Markdown only (⌥⌘P)", "togglePreview:")
+                          "View: Edit → Split → Preview — plain text and Markdown (⌥⌘P)", "togglePreview:")
         case .hints:
             return button(id, "questionmark.circle", "Hints",
                           "Hints and shortcuts (⌘?)", "showHints:")

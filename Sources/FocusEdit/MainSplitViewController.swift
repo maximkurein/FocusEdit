@@ -186,6 +186,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     func setView(_ mode: ViewMode) {
         let from = viewMode
         guard mode != from else { return }
+        // Fountain stays in the editor; plain text and Markdown preview, as on Windows.
+        if mode != .edit, !editor.documentKind.supportsHTML { return }
         let tv = editor.textView
         switch mode {
         case .edit, .split:

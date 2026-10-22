@@ -22,7 +22,9 @@ enum DocumentKind {
         }
     }
 
-    var supportsHTML: Bool { self == .markdown }
+    /// Fountain is a screenplay, not a page. Plain text and Markdown can be
+    /// previewed and exported, as on Windows.
+    var supportsHTML: Bool { self != .fountain }
 }
 
 /// One entry in the document outline.

@@ -126,11 +126,11 @@ final class FocusTextView: NSTextView {
         updateLiveHiding()
     }
 
-    /// Re-run focus + syntax color rendering and keep the caret pinned.
+    /// Re-run focus + syntax color rendering. Typewriter scrolling is separate:
+    /// a layout pass must not yank the line the reader is looking at.
     func refreshFocusEffects() {
         updateLiveHiding()
         renderFocus()
-        centerCaretLineIfNeeded()
     }
 
     // MARK: Live Markdown (hidden marks, heading sizes)
@@ -222,16 +222,33 @@ final class FocusTextView: NSTextView {
 
     // MARK: Typewriter scrolling
 
-    func verticalPadding(forViewportHeight height: CGFloat) -> CGFloat {
-        max(0, height * max(typewriterAnchor, 1 - typewriterAnchor))
+    /// A click or a drag must not yank the page, as on Windows. Typing and the
+    /// keyboard still keep the caret line centred.
+    private var pointerSelecting = false
+
+    override func mouseDown(with event: NSEvent) {
+        pointerSelecting = true
+        super.mouseDown(with: event)
+        pointerSelecting = false
     }
 
-    private func centerCaretLineIfNeeded() {
-        guard typewriterScrollingEnabled else { return }
-        scrollLine(containing: selectedRange().location, toHeight: typewriterAnchor)
+    /// Room above the text. Typewriter mode uses 45% of the editor (Windows uses
+    /// 45vh), measured below the toolbar; otherwise a short margin.
+    func verticalPadding(forViewportHeight height: CGFloat, coveredTop: CGFloat = 0) -> CGFloat {
+        guard typewriterScrollingEnabled else { return 48 }
+        return coveredTop + max(0, height) * 0.45
     }
 
-    /// Scroll so the line holding `charIndex` sits at `anchor` of the viewport height.
+    /// AppKit's own scroll pins the caret to the top. While typing or moving
+    /// with the keyboard the caret line stays at `typewriterAnchor`.
+    override func scrollRangeToVisible(_ range: NSRange) {
+        guard typewriterScrollingEnabled, !pointerSelecting else {
+            return super.scrollRangeToVisible(range)
+        }
+        scrollLine(containing: range.location, toHeight: typewriterAnchor)
+    }
+
+    /// Scroll so the line holding `charIndex` sits at `anchor` of the area below the toolbar.
     func scrollLine(containing charIndex: Int, toHeight anchor: CGFloat) {
         guard let layoutManager = layoutManager,
               let textContainer = textContainer,
@@ -239,14 +256,22 @@ final class FocusTextView: NSTextView {
         else { return }
 
         layoutManager.ensureLayout(for: textContainer)
+        let used = layoutManager.usedRect(for: textContainer)
+        let needed = ceil(used.height + textContainerInset.height * 2)
+        if bounds.height + 1 < needed {
+            setFrameSize(NSSize(width: bounds.width, height: needed))
+        }
 
         let lineRect = lineFragmentRect(forCharacterAt: charIndex)
         let lineMidYInView = lineRect.midY + textContainerOrigin.y
 
         let viewportHeight = clipView.bounds.height
         guard viewportHeight > 0 else { return }
+        let insets = enclosingScrollView?.contentInsets ?? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        let visible = max(1, viewportHeight - insets.top - insets.bottom)
+        let centerY = insets.top + visible * anchor
 
-        var targetY = lineMidYInView - viewportHeight * anchor
+        var targetY = lineMidYInView - centerY
         let maxY = max(0, bounds.height - viewportHeight)
         targetY = min(max(targetY, 0), maxY)
 

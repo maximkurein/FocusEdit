@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-10-22
+
+### Changed
+- Mac: typewriter scrolling keeps the caret line in the middle of the page below the toolbar, as on Windows. The margin is 45% of that area, so the line is no longer shoved to the bottom of the window with a blank band above it. Clicking and dragging leave the page where it is; typing and the keyboard recenter the line. With the button off, the text starts under the toolbar with a short margin
+- Mac: Preview, Split, and HTML export work for plain text as well as Markdown. Fountain stays in the editor, as on Windows
+
 ## [1.6.4] - 2026-10-22
 
 ### Added
