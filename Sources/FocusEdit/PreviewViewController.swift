@@ -17,6 +17,16 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     }()
 
     private var loadedDark: Bool?
+    /// The editor's text size; the page follows it without reloading.
+    var fontSize: Double = 16 {
+        didSet {
+            if fontSize != oldValue, ready { applyFontSize() }
+        }
+    }
+
+    private func applyFontSize() {
+        webView.evaluateJavaScript("document.body.style.fontSize = '\(fontSize)px';", completionHandler: nil)
+    }
     private var ready = false
     private var latest = ""
 
@@ -84,7 +94,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
             // First show, or the theme changed: load the themed page.
             loadedDark = dark
             ready = false
-            webView.loadHTMLString(MarkdownToHTML.document(markdown, dark: dark), baseURL: nil)
+            webView.loadHTMLString(MarkdownToHTML.document(markdown, dark: dark, fontSize: fontSize), baseURL: nil)
         } else if ready {
             inject(markdown)
         }
@@ -98,7 +108,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
             // Could not update in place: load the whole page again.
             guard error != nil, let self, let dark = self.loadedDark else { return }
             self.ready = false
-            self.webView.loadHTMLString(MarkdownToHTML.document(markdown, dark: dark), baseURL: nil)
+            self.webView.loadHTMLString(MarkdownToHTML.document(markdown, dark: dark, fontSize: self.fontSize), baseURL: nil)
         }
     }
 
@@ -106,6 +116,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
+        applyFontSize() // zoomed while the page was loading
         inject(latest) // anything typed while the page was loading
         if let ratio = pendingRatio {
             pendingRatio = nil

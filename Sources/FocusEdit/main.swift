@@ -412,7 +412,13 @@ enum MenuBuilder {
 
         viewMenu.addItem(.separator())
         viewMenu.addItem(item("Increase Text Size", Selector(("increaseTextSize:")), "+"))
+        // ⌘= (no Shift) zooms in too, as on Windows and in browsers.
+        let increaseAlias = item("Increase Text Size", Selector(("increaseTextSize:")), "=")
+        increaseAlias.isHidden = true
+        increaseAlias.allowsKeyEquivalentWhenHidden = true
+        viewMenu.addItem(increaseAlias)
         viewMenu.addItem(item("Decrease Text Size", Selector(("decreaseTextSize:")), "-"))
+        viewMenu.addItem(item("Actual Text Size", Selector(("resetTextSize:")), "0"))
         viewMenu.addItem(.separator())
         let outlineToggle = item("Show Outline", Selector(("toggleOutline:")), "o")
         outlineToggle.keyEquivalentModifierMask = [.command, .option]

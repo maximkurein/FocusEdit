@@ -59,6 +59,7 @@ final class HintsViewController: NSViewController {
             Section(title: "Focus", rows: [
                 ("◎ toolbar", "Highlight off · sentence · paragraph — click to cycle"),
                 ("⌘T", "Keep the active line centred"),
+                ("⌘+  ⌘−  ⌘0", "Text size, also ⌘-scroll; the preview follows"),
                 ("⌘U", "Typewriter sounds"),
                 ("⌃⌘F", "Full screen — toolbar and menu hide"),
             ]),
@@ -85,7 +86,7 @@ final class HintsViewController: NSViewController {
                 ("> quote", "Blockquote"),
                 ("[text](url)", "Link · ⌘K"),
                 ("{++ ++} {-- --}", "CriticMarkup — Edit ▸ CriticMarkup"),
-                ("⌥⌘P", "View: Edit → Split (live preview) → Preview; Esc back to editing"),
+                ("⌥⌘P", "View: Edit → Split (live preview) → Preview — or the toolbar buttons; Esc back to editing"),
             ]))
         case .fountain:
             list.append(Section(title: "Fountain", rows: [

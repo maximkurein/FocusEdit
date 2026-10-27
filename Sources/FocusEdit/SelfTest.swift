@@ -260,6 +260,11 @@ enum SelfTest {
         check("web link", html("[x](https://example.com/a?b=1&c=2)"),
               "<p><a href=\"https://example.com/a?b=1&amp;c=2\">x</a></p>")
         check("javascript link is text", html("[x](javascript:alert(1))"), "<p>x</p>")
+        check("preview follows the text size",
+              MarkdownToHTML.document("x", dark: false, fontSize: 22).contains("font: 22.0px/1.6") ? "yes" : "no", "yes")
+        check("zoom in by 2", "\(EditorViewController.zoomedFontSize(16, by: 2))", "18.0")
+        check("zoom stops at 40", "\(EditorViewController.zoomedFontSize(39, by: 2))", "40.0")
+        check("zoom stops at 10", "\(EditorViewController.zoomedFontSize(11, by: -2))", "10.0")
         check("file link is text", html("[x](file:///C:/secret.txt)"), "<p>x</p>")
         has("quote can't end the attribute", "[x](\" onmouseover=\"alert(1))", "onmouseover=\"", false)
         has("reference link", "[see][r]\n\n[r]: https://ref.example.com", "<a href=\"https://ref.example.com\">see</a>")

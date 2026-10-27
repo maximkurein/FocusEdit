@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Two apps, one product
 
 - **macOS app** (`Sources/FocusEdit/`, `Package.swift`): Swift 5 language mode, AppKit + TextKit 1, SwiftPM, no third-party dependencies. macOS 13+. Docs are partly in Russian (`BUILD.md`, `VERSION_MANAGEMENT.md`, `START_HERE.md`); `README.md` is English.
-- **Windows app** (`windows/`): separate, experimental port — Tauri 2 (Rust shell in `src-tauri/`) + CodeMirror 6 (TypeScript in `src/`). The writing logic (focus, typewriter, completion, auto-pairing, list continuation, Vim mode) is *re-implemented* in TS, not shared with Swift (`src/vim.ts` is a line-by-line port of `VimEngine.swift`; `src/vim-cm.ts` is the equivalent of `VimController.swift`). When changing behaviour in one, check whether the other needs the same change. Since 1.1 new features land in Windows first; `PROMT_MAC.md` (Russian) is the running task list of Windows features not yet ported to macOS, with `windows/tests/` as the reference behaviour — keep its version table current when adding Windows features. The Windows port shares the version: `update_version.py` also rewrites `windows/package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `Cargo.toml` and `Cargo.lock` (the About block in the F1 hints reads it from `package.json` at build time).
+- **Windows app** (`windows/`): separate, experimental port — Tauri 2 (Rust shell in `src-tauri/`) + CodeMirror 6 (TypeScript in `src/`). The writing logic (focus, typewriter, completion, auto-pairing, list continuation, Vim mode) is *re-implemented* in TS, not shared with Swift (`src/vim.ts` is a line-by-line port of `VimEngine.swift`; `src/vim-cm.ts` is the equivalent of `VimController.swift`). When changing behaviour in one, check whether the other needs the same change. Since 1.1 new features have usually landed in Windows first, with `windows/tests/` as the reference behaviour; the port checklist (`PROMT_MAC.md`) was completed and removed in 1.6.5, so the two apps are at parity apart from the differences listed under "Mac ↔ Windows pairs". The Windows port shares the version: `update_version.py` also rewrites `windows/package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `Cargo.toml` and `Cargo.lock` (the About block in the F1 hints reads it from `package.json` at build time).
 
 ## macOS commands
 
@@ -37,7 +37,7 @@ Run from `windows/`:
 ```bash
 npm install
 npm run dev                          # vite dev server on :1420 (browser fallback works without Tauri)
-npm test                             # vitest run (tests/*.test.ts, node env; pure logic: vim, editing, completion, markdown-html, outline, recent/draft, export, themes, palette/session/links, live)
+npm test                             # vitest run (tests/*.test.ts, node env; pure logic: vim, editing, completion, focus, rtf, newfile, markdown-html, outline, recent/draft, export, themes, palette/session/links, live)
 npx vitest run tests/editing.test.ts # single file; add -t "name" for a single test
 npm run build                        # tsc --noEmit && vite build
 npm run tauri -- build               # NSIS .exe installer (Windows only; CI does this). MSI is off: its AppUserModel.ID warning 1946
@@ -93,7 +93,7 @@ The same behaviour is written twice. Pure logic lives in types that can be teste
 | `OutlineExtractor` (in `DocumentKind.swift`) | `outline.ts` | `outline` / Outline |
 | `LiveMarkdown` | `live.ts` | `live` / Live markup |
 
-Known, deliberate differences: the Mac preview shows images (Windows shows the caption); Fountain forced scenes (`.SCENE`) only on the Mac; no start screen on the Mac (Dock click opens a new document).
+Known, deliberate differences: the Mac preview shows images (Windows shows the caption); Fountain forced scenes (`.SCENE`) only on the Mac; on the Mac the window's close button closes everything and a Dock click opens a new document.
 
 ## Windows architecture
 

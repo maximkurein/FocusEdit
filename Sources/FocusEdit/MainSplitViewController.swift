@@ -61,6 +61,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             guard let self, !self.previewItem.isCollapsed else { return }
             self.preview.update(markdown: self.editor.plainText, dark: self.editor.themeIsDark)
         }
+        preview.fontSize = Double(editor.fontSize)
+        editor.onFontSizeChanged = { [weak self] in
+            guard let self else { return }
+            self.preview.fontSize = Double(self.editor.fontSize)
+        }
+        startZoomMonitor()
         library.onOpenFile = { url in
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
@@ -71,8 +77,14 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         editor.loadContent(text, fileExtension: ext)
     }
 
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        updateViewSwitcher() // the toolbar did not exist yet when the document loaded
+    }
+
     private func contentChanged() {
         if !editor.documentKind.supportsHTML, viewMode != .edit { setView(.edit) }
+        updateViewSwitcher() // Save As can change the kind: Fountain has no preview
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
         if !previewItem.isCollapsed {
             preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
@@ -222,6 +234,49 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             view.window?.makeFirstResponder(preview.view)
             startEscapeMonitor()
         }
+        // Passed in, not read back: the split pane may still be animating.
+        updateViewSwitcher(mode)
+    }
+
+    /// The toolbar's Edit | Split | Preview shows `mode` (default: the current one).
+    func updateViewSwitcher(_ mode: ViewMode? = nil) {
+        ViewSwitcher.show(mode ?? viewMode, previewable: editor.documentKind.supportsHTML,
+                          in: view.window?.toolbar)
+    }
+
+    /// The Edit | Split | Preview switcher in the toolbar.
+    @objc func selectViewMode(_ sender: Any?) {
+        guard let group = sender as? NSToolbarItemGroup,
+              ViewMode.allCases.indices.contains(group.selectedIndex) else { return }
+        let mode = ViewMode.allCases[group.selectedIndex]
+        if mode != .edit, !editor.documentKind.supportsHTML { NSSound.beep(); return }
+        setView(mode)
+    }
+
+    // MARK: Zoom with ⌘-scroll
+
+    /// ⌘ + mouse wheel or trackpad scroll zooms the editor and the preview together, as
+    /// Ctrl+wheel does on Windows. A trackpad sends many small deltas: they add up to a step.
+    private var zoomMonitor: Any?
+    private var zoomScroll: CGFloat = 0
+
+    private func startZoomMonitor() {
+        guard zoomMonitor == nil else { return }
+        zoomMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, event.window === self.view.window,
+                  event.modifierFlags.intersection([.command, .option, .control]) == .command else { return event }
+            let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY / 24 : event.scrollingDeltaY
+            if event.phase == .began { self.zoomScroll = 0 }
+            self.zoomScroll += delta
+            if self.zoomScroll >= 1 {
+                self.editor.increaseTextSize(nil)
+                self.zoomScroll = 0
+            } else if self.zoomScroll <= -1 {
+                self.editor.decreaseTextSize(nil)
+                self.zoomScroll = 0
+            }
+            return nil
+        }
     }
 
     /// Esc in Preview goes back to editing (the web view would swallow a menu key).
@@ -273,6 +328,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     deinit {
         if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
         stopEscapeMonitor()
+        if let zoomMonitor { NSEvent.removeMonitor(zoomMonitor) }
         if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
     }
 
@@ -301,10 +357,6 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
         switch item.action {
-        case #selector(togglePreview(_:)):
-            ToolbarSymbol.update(item, "eye", on: viewMode != .edit)
-            item.toolTip = "View: \(viewMode.title) — click for \(viewMode.next.title) (⌥⌘P)"
-            return editor.documentKind.supportsHTML
         case #selector(toggleOutline(_:)):
             ToolbarSymbol.update(item, "sidebar.right", on: !outlineItem.isCollapsed)
         default:
@@ -332,7 +384,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 }
 
 /// Edit (text only) → Split (text and live preview) → Preview (the page only).
-enum ViewMode {
+enum ViewMode: CaseIterable {
     case edit, split, preview
 
     var next: ViewMode {

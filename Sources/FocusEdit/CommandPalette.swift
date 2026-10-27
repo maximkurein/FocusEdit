@@ -410,6 +410,7 @@ extension MainSplitViewController {
         list += [
             command("Text size: larger", "increaseTextSize:", keywords: "bigger zoom"),
             command("Text size: smaller", "decreaseTextSize:", keywords: "zoom"),
+            command("Text size: actual", "resetTextSize:", keywords: "zoom reset default"),
             command("Full screen", "toggleFullScreen:"),
             command(editor.vimEnabled ? "Vim mode: turn off" : "Vim mode: turn on", "toggleVimMode:", keywords: "learn"),
             command(tv.autocompleteEnabled ? "Suggest completions: off" : "Suggest completions: on",

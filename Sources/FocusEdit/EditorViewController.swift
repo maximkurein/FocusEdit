@@ -38,6 +38,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     var onCursorMoved: ((Int) -> Void)?
     /// Called after a theme change (the preview follows light/dark).
     var onThemeChanged: (() -> Void)?
+    /// Called after the text size changes (the preview zooms with the editor).
+    var onFontSizeChanged: (() -> Void)?
 
     var plainText: String { textView.string }
     var themeIsDark: Bool { theme.isDark }
@@ -540,13 +542,22 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         applyFont()
     }
 
-    @objc func increaseTextSize(_ sender: Any?) { adjustTextSize(by: +1) }
-    @objc func decreaseTextSize(_ sender: Any?) { adjustTextSize(by: -1) }
+    /// Zoom, as on Windows: ⌘+ / ⌘− and ⌘-scroll step by 2 points, ⌘0 goes back to the default.
+    static let defaultFontSize: CGFloat = 16
+    static func zoomedFontSize(_ size: CGFloat, by delta: CGFloat) -> CGFloat {
+        min(40, max(10, size + delta))
+    }
 
-    private func adjustTextSize(by delta: CGFloat) {
-        fontSize = min(40, max(10, fontSize + delta))
+    @objc func increaseTextSize(_ sender: Any?) { setTextSize(Self.zoomedFontSize(fontSize, by: +2)) }
+    @objc func decreaseTextSize(_ sender: Any?) { setTextSize(Self.zoomedFontSize(fontSize, by: -2)) }
+    @objc func resetTextSize(_ sender: Any?) { setTextSize(Self.defaultFontSize) }
+
+    private func setTextSize(_ size: CGFloat) {
+        guard size != fontSize else { return }
+        fontSize = size
         Preferences.fontSize = fontSize
         applyFont()
+        onFontSizeChanged?()
     }
 
     private func applyFont() {

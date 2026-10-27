@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Added
+- Mac: Edit | Split | Preview switcher in the toolbar in place of the single eye button, as on Windows. ⌥⌘P still cycles, Esc leaves Preview, and the switcher follows. For Fountain, Split and Preview are disabled. The default window is a little wider (1180 pt) so Hints and Outline stay out of the overflow menu
+- Mac: zoom as on Windows: ⌘+ / ⌘= / ⌘− step by 2 points (10–40), ⌘0 (View ▸ Actual Text Size) returns to 16, and ⌘-scroll with a mouse wheel or trackpad zooms. The preview's text follows the editor's size without reloading the page
+
 ## [1.6.5] - 2026-10-22
 
 ### Changed

@@ -18,7 +18,8 @@ enum MarkdownToHTML {
     }
 
     /// Wrap rendered body in a full, themed HTML document for preview/export.
-    static func document(_ markdown: String, dark: Bool) -> String {
+    /// `fontSize` is the editor's text size in the preview, so zoom scales both.
+    static func document(_ markdown: String, dark: Bool, fontSize: Double = 16) -> String {
         let fg = dark ? "#e0e0e3" : "#1c1c1e"
         let bg = dark ? "#1e1e20" : "#ffffff"
         let muted = dark ? "#8a8a90" : "#6b6b70"
@@ -27,9 +28,9 @@ enum MarkdownToHTML {
         <!doctype html><html><head><meta charset="utf-8">
         <style>
           :root { color-scheme: \(dark ? "dark" : "light"); }
-          body { font: 16px/1.6 -apple-system, system-ui, sans-serif;
+          body { font: \(fontSize)px/1.6 -apple-system, system-ui, sans-serif;
                  color: \(fg); background: \(bg);
-                 max-width: 720px; margin: 40px auto; padding: 0 24px; }
+                 max-width: 45em; margin: 40px auto; padding: 0 24px; }
           h1,h2,h3,h4,h5,h6 { line-height: 1.25; }
           blockquote { color: \(muted); border-left: 3px solid \(muted);
                        margin: 0; padding-left: 1em; }

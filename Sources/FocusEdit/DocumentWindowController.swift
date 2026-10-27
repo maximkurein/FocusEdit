@@ -82,6 +82,37 @@ enum ToolbarSymbol {
     }
 }
 
+/// Edit | Split | Preview as three segments, like the Windows toolbar. The selection is
+/// set by `MainSplitViewController.setView`, so ⌥⌘P, Esc and the palette move it too.
+/// Not a subclass: the group initialisers are Objective-C factories that return a plain group.
+enum ViewSwitcher {
+
+    static func make(_ id: NSToolbarItem.Identifier) -> NSToolbarItemGroup {
+        // Symbols, not words: three word segments push Hints and Outline into the overflow menu.
+        let images = ["text.alignleft", "rectangle.split.2x1", "eye"].compactMap { ToolbarSymbol.image($0) }
+        let item = NSToolbarItemGroup(itemIdentifier: id, images: images, selectionMode: .selectOne,
+                                      labels: ViewMode.allCases.map { $0.title },
+                                      target: nil, action: Selector(("selectViewMode:")))
+        for (sub, mode) in zip(item.subitems, ViewMode.allCases) { sub.toolTip = mode.title }
+        item.label = "View"
+        item.paletteLabel = "View: Edit, Split, Preview"
+        item.toolTip = "View: Edit · Split (live preview beside the text) · Preview — plain text and Markdown (⌥⌘P cycles, Esc back to editing)"
+        item.controlRepresentation = .expanded
+        item.selectedIndex = 0
+        return item
+    }
+
+    /// Show `mode` as selected; Split and Preview are off for documents without a preview (Fountain).
+    static func show(_ mode: ViewMode, previewable: Bool, in toolbar: NSToolbar?) {
+        guard let group = toolbar?.items.first(where: { $0.itemIdentifier == .preview }) as? NSToolbarItemGroup
+        else { return }
+        if let index = ViewMode.allCases.firstIndex(of: mode), group.selectedIndex != index {
+            group.selectedIndex = index
+        }
+        for (i, item) in group.subitems.enumerated() where i > 0 { item.isEnabled = previewable }
+    }
+}
+
 private var stateKeyHandle: UInt8 = 0
 private extension NSToolbarItem {
     var symbolStateKey: String? {
@@ -97,14 +128,14 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
 
     convenience init(split: MainSplitViewController) {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
+            contentRect: NSRect(x: 0, y: 0, width: 1180, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
         window.contentViewController = split
         // Setting a contentViewController resizes the window to the view's
         // fitting size, so pin an explicit size (no frame autosave — a
         // degenerate saved frame must never collapse the window again).
-        window.setContentSize(NSSize(width: 1100, height: 760))
+        window.setContentSize(NSSize(width: 1180, height: 760))
         window.minSize = NSSize(width: 560, height: 420)
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.titleVisibility = .visible
@@ -183,8 +214,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             item.menu = menu
             return item
         case .preview:
-            return button(id, "eye", "Preview",
-                          "View: Edit → Split → Preview — plain text and Markdown (⌥⌘P)", "togglePreview:")
+            return ViewSwitcher.make(id)
         case .hints:
             return button(id, "questionmark.circle", "Hints",
                           "Hints and shortcuts (⌘?)", "showHints:")
