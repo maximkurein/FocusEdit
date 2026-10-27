@@ -455,7 +455,7 @@ function toggleHints(show = hintsEl.hidden): void {
 // ----------------------------------------------------------------- preview
 
 const previewEl = $("preview");
-const viewLabels: Record<ViewMode, string> = { edit: "Edit", split: "Split", preview: "Preview" };
+const viewButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-view]")];
 let previewTimer = 0;
 
 /** Fountain scripts are not Markdown; everything else can be previewed. */
@@ -510,10 +510,10 @@ function applyView(): void {
   if (!previewable()) view = "edit";
   document.body.dataset.view = view;
   previewEl.hidden = view === "edit";
-  $("view-label").textContent = viewLabels[view];
-  const button = $<HTMLButtonElement>("btn-view");
-  button.classList.toggle("on", view !== "edit");
-  button.disabled = !previewable();
+  for (const button of viewButtons) {
+    button.classList.toggle("on", button.dataset.view === view);
+    button.disabled = button.dataset.view !== "edit" && !previewable();
+  }
   if (view !== "edit") renderPreview();
 }
 
@@ -668,7 +668,6 @@ const actions: Record<string, () => void> = {
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
   "btn-file": openFileMenu,
   "btn-outline": () => changeSettings(() => (settings.outline = !settings.outline)),
-  "btn-view": () => setView(next(viewModes, view)),
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
   "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
   "btn-theme": () => changeSettings(() => (settings.theme = next(themeNames, settings.theme))),
@@ -677,6 +676,11 @@ const actions: Record<string, () => void> = {
   "btn-fullscreen": () => void platform.toggleFullscreen(),
   "btn-hints": () => toggleHints(),
 };
+
+for (const button of viewButtons) {
+  button.title = button.title.replaceAll("Ctrl+", mod);
+  button.addEventListener("click", () => setView(button.dataset.view as ViewMode));
+}
 
 for (const [id, run] of Object.entries(actions)) {
   const button = $(id);
@@ -690,9 +694,20 @@ for (const [id, run] of Object.entries(actions)) {
 
 // ----------------------------------------------------------------- shortcuts
 
-function setFontSize(delta: number): void {
-  changeSettings(() => (settings.fontSize = Math.min(32, Math.max(12, settings.fontSize + delta))));
+/** Zoom scales the editor and the preview together: both read --font-size. */
+function setFontSize(delta: number, reset = false): void {
+  changeSettings(() => (settings.fontSize = reset ? 17 : Math.min(40, Math.max(10, settings.fontSize + delta))));
 }
+
+window.addEventListener(
+  "wheel",
+  (e) => {
+    if (!(platform.isMac ? e.metaKey : e.ctrlKey)) return;
+    e.preventDefault();
+    setFontSize(e.deltaY < 0 ? 2 : -2);
+  },
+  { passive: false },
+);
 
 window.addEventListener(
   "keydown",
@@ -709,10 +724,11 @@ window.addEventListener(
     else if (cmd && key === "n") void newDocument();
     else if (cmd && key === "w") void closeDocument();
     else if (cmd && e.shiftKey && key === "p") openPalette();
-    else if (cmd && e.shiftKey && key === "v") actions["btn-view"]();
+    else if (cmd && e.shiftKey && key === "v") setView(next(viewModes, view));
     else if (cmd && key === "t") actions["btn-typewriter"]();
-    else if (cmd && (key === "=" || key === "+")) setFontSize(1);
-    else if (cmd && key === "-") setFontSize(-1);
+    else if (cmd && (key === "=" || key === "+" || e.code === "Equal" || e.code === "NumpadAdd")) setFontSize(2);
+    else if (cmd && (key === "-" || e.code === "Minus" || e.code === "NumpadSubtract")) setFontSize(-2);
+    else if (cmd && (e.code === "Digit0" || e.code === "Numpad0")) setFontSize(0, true);
     else if (e.key === "F1" || (cmd && e.key === "?")) toggleHints();
     else if (e.key === "F11" || (platform.isMac && e.metaKey && e.ctrlKey && key === "f")) void platform.toggleFullscreen();
     else if (e.key === "Escape" && !hintsEl.hidden) toggleHints(false);

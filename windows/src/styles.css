@@ -135,6 +135,22 @@ body {
   text-align: left;
 }
 
+/* Edit / Split / Preview: three buttons, the current one in the accent colour. */
+.seg {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.seg .tool.word {
+  padding: 0 8px;
+  font-weight: 500;
+}
+
+.seg .tool.on {
+  background: var(--hover);
+  font-weight: 600;
+}
+
 .sep {
   width: 1px;
   height: 18px;
@@ -637,6 +653,106 @@ body[data-view="split"] .preview {
   margin-left: max(0px, calc((100% - var(--column)) / 2));
   margin-right: 0;
 }
+
+/* ---------------------------------------------------------------- preview polish */
+
+.preview {
+  line-height: 1.75;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  animation: preview-in 0.18s ease-out;
+}
+
+@keyframes preview-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview { animation: none; scroll-behavior: auto; }
+}
+
+.preview h1,
+.preview h2,
+.preview h3 {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.preview h1 { padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+.preview h2 { padding-bottom: 0.2em; border-bottom: 1px solid var(--border); }
+.preview h4,
+.preview h5,
+.preview h6 { color: var(--muted); text-transform: none; }
+
+.preview a {
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.preview a:hover {
+  border-bottom-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.preview code {
+  border: 1px solid var(--border);
+}
+
+.preview pre {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  line-height: 1.55;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.preview pre code {
+  border: 0;
+}
+
+.preview blockquote {
+  padding: 0.6em 1.1em;
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  font-style: italic;
+}
+
+.preview blockquote > :last-child { margin-bottom: 0; }
+
+.preview li::marker { color: var(--accent); }
+
+.preview li.task input { accent-color: var(--accent); }
+
+.preview table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.preview th,
+.preview td {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview th { font-weight: 600; text-align: left; }
+.preview tr:last-child td { border-bottom: 0; }
+.preview tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--hover) 50%, transparent); }
+
+.preview hr {
+  height: 1px;
+  border: 0;
+  margin: 2.2em auto;
+  background: linear-gradient(90deg, transparent, var(--border) 15%, var(--border) 85%, transparent);
+}
+
+.preview ::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 
 /* ---------------------------------------------------------------- pop-up menu */
 
