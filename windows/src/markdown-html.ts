@@ -8,6 +8,14 @@ import type { SyntaxNode } from "@lezer/common";
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** The text a click in a preview code block should copy. Trailing whitespace is
+ *  dropped so a command pastes ready to run. A drag-selection is left alone. */
+export function copyableFence(text: string, selected = false): string | null {
+  if (selected) return null;
+  const trimmed = text.replace(/\s+$/g, "");
+  return trimmed === "" ? null : trimmed;
+}
+
 /** Only addresses the app is willing to open; everything else renders as plain text. */
 export function safeHref(href: string): string | null {
   const h = href.trim();

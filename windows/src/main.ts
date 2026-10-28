@@ -8,8 +8,8 @@ import { type DocKind, kindForPath } from "./completion";
 import { clearDraft, loadDraft, saveDraft } from "./draft";
 import { Editor, type LineSeparator, wrapWith } from "./editor";
 import { copyAsHtml, htmlDocument, printMarkdown, titleOf } from "./export";
-import { appendAbout, renderHints } from "./hints";
-import { renderMarkdown } from "./markdown-html";
+import { appendAbout, hintKeys, renderHints } from "./hints";
+import { copyableFence, renderMarkdown } from "./markdown-html";
 import { closeMenu, type MenuItem, showMenu } from "./menu";
 import { fileContents, fileName, freeName, isoDate, joinPath, startingText } from "./newfile";
 import { type Command, filterCommands, Palette } from "./palette";
@@ -445,7 +445,7 @@ function openFileMenu(): void {
 // ------------------------------------------------------------------- hints
 
 function renderHelp(): void {
-  renderHints(hintsEl, doc.kind, mod);
+  renderHints(hintsEl, doc.kind, hintKeys(platform.isMac));
   appendAbout(
     hintsEl,
     __APP_VERSION__,
@@ -471,6 +471,9 @@ const previewable = () => doc.kind !== "fountain";
 
 function renderPreview(): void {
   previewEl.innerHTML = renderMarkdown(editor.text);
+  for (const pre of previewEl.querySelectorAll("pre:not(.raw)")) {
+    (pre as HTMLElement).title = "Click to copy";
+  }
 }
 
 function schedulePreview(): void {
@@ -547,12 +550,26 @@ previewEl.addEventListener("scroll", () => {
 });
 
 // Links in the preview open in the browser; the window itself never navigates.
+// A click in a fenced code block copies the command.
 previewEl.addEventListener("click", (e) => {
-  const link = (e.target as Element).closest("a");
-  if (!link) return;
-  e.preventDefault();
-  const href = link.getAttribute("href");
-  if (href) void platform.openUrl(href);
+  const target = e.target as Element;
+  const link = target.closest("a");
+  if (link) {
+    e.preventDefault();
+    const href = link.getAttribute("href");
+    if (href) void platform.openUrl(href);
+    return;
+  }
+  const pre = target.closest("pre");
+  if (!pre || pre.classList.contains("raw")) return;
+  const selected = (window.getSelection()?.toString() ?? "") !== "";
+  const text = copyableFence(pre.textContent ?? "", selected);
+  if (!text) return;
+  void navigator.clipboard.writeText(text).then(() => {
+    notify("Copied");
+    pre.classList.add("copied");
+    window.setTimeout(() => pre.classList.remove("copied"), 800);
+  });
 });
 
 // --------------------------------------------------------------------- vim
@@ -631,7 +648,7 @@ function allCommands(): Command[] {
     ...fonts.map((font): Command => ({ title: `Font: ${font[0].toUpperCase()}${font.slice(1)}`, run: () => changeSettings(() => (settings.font = font)) })),
     { title: "Text size: larger", shortcut: key("+"), run: () => setFontSize(1) },
     { title: "Text size: smaller", shortcut: key("−"), run: () => setFontSize(-1) },
-    { title: "Full screen", shortcut: "F11", run: () => void platform.toggleFullscreen() },
+    { title: "Full screen", shortcut: platform.isMac ? "⌃⌘F" : "F11", run: () => void platform.toggleFullscreen() },
     {
       title: settings.liveMarkdown ? "Markup: always show the marks" : "Markup: hide the marks away from the cursor",
       keywords: "markdown symbols asterisks hashes wysiwyg live",
@@ -643,7 +660,7 @@ function allCommands(): Command[] {
     { title: "Format: Link", shortcut: key("K"), run: format("[", "](https://)") },
     ...[250, 500, 1000, 2000].map((n): Command => ({ title: `Word goal: ${n} words`, keywords: "target session progress timer", run: () => setGoal(n) })),
     { title: "Word goal: off", keywords: "target session progress timer", run: () => setGoal(0) },
-    { title: "Hints and shortcuts", shortcut: "F1", run: () => toggleHints(true) },
+    { title: "Hints and shortcuts", shortcut: platform.isMac ? "⌘?" : "F1", run: () => toggleHints(true) },
     { title: "About FocusEdit", keywords: "version developer github", run: () => toggleHints(true) },
     { title: "Open the welcome tour", keywords: "introduction help start", run: () => void showWelcome() },
   ];
@@ -706,6 +723,8 @@ for (const [id, run] of Object.entries(actions)) {
   // Show the platform's modifier in tooltips (⌘ on macOS test builds).
   button.title = button.title.replaceAll("Ctrl+", mod);
 }
+$("btn-hints").title = `Hints and shortcuts (${platform.isMac ? "⌘?" : "F1"})`;
+$("btn-fullscreen").title = `Full screen (${platform.isMac ? "⌃⌘F" : "F11"})`;
 
 // ----------------------------------------------------------------- shortcuts
 

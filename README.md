@@ -30,7 +30,7 @@
   <img src="docs/images/split.png" width="880" alt="FocusEdit in Split view: the Markdown source in the Sepia theme on the left, its live preview in the PowerShell theme in the middle with a rendered table and task list, and the outline of headings on the right">
 </p>
 
-**Version:** `1.6.11`, released 28.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.7.0`, released 28.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 ## Highlights
 

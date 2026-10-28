@@ -39,18 +39,24 @@ struct DocumentAppearance: Equatable {
     /// Split has been opened for this file, so the next time uses the saved sizes
     /// instead of the automatic ones.
     var seenSplit: Bool
+    /// Widths of the library and the outline the last time each was open; 0 = never set.
+    var libraryWidth: Double
+    var outlineWidth: Double
 
-    init(mode: String, editorShare: Double, contentWidth: Double, contentHeight: Double, seenSplit: Bool) {
+    init(mode: String, editorShare: Double, contentWidth: Double, contentHeight: Double, seenSplit: Bool,
+         libraryWidth: Double = 0, outlineWidth: Double = 0) {
         self.mode = mode
         self.editorShare = editorShare
         self.contentWidth = contentWidth
         self.contentHeight = contentHeight
         self.seenSplit = seenSplit
+        self.libraryWidth = libraryWidth
+        self.outlineWidth = outlineWidth
     }
 
     fileprivate var dictionary: [String: Any] {
         ["mode": mode, "share": editorShare, "width": contentWidth, "height": contentHeight,
-         "seenSplit": seenSplit]
+         "seenSplit": seenSplit, "library": libraryWidth, "outline": outlineWidth]
     }
 
     fileprivate init?(_ raw: [String: Any]) {
@@ -63,6 +69,8 @@ struct DocumentAppearance: Equatable {
         contentWidth = width
         contentHeight = height
         seenSplit = raw["seenSplit"] as? Bool ?? false
+        libraryWidth = raw["library"] as? Double ?? 0
+        outlineWidth = raw["outline"] as? Double ?? 0
     }
 }
 

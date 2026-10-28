@@ -49,6 +49,8 @@ enum Preferences {
         static let libraryPath = "library.path"
         static let showLibrary = "show.library"
         static let showOutline = "show.outline"
+        static let libraryWidth = "width.library"
+        static let outlineWidth = "width.outline"
         static let showStatistics = "show.statistics"
         static let autoPairing = "edit.autoPairing"
         static let autocomplete = "edit.autocomplete"
@@ -94,6 +96,15 @@ enum Preferences {
     static var showOutline: Bool {
         get { d.bool(forKey: Key.showOutline) }
         set { d.set(newValue, forKey: Key.showOutline) }
+    }
+    /// Last width the library / outline was dragged to, for files with no saved look (0 = none).
+    static var libraryWidth: Double {
+        get { d.double(forKey: Key.libraryWidth) }
+        set { d.set(newValue, forKey: Key.libraryWidth) }
+    }
+    static var outlineWidth: Double {
+        get { d.double(forKey: Key.outlineWidth) }
+        set { d.set(newValue, forKey: Key.outlineWidth) }
     }
     static var showStatistics: Bool {
         get { d.object(forKey: Key.showStatistics) as? Bool ?? true }

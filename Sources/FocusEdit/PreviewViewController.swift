@@ -6,15 +6,17 @@ import WebKit
 /// scroll position stays where it is.
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
-    private lazy var webView: WKWebView = {
-        let config = WKWebViewConfiguration()
-        // The page never needs scripts of its own (the app updates it with
-        // evaluateJavaScript, which this does not affect), so a document can't run any.
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        let web = WKWebView(frame: .zero, configuration: config)
-        web.navigationDelegate = self
-        return web
-    }()
+    /// Forwards `copyCode` so the web view does not retain this controller.
+    private final class CopyBridge: NSObject, WKScriptMessageHandler {
+        weak var owner: PreviewViewController?
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            owner?.copyCode(message.body)
+        }
+    }
+
+    private let copyBridge = CopyBridge()
+    private var webView: WKWebView?
 
     private var loadedKey: String?
     private var loadedColors = PageColors.plain(dark: false)
@@ -32,14 +34,15 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     }
 
     private func applyFontSize() {
-        webView.evaluateJavaScript("document.body.style.fontSize = '\(fontSize)px';", completionHandler: nil)
+        webView?.evaluateJavaScript("document.body.style.fontSize = '\(fontSize)px';", completionHandler: nil)
     }
 
     private func applyMeasure() {
+        guard webView != nil else { return }
         let js = fillsPane
             ? "document.body.style.maxWidth='none'; document.body.style.margin='28px 36px 72px'; document.body.style.padding='0';"
             : "document.body.style.maxWidth='45em'; document.body.style.margin='40px auto'; document.body.style.padding='0 24px';"
-        webView.evaluateJavaScript(js, completionHandler: nil)
+        webView?.evaluateJavaScript(js, completionHandler: nil)
     }
     private var ready = false
     private var latest = ""
@@ -55,8 +58,24 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     private var quietUntil = Date.distantPast
     private var pollTimer: Timer?
 
+    /// Built on first use, including before `loadView`, so Split can set `fillsPane`
+    /// without crashing. Never created from `deinit`.
+    @discardableResult
+    private func makeWebView() -> WKWebView {
+        if let web = webView { return web }
+        copyBridge.owner = self
+        let config = WKWebViewConfiguration()
+        // Markdown is escaped, so a document cannot run a script. JavaScript is on so a
+        // click in a code block can copy it; the listener is the app's (installCopy).
+        config.userContentController.add(copyBridge, name: "copyCode")
+        let web = WKWebView(frame: .zero, configuration: config)
+        web.navigationDelegate = self
+        webView = web
+        return web
+    }
+
     override func loadView() {
-        view = webView
+        view = makeWebView()
     }
 
     override func viewDidAppear() {
@@ -83,7 +102,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     /// The page has no scripts of its own, so scrolling is read by asking it.
     private func pollScroll() {
         guard ready, Date() >= quietUntil, !view.isHiddenOrHasHiddenAncestor else { return }
-        webView.evaluateJavaScript(Self.readScroll) { [weak self] value, _ in
+        webView?.evaluateJavaScript(Self.readScroll) { [weak self] value, _ in
             guard let self, Date() >= self.quietUntil, let ratio = value as? Double,
                   abs(ratio - self.lastRatio) > 0.002 else { return }
             self.lastRatio = ratio
@@ -96,7 +115,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         lastRatio = ratio
         guard ready else { pendingRatio = ratio; return }
         quietUntil = Date().addingTimeInterval(0.25)
-        webView.evaluateJavaScript("""
+        webView?.evaluateJavaScript("""
             (function () { var m = document.documentElement.scrollHeight - window.innerHeight;
                            window.scrollTo(0, Math.max(0, m) * \(ratio)); })();
             """, completionHandler: nil)
@@ -109,7 +128,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
             loadedKey = key
             loadedColors = colors
             ready = false
-            webView.loadHTMLString(
+            makeWebView().loadHTMLString(
                 MarkdownToHTML.document(markdown, dark: colors.schemeDark, fontSize: fontSize, fitted: fillsPane, colors: colors),
                 baseURL: nil)
         } else if ready {
@@ -121,12 +140,12 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         let html = MarkdownToHTML.render(markdown)
         guard let data = try? JSONSerialization.data(withJSONObject: [html]),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("document.body.innerHTML = \(json)[0];") { [weak self] _, error in
+        webView?.evaluateJavaScript("document.body.innerHTML = \(json)[0];") { [weak self] _, error in
             // Could not update in place: load the whole page again.
             guard error != nil, let self else { return }
             self.ready = false
             self.loadedKey = nil
-            self.webView.loadHTMLString(
+            self.makeWebView().loadHTMLString(
                 MarkdownToHTML.document(markdown, dark: self.loadedColors.schemeDark, fontSize: self.fontSize,
                                         fitted: self.fillsPane, colors: self.loadedColors),
                 baseURL: nil)
@@ -135,10 +154,52 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     // MARK: WKNavigationDelegate
 
+    /// Click a fenced code block to copy it. Installed once per page; replacing the
+    /// body while typing leaves the listener on `document`.
+    private static let copyScript = ##"""
+        (function () {
+          if (window.__feCopy) return;
+          window.__feCopy = true;
+          var s = document.createElement('style');
+          s.textContent = 'pre{cursor:pointer;position:relative}pre.copied::after{content:"Copied";position:absolute;top:8px;right:10px;font:12px/1.2 -apple-system,system-ui,sans-serif;padding:4px 8px;border-radius:6px;background:rgba(127,127,127,.28)}';
+          document.documentElement.appendChild(s);
+          document.addEventListener('mouseover', function (e) {
+            var t = e.target;
+            var pre = t && t.closest && t.closest('pre');
+            if (pre && !pre.title) pre.title = 'Click to copy';
+          });
+          document.addEventListener('click', function (e) {
+            var t = e.target;
+            if (!t || !t.closest) return;
+            if (t.closest('a')) return;
+            var pre = t.closest('pre');
+            if (!pre) return;
+            var sel = window.getSelection();
+            if (sel && String(sel).length) return;
+            var text = (pre.innerText || '').replace(/\s+$/g, '');
+            if (!text) return;
+            try { window.webkit.messageHandlers.copyCode.postMessage(text); } catch (err) {}
+            pre.classList.add('copied');
+            setTimeout(function () { pre.classList.remove('copied'); }, 800);
+          });
+        })();
+        """##
+
+    private func installCopy() {
+        webView?.evaluateJavaScript(Self.copyScript, completionHandler: nil)
+    }
+
+    fileprivate func copyCode(_ body: Any) {
+        guard let text = MarkdownToHTML.copyableFence(body as? String ?? "") else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
         applyFontSize() // zoomed while the page was loading
         applyMeasure()
+        installCopy()
         inject(latest) // anything typed while the page was loading
         if let ratio = pendingRatio {
             pendingRatio = nil

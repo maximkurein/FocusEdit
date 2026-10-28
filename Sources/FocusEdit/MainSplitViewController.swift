@@ -24,6 +24,11 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     private var seenSplit = false
     /// Ignore the resize notification caused by our own positioning.
     private var applyingLayout = false
+    /// Widths the library and the outline are held to while open; 0 leaves it to AppKit.
+    private var libraryWidth: CGFloat = 0
+    private var outlineWidth: CGFloat = 0
+    private var libraryWidthConstraint: NSLayoutConstraint?
+    private var outlineWidthConstraint: NSLayoutConstraint?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -61,6 +66,11 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
         libraryItem.isCollapsed = !Preferences.showLibrary
         outlineItem.isCollapsed = !Preferences.showOutline
+        if !Snapshot.isActive {
+            libraryWidth = sidebarWidth(Preferences.libraryWidth, libraryItem)
+            outlineWidth = sidebarWidth(Preferences.outlineWidth, outlineItem)
+            holdSidebars()
+        }
 
         editor.onTextChanged = { [weak self] in self?.contentChanged() }
         outline.onSelect = { [weak self] range in self?.editor.scrollTo(range: range) }
@@ -170,13 +180,25 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     // MARK: Sidebar toggles
 
     @objc func toggleLibrary(_ sender: Any?) {
-        libraryItem.animator().isCollapsed.toggle()
+        toggle(libraryItem)
         Preferences.showLibrary = !libraryItem.isCollapsed
     }
 
     @objc func toggleOutline(_ sender: Any?) {
-        outlineItem.animator().isCollapsed.toggle()
+        toggle(outlineItem)
         Preferences.showOutline = !outlineItem.isCollapsed
+    }
+
+    /// The held width is let go while a sidebar folds or unfolds, then put back.
+    private func toggle(_ item: NSSplitViewItem) {
+        let collapse = !item.isCollapsed
+        releaseSidebars()
+        NSAnimationContext.runAnimationGroup({ _ in
+            item.animator().isCollapsed = collapse
+        }, completionHandler: { [weak self] in
+            self?.holdSidebars()
+            self?.saveAppearance()
+        })
     }
 
     // MARK: Library menu
@@ -290,6 +312,9 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
               let saved = DocumentAppearanceStore.load(path) else { return }
         seenSplit = saved.seenSplit
         editorShare = CGFloat(saved.editorShare)
+        if saved.libraryWidth > 0 { libraryWidth = sidebarWidth(saved.libraryWidth, libraryItem) }
+        if saved.outlineWidth > 0 { outlineWidth = sidebarWidth(saved.outlineWidth, outlineItem) }
+        holdSidebars()
         if let window = view.window,
            DocumentAppearanceStore.usable(width: saved.contentWidth, height: saved.contentHeight) {
             resize(window, content: NSSize(width: saved.contentWidth, height: saved.contentHeight))
@@ -307,14 +332,15 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         DocumentAppearanceStore.save(DocumentAppearance(
             mode: viewMode.storage, editorShare: Double(editorShare),
             contentWidth: Double(size.width), contentHeight: Double(size.height),
-            seenSplit: seenSplit), for: path)
+            seenSplit: seenSplit,
+            libraryWidth: Double(libraryWidth), outlineWidth: Double(outlineWidth)), for: path)
     }
 
     /// The first Split uses a reading width. A window that is already wider is narrowed to it.
     private func widenForSplit() {
         guard let window = view.window else { return }
-        let sidebars = (libraryItem.isCollapsed ? 0 : library.view.bounds.width)
-            + (outlineItem.isCollapsed ? 0 : outline.view.bounds.width)
+        let sidebars = (libraryItem.isCollapsed ? 0 : (libraryWidth > 0 ? libraryWidth : library.view.bounds.width))
+            + (outlineItem.isCollapsed ? 0 : (outlineWidth > 0 ? outlineWidth : outline.view.bounds.width))
         let screen = window.screen?.visibleFrame.width ?? 1600
         let current = window.contentRect(forFrameRect: window.frame).width
         let wanted = ReadingLayout.contentWidth(sidebars: sidebars, screenWidth: screen, current: current)
@@ -368,18 +394,71 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         return editorWidth / (editorWidth + previewWidth)
     }
 
-    /// Only the user's own divider drag changes the share; layout passes never do.
+    /// Sidebars keep their width the same way: a constraint above their holding priority
+    /// and below a divider drag and the window's own size.
+    private func sidebarWidth(_ width: Double, _ item: NSSplitViewItem) -> CGFloat {
+        guard width > 0 else { return 0 }
+        return min(item.maximumThickness, max(item.minimumThickness, CGFloat(width)))
+    }
+
+    private func holdSidebars() {
+        releaseSidebars()
+        libraryWidthConstraint = holdWidth(of: library.view, item: libraryItem, at: libraryWidth)
+        outlineWidthConstraint = holdWidth(of: outline.view, item: outlineItem, at: outlineWidth)
+    }
+
+    private func holdWidth(of pane: NSView, item: NSSplitViewItem, at width: CGFloat) -> NSLayoutConstraint? {
+        guard width > 0, !item.isCollapsed else { return nil }
+        let held = pane.widthAnchor.constraint(equalToConstant: width)
+        held.priority = NSLayoutConstraint.Priority(265)
+        held.isActive = true
+        return held
+    }
+
+    private func releaseSidebars() {
+        libraryWidthConstraint?.isActive = false
+        outlineWidthConstraint?.isActive = false
+        libraryWidthConstraint = nil
+        outlineWidthConstraint = nil
+    }
+
+    /// Only the user's own divider drag changes the share or a sidebar's width;
+    /// layout passes never do.
     @objc private func splitResized(_ notification: Notification) {
-        guard !applyingLayout, !closing, viewMode == .split,
+        guard !applyingLayout, !closing,
               NSEvent.pressedMouseButtons & 1 != 0,
-              !(view.window?.inLiveResize ?? false),
-              let share = currentEditorShare() else { return }
-        let held = min(0.8, max(0.2, share))
-        guard abs(held - editorShare) > 0.002 else { return }
-        editorShare = held
-        holdShare()
+              !(view.window?.inLiveResize ?? false) else { return }
+        var changed = false
+        if dragged(library.view, item: libraryItem, held: &libraryWidth, constraint: libraryWidthConstraint) {
+            Preferences.libraryWidth = Double(libraryWidth)
+            changed = true
+        }
+        if dragged(outline.view, item: outlineItem, held: &outlineWidth, constraint: outlineWidthConstraint) {
+            Preferences.outlineWidth = Double(outlineWidth)
+            changed = true
+        }
+        if changed, libraryWidthConstraint == nil || outlineWidthConstraint == nil { holdSidebars() }
+        if viewMode == .split, let share = currentEditorShare() {
+            let held = min(0.8, max(0.2, share))
+            if abs(held - editorShare) > 0.002 {
+                editorShare = held
+                holdShare()
+                changed = true
+            }
+        }
+        guard changed else { return }
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(saveAfterDrag), object: nil)
         perform(#selector(saveAfterDrag), with: nil, afterDelay: 0.4)
+    }
+
+    private func dragged(_ pane: NSView, item: NSSplitViewItem, held: inout CGFloat,
+                         constraint: NSLayoutConstraint?) -> Bool {
+        guard !item.isCollapsed else { return false }
+        let width = pane.frame.width
+        guard width >= item.minimumThickness - 1, abs(width - held) > 0.5 else { return false }
+        held = min(item.maximumThickness, width)
+        constraint?.constant = held
+        return true
     }
 
     @objc private func saveAfterDrag() { saveAppearance() }

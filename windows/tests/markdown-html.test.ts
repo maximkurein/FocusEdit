@@ -1,7 +1,7 @@
 // The preview's Markdown renderer.
 
 import { describe, expect, it } from "vitest";
-import { renderMarkdown, safeHref } from "../src/markdown-html";
+import { copyableFence, renderMarkdown, safeHref } from "../src/markdown-html";
 
 const html = (md: string) => renderMarkdown(md).trim();
 
@@ -46,6 +46,8 @@ describe("Markdown preview", () => {
     expect(html("---")).toBe("<hr>");
     expect(html("```ts\nconst a = 1 < 2;\n```")).toBe('<pre><code class="language-ts">const a = 1 &lt; 2;</code></pre>');
     expect(html("    indented")).toBe("<pre><code>indented</code></pre>");
+    expect(copyableFence("sftp hiplet-1967\n")).toBe("sftp hiplet-1967");
+    expect(copyableFence("cmd", true)).toBeNull();
   });
 
   it("renders tables with alignment", () => {

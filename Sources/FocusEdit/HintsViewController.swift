@@ -23,7 +23,7 @@ final class HintsViewController: NSViewController {
     override func loadView() {
         let label = NSTextField(labelWithAttributedString: render(sections))
         label.isSelectable = false
-        label.preferredMaxLayoutWidth = 340
+        label.preferredMaxLayoutWidth = 360
         label.translatesAutoresizingMaskIntoConstraints = false
 
         let container = NSView()
@@ -33,7 +33,7 @@ final class HintsViewController: NSViewController {
             label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
             label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 18),
             label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -18),
-            label.widthAnchor.constraint(equalToConstant: 340),
+            label.widthAnchor.constraint(equalToConstant: 360),
         ])
         view = container
         preferredContentSize = container.fittingSize
@@ -41,31 +41,33 @@ final class HintsViewController: NSViewController {
 
     // MARK: Content
 
-    private var sections: [Section] {
-        var list = [
-            Section(title: "Commands", rows: [
+    /// The cheat sheet for this Mac app (⌘, not Ctrl). Windows has its own list.
+    static func catalog(kind: DocumentKind, vim: Bool) -> [(title: String, rows: [(key: String, text: String)])] {
+        var list: [(title: String, rows: [(key: String, text: String)])] = [
+            (title: "Commands", rows: [
                 ("⇧⌘P", "Command palette: type what you want to do"),
+                ("⌘?", "This sheet — also the toolbar ?"),
                 ("a number", "In the palette: set a word goal, or go to a line"),
                 ("Word goal", "Palette: progress bar under the toolbar, writing time"),
                 ("Select + ⌘V URL", "Makes a Markdown link"),
-                ("Markup", "Palette or Modus: hide the marks (#, **, [ ]) away from the cursor, or always show them"),
+                ("Markup", "Palette or Modus: hide the marks (#, **, [ ]) away from the cursor"),
             ]),
-            Section(title: "Writing", rows: [
+            (title: "Writing", rows: [
                 ("Tab  →", "Accept the grey suggestion"),
                 ("Esc", "Dismiss it  ·  ⌥Esc lists all completions"),
                 ("Return", "Continue a list or quote; on an empty item, end it"),
                 ("( [ { \" `", "Close automatically; select text first to wrap it"),
             ]),
-            Section(title: "Focus", rows: [
+            (title: "Focus", rows: [
                 ("◎ toolbar", "Highlight off · sentence · paragraph — click to cycle"),
-                ("⌘T", "Keep the active line centred"),
-                ("⌘+  ⌘−  ⌘0", "Text size, also ⌘-scroll; the preview follows"),
+                ("⌘T", "Typewriter: keep the caret line centred (starts off)"),
                 ("⌘U", "Typewriter sounds"),
+                ("⌘+  ⌘−  ⌘0", "Text size, also ⌘-scroll; the preview follows"),
                 ("⌃⌘F", "Full screen — toolbar and menu hide"),
             ]),
         ]
         if vim {
-            list.insert(Section(title: "Vim mode — operator + motion", rows: [
+            list.insert((title: "Vim mode — operator + motion", rows: [
                 ("Esc  i a o", "Normal mode · insert before / after / new line"),
                 ("h j k l", "Left, down, up, right"),
                 ("w b e  0 $", "Word forward / back / end · line start / end"),
@@ -77,19 +79,27 @@ final class HintsViewController: NSViewController {
                 ("v V  /  :w", "Visual · Visual Line · search · save"),
             ]), at: 0)
         }
+        if kind.supportsHTML {
+            list.append((title: "View", rows: [
+                ("⌥⌘P", "Edit → Split (live preview) → Preview — or the toolbar; Esc leaves Preview"),
+                ("⌥⌘O", "Outline of the headings"),
+                ("Preview theme", "Palette: same as the editor, or its own"),
+            ] + (kind == .markdown
+                ? [("Click a code block", "In the preview, copies the command")]
+                : [])))
+        }
         switch kind {
         case .markdown:
-            list.append(Section(title: "Markdown", rows: [
-                ("# Title", "Heading — see the outline (⌥⌘O)"),
+            list.append((title: "Markdown", rows: [
+                ("# Title", "Heading — see the outline"),
                 ("**b**  *i*", "Bold ⌘B · italic ⌘I"),
-                ("- item  1. item", "Lists · ⌘] / ⌘[ indent"),
+                ("- item  1. item", "Lists · ⌘] / ⌘[ indent · - [ ] task"),
                 ("> quote", "Blockquote"),
                 ("[text](url)", "Link · ⌘K"),
                 ("{++ ++} {-- --}", "CriticMarkup — Edit ▸ CriticMarkup"),
-                ("⌥⌘P", "View: Edit → Split (live preview) → Preview — or the toolbar buttons; Esc back to editing"),
             ]))
         case .fountain:
-            list.append(Section(title: "Fountain", rows: [
+            list.append((title: "Fountain", rows: [
                 ("INT. / EXT.", "Scene heading — type IN, press Tab"),
                 ("MARY", "Character — names you used are suggested"),
                 ("(quietly)", "Parenthetical"),
@@ -99,16 +109,25 @@ final class HintsViewController: NSViewController {
         case .plain:
             break
         }
-        list.append(Section(title: "Files", rows: [
+        list.append((title: "Files", rows: [
+            ("⇧⌘N  ⌘N", "New file… · empty document"),
+            ("⌘O  ⌘S  ⇧⌘S", "Open · save · save as"),
+            ("⌘W", "Close the file; the window stays with a start screen"),
+            ("⌘P", "Print, or save as PDF from the print dialog"),
             ("⌥⌘L", "Library — link a folder of documents"),
             ("⌘F  ⌥⌘F", "Find · find and replace"),
+            ("drag a file", "Drop .md, .txt, .rtf or .fountain on the window"),
         ]))
         return list
     }
 
+    private var sections: [Section] {
+        Self.catalog(kind: kind, vim: vim).map { Section(title: $0.title, rows: $0.rows) }
+    }
+
     private func render(_ sections: [Section]) -> NSAttributedString {
         let out = NSMutableAttributedString()
-        let keyColumn: CGFloat = 118
+        let keyColumn: CGFloat = 128
 
         let rowStyle = NSMutableParagraphStyle()
         rowStyle.tabStops = [NSTextTab(textAlignment: .left, location: keyColumn)]

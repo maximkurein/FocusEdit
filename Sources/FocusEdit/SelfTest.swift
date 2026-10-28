@@ -314,6 +314,16 @@ enum SelfTest {
               "<pre><code class=\"language-ts\">const a = 1 &lt; 2;</code></pre>")
         check("tilde fence keeps backticks", html("~~~\n```\n~~~"), "<pre><code>```</code></pre>")
         check("indented code", html("    indented"), "<pre><code>indented</code></pre>")
+        check("click copies a command", MarkdownToHTML.copyableFence("sftp hiplet-1967\n") ?? "", "sftp hiplet-1967")
+        check("a selection is not copied", MarkdownToHTML.copyableFence("cmd", selected: true) == nil ? "yes" : "no", "yes")
+        let hintKeys = HintsViewController.catalog(kind: .markdown, vim: false)
+            .flatMap { $0.rows.map(\.key) }.joined(separator: " ")
+        check("hints use Mac keys", hintKeys.contains("⇧⌘P") && hintKeys.contains("⌥⌘P")
+              && hintKeys.contains("⌘?") && !hintKeys.contains("Ctrl+") ? "yes" : "no", "yes")
+        check("hints mention copy", hintKeys.contains("Click a code block") ? "yes" : "no", "yes")
+        let fountainHints = HintsViewController.catalog(kind: .fountain, vim: false)
+            .map(\.title).joined(separator: " ")
+        check("fountain hints have no preview", fountainHints.contains("View") ? "yes" : "no", "no")
         let table = html("| a | b |\n|:--|--:|\n| 1 | 2 |")
         check("table header", table.contains("<th style=\"text-align:left\">a</th><th style=\"text-align:right\">b</th>") ? "yes" : "no", "yes")
         check("table cell", table.contains("<td style=\"text-align:left\">1</td>") ? "yes" : "no", "yes")
@@ -328,6 +338,15 @@ enum SelfTest {
         check("a wide window is narrowed", "\(Int(ReadingLayout.contentWidth(sidebars: 200, screenWidth: 2200, current: 1800)))", "1320")
         check("even split", "\(Int(ReadingLayout.editorWidth(available: 1440, share: 0.5)))", "720")
         check("a saved wider editor", "\(Int(ReadingLayout.editorWidth(available: 1400, share: 0.62)))", "868")
+        if let scratch = UserDefaults(suiteName: "focusedit.selftest.appearance") {
+            scratch.removePersistentDomain(forName: "focusedit.selftest.appearance")
+            DocumentAppearanceStore.save(DocumentAppearance(
+                mode: "split", editorShare: 0.4, contentWidth: 1400, contentHeight: 900, seenSplit: true,
+                libraryWidth: 230, outlineWidth: 300), for: "/tmp/a.md", defaults: scratch)
+            let back = DocumentAppearanceStore.load("/tmp/a.md", defaults: scratch)
+            check("sidebar widths are remembered", "\(back?.libraryWidth ?? 0) \(back?.outlineWidth ?? 0) \(back?.editorShare ?? 0)", "230.0 300.0 0.4")
+            scratch.removePersistentDomain(forName: "focusedit.selftest.appearance")
+        }
         let five = "a\nb\nc\nd\ne"
         check("caret line → ratio", String(ViewMode.ratio(forCaret: 4, in: five)), "0.5")
         check("ratio → line start", String(ViewMode.lineStart(forRatio: 0.5, in: five)), "4")

@@ -135,6 +135,15 @@ enum MarkdownToHTML {
 
     // MARK: Inline helpers
 
+    /// The text a click in a preview code block should copy. Trailing whitespace
+    /// is dropped so a command pastes ready to run. A drag-selection is left alone.
+    static func copyableFence(_ text: String, selected: Bool = false) -> String? {
+        if selected { return nil }
+        var out = text
+        while let last = out.last, last.isWhitespace { out.removeLast() }
+        return out.isEmpty ? nil : out
+    }
+
     /// Escape for both text and quoted attribute values.
     fileprivate static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;")

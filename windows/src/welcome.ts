@@ -51,7 +51,7 @@ file stays plain text.
 | ${mod}Shift+V | View: Edit → Split → Preview |
 | ${mod}Shift+O | Outline of the headings |
 | ${mod}T | Keep the line you are writing in the middle |
-| F1 | Hints and shortcuts |
+| ${mod === "⌘" ? "⌘?" : "F1"} | Hints and shortcuts |
 
 > Set a word goal from the palette ("Word goal") for a thin progress bar and a timer
 > that counts only the time you actually write.

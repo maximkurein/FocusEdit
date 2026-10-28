@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-28
+
+### Added
+- Mac and Windows: in the Markdown preview, a click in a fenced code block copies the command. A drag-selection is left for ⌘C / Ctrl+C
+- Mac and Windows: the ? hints sheet is up to date (palette, view, print, new file, click to copy, preview theme). It shows this app's shortcuts: ⌘ on the Mac app, Ctrl (or ⌘ if that build is running on a Mac) on Windows
+
+### Fixed
+- Mac: closing a window no longer crashes. The preview's click-to-copy hook was being set up while the window was already going away
+- Mac: switching to Split before the preview had loaded no longer crashes (nil web view)
+- Mac: the library and outline widths are remembered. A file opens again with the side panels at the width they were dragged to, and a file never opened before uses the last width. Resizing the window and switching Edit / Split / Preview leave them alone
+
 ## [1.6.11] - 2026-10-28
 
 ### Added
