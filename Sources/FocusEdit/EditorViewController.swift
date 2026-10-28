@@ -672,8 +672,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
                                  on: sounds.enabled)
         case #selector(toggleVimMode(_:)):
             ToolbarSymbol.update(item, "text:Vim", on: vimEnabled)
-        case #selector(cycleEditorSize(_:)):
-            item.toolTip = "Column width: \(editorSize.title) — click to change, arrow for the list"
         case #selector(cycleFontKind(_:)):
             item.toolTip = "Font: \(fontKind.title) — click to change, arrow for the list"
         case #selector(cycleFocusMode(_:)):

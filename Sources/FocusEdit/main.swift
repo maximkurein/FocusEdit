@@ -384,16 +384,6 @@ enum MenuBuilder {
         ThemeMenu.fill(themeMenu)
         viewMenu.addItem(themeParent)
 
-        let sizeParent = NSMenuItem(title: "Editor Size", action: nil, keyEquivalent: "")
-        let sizeMenu = NSMenu(title: "Editor Size")
-        sizeParent.submenu = sizeMenu
-        for size in EditorSize.allCases {
-            let it = item(size.title, Selector(("selectEditorSize:")), "")
-            it.tag = Int(size.rawValue)
-            sizeMenu.addItem(it)
-        }
-        viewMenu.addItem(sizeParent)
-
         let fontParent = NSMenuItem(title: "Font", action: nil, keyEquivalent: "")
         let fontMenu = NSMenu(title: "Font")
         fontParent.submenu = fontMenu

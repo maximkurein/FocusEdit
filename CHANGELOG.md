@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+## [1.6.10] - 2026-10-28
+
+### Changed
+- Mac: the column-width button (Small / Medium / Large) is gone from the toolbar and from View. In the editor the text keeps one reading column; beside the preview the divider sets the width
+
+### Fixed
+- Mac: Split opens with the editor and preview at equal widths, and they stay in that proportion when the window is resized, a sidebar opens or the file is opened again. Only dragging the divider changes the proportion, and that is what the file remembers. Widths saved by earlier versions are forgotten once
+
+## [1.6.9] - 2026-10-28
+
+### Fixed
+- Mac: closing a split view no longer stores the preview collapsed to a narrow strip. The next open keeps the editor and preview widths that were on screen
+
 ## [1.6.8] - 2026-10-28
 
 ### Changed

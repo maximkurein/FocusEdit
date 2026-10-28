@@ -127,7 +127,7 @@ $APP "$PWD/examples/welcome.md" --snapshot "$PWD/docs/images/window-light.png" -
 $APP "$PWD/examples/welcome.md" --snapshot "$PWD/docs/images/editor-dark.png" --theme Dark --content
 ```
 
-Ручная проверка GUI: открыть `examples/welcome.md`, подвигать каретку (фокус-подсветка и typewriter-scrolling), ⌘S сохранить, ⌘F поиск, View ▸ Theme/Editor Size, ⌥⌘P превью (Edit → Split → Preview), Edit ▸ Format/CriticMarkup.
+Ручная проверка GUI: открыть `examples/welcome.md`, подвигать каретку (фокус-подсветка и typewriter-scrolling), ⌘S сохранить, ⌘F поиск, View ▸ Theme, ⌥⌘P превью (Edit → Split → Preview), Edit ▸ Format/CriticMarkup.
 
 ## Шаг 4. Версия — перед релизом
 

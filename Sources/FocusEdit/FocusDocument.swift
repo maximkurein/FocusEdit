@@ -39,8 +39,7 @@ final class FocusDocument: NSDocument {
         }
         warnAboutLostFormatting(in: controller.window)
         replacePristineDocuments(with: controller.window)
-        split.restoreAppearanceIfNeeded()
-    }
+        split.restoreAppearanceIfNeeded()    }
 
     var isPristine: Bool { editor?.isPristine ?? false }
 

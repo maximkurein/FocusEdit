@@ -215,6 +215,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         let tv = editor.textView
         editor.fillsPane = mode == .split
         preview.fillsPane = mode == .split
+        // Released before panes collapse or reappear; put back below for Split.
+        releaseShare()
         switch mode {
         case .edit, .split:
             if from == .edit {
@@ -232,7 +234,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             }
             if mode == .edit { previewItem.animator().isCollapsed = true }
             if mode == .split {
-                // The first time this file is split, open both halves wide enough to read.
+                // The first time this file is split, open both halves at a reading width.
                 // After that, the divider stays where the reader left it.
                 let fit = !seenSplit && !Snapshot.isActive
                 if fit { editorShare = 0.5 }
@@ -258,12 +260,9 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             view.window?.makeFirstResponder(preview.view)
             startEscapeMonitor()
         }
-        if mode == .split {
-            splitView.layoutSubtreeIfNeeded()
-            placeEditor(share: editorShare)
-        }
         // Passed in, not read back: the split pane may still be animating.
         updateViewSwitcher(mode)
+        if mode == .split { holdShare() }
         saveAppearance()
     }
 
@@ -295,19 +294,14 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
            DocumentAppearanceStore.usable(width: saved.contentWidth, height: saved.contentHeight) {
             resize(window, content: NSSize(width: saved.contentWidth, height: saved.contentHeight))
         }
-        if let mode = ViewMode(storage: saved.mode) {
-            setView(mode)
-            if mode == .split { placeEditor(share: editorShare) }
-        }
+        if let mode = ViewMode(storage: saved.mode) { setView(mode) }
     }
 
+
     /// Write the current look under the file's path. Untitled documents have nothing to key.
+    /// The share is the one the panes are held to, never a width measured mid-layout.
     func saveAppearance() {
         guard !Snapshot.isActive, !applyingLayout, let path = editor.filePath, let window = view.window else { return }
-        if viewMode == .split {
-            let share = currentEditorShare()
-            if share > 0.15, share < 0.85 { editorShare = share }
-        }
         let size = window.contentRect(forFrameRect: window.frame).size
         guard DocumentAppearanceStore.usable(width: size.width, height: size.height) else { return }
         DocumentAppearanceStore.save(DocumentAppearance(
@@ -345,31 +339,56 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         applyingLayout = false
     }
 
-    /// Put the divider so the editor occupies `share` of the area it shares with the preview.
-    private func placeEditor(share: CGFloat) {
+    /// Split keeps the editor and the preview at `editorShare` of the width they share,
+    /// through every layout pass: opening, window resizes, sidebars, closing. The constraint
+    /// sits just above the panes' holding priority, so sidebars and a divider drag still win.
+    private var shareConstraint: NSLayoutConstraint?
+
+    private func holdShare() {
+        releaseShare()
         guard viewMode == .split else { return }
-        splitView.layoutSubtreeIfNeeded()
-        let left = editor.view.frame.minX
-        let right = outlineItem.isCollapsed ? splitView.bounds.maxX : outline.view.frame.minX
-        let available = right - left
-        guard available > 1 else { return }
-        let editorW = ReadingLayout.editorWidth(available: available, share: share)
-        applyingLayout = true
-        splitView.setPosition(left + editorW, ofDividerAt: 1)
-        applyingLayout = false
-        editor.view.needsLayout = true
+        let share = min(0.8, max(0.2, editorShare))
+        let ratio = editor.view.widthAnchor.constraint(
+            equalTo: preview.view.widthAnchor, multiplier: share / (1 - share))
+        ratio.priority = NSLayoutConstraint.Priority(255)
+        ratio.isActive = true
+        shareConstraint = ratio
+        view.needsLayout = true
     }
 
-    private func currentEditorShare() -> CGFloat {
-        let editorW = editor.view.frame.width
-        let previewW = preview.view.frame.width
-        let sum = editorW + previewW
-        guard sum > 1 else { return editorShare }
-        return editorW / sum
+    private func releaseShare() {
+        shareConstraint?.isActive = false
+        shareConstraint = nil
     }
 
+    private func currentEditorShare() -> CGFloat? {
+        let editorWidth = editor.view.frame.width
+        let previewWidth = preview.view.frame.width
+        guard editorWidth > 1, previewWidth > 1 else { return nil }
+        return editorWidth / (editorWidth + previewWidth)
+    }
+
+    /// Only the user's own divider drag changes the share; layout passes never do.
     @objc private func splitResized(_ notification: Notification) {
-        guard !applyingLayout, viewMode == .split else { return }
+        guard !applyingLayout, !closing, viewMode == .split,
+              NSEvent.pressedMouseButtons & 1 != 0,
+              !(view.window?.inLiveResize ?? false),
+              let share = currentEditorShare() else { return }
+        let held = min(0.8, max(0.2, share))
+        guard abs(held - editorShare) > 0.002 else { return }
+        editorShare = held
+        holdShare()
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(saveAfterDrag), object: nil)
+        perform(#selector(saveAfterDrag), with: nil, afterDelay: 0.4)
+    }
+
+    @objc private func saveAfterDrag() { saveAppearance() }
+
+    private var closing = false
+    func noteWindowClosing() {
+        guard !closing else { return }
+        closing = true
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(saveAfterDrag), object: nil)
         saveAppearance()
     }
 

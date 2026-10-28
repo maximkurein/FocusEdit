@@ -407,9 +407,6 @@ extension MainSplitViewController {
                                keywords: "preview page " + (themeWords[theme.name] ?? "colours")))
         }
         list.append(command("Edit Themes…", "editThemes:", keywords: "colours custom"))
-        for size in EditorSize.allCases {
-            list.append(tagged("Column width: \(size.title)", "selectEditorSize:", Int(size.rawValue), keywords: "editor size"))
-        }
         for font in FontKind.allCases {
             list.append(tagged("Font: \(font.title)", "selectFontKind:", font.rawValue))
         }

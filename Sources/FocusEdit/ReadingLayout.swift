@@ -69,7 +69,7 @@ struct DocumentAppearance: Equatable {
 /// Remembers each file's appearance in UserDefaults, most recent last, capped so the
 /// list cannot grow without limit.
 enum DocumentAppearanceStore {
-    private static let key = "document.appearance.v2"
+    private static let key = "document.appearance.v5"
     private static let limit = 80
 
     static func usable(width: CGFloat, height: CGFloat) -> Bool {
