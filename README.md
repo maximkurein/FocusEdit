@@ -189,7 +189,7 @@ FocusEdit is free and stays free. If it helps you write and you feel like buying
 
 <table>
   <tr>
-    <td><img src="docs/images/support-ton-qr.png" width="168" alt="QR code with the TON address below"></td>
+    <td><img src="docs/images/support-ton-qr.png" width="200" alt="QR code of the TON address below"></td>
     <td valign="middle">
       Scan with Telegram Wallet, Tonkeeper or any TON wallet,<br>
       or copy the address:<br><br>
