@@ -1,5 +1,20 @@
 import Foundation
 
+/// Colours of the live preview page. Export and print use `plain`, black on white.
+struct PageColors: Equatable {
+    var schemeDark: Bool
+    var background: String
+    var foreground: String
+    var muted: String
+    var accent: String
+
+    static func plain(dark: Bool) -> PageColors {
+        dark
+            ? PageColors(schemeDark: true, background: "#1e1e20", foreground: "#e0e0e3", muted: "#8a8a90", accent: "#3399d9")
+            : PageColors(schemeDark: false, background: "#ffffff", foreground: "#1c1c1e", muted: "#6b6b70", accent: "#3399d9")
+    }
+}
+
 /// Dependency-free Markdown → HTML for the preview and HTML export: CommonMark
 /// blocks (ATX and setext headings, quotes, nested lists, fenced and indented
 /// code, rules) plus GFM tables, task lists, strikethrough and bare URLs.
@@ -19,18 +34,26 @@ enum MarkdownToHTML {
 
     /// Wrap rendered body in a full, themed HTML document for preview/export.
     /// `fontSize` is the editor's text size in the preview, so zoom scales both.
-    static func document(_ markdown: String, dark: Bool, fontSize: Double = 16) -> String {
-        let fg = dark ? "#e0e0e3" : "#1c1c1e"
-        let bg = dark ? "#1e1e20" : "#ffffff"
-        let muted = dark ? "#8a8a90" : "#6b6b70"
-        let accent = "#3399d9"
+    /// `fitted` fills the pane (Split, same margins as the editor). Otherwise the page
+    /// keeps a centred reading measure, for Preview and for export.
+    /// `colors` paints the live preview; export and print pass nil and stay black on white.
+    static func document(_ markdown: String, dark: Bool, fontSize: Double = 16,
+                         fitted: Bool = false, colors: PageColors? = nil) -> String {
+        let page = colors ?? PageColors.plain(dark: dark)
+        let fg = page.foreground
+        let bg = page.background
+        let muted = page.muted
+        let accent = page.accent
+        let measure = fitted
+            ? "max-width: none; margin: 28px 36px 72px; padding: 0;"
+            : "max-width: 45em; margin: 40px auto; padding: 0 24px;"
         return """
         <!doctype html><html><head><meta charset="utf-8">
         <style>
-          :root { color-scheme: \(dark ? "dark" : "light"); }
+          :root { color-scheme: \(page.schemeDark ? "dark" : "light"); }
           body { font: \(fontSize)px/1.6 -apple-system, system-ui, sans-serif;
                  color: \(fg); background: \(bg);
-                 max-width: 45em; margin: 40px auto; padding: 0 24px; }
+                 \(measure) }
           h1,h2,h3,h4,h5,h6 { line-height: 1.25; }
           blockquote { color: \(muted); border-left: 3px solid \(muted);
                        margin: 0; padding-left: 1em; }

@@ -28,6 +28,7 @@ enum Preferences {
 
     enum Key {
         static let theme = "theme.name"
+        static let previewTheme = "theme.preview"
         static let editorSize = "editor.size"
         static let sounds = "sounds.enabled"
         static let focusMode = "focus.mode"
@@ -90,6 +91,15 @@ enum Preferences {
     static var themeName: String {
         get { d.string(forKey: Key.theme) ?? Theme.light.name }
         set { d.set(newValue, forKey: Key.theme) }
+    }
+
+    /// Nil means the preview uses the editor's theme. A name is its own theme, remembered.
+    static var previewThemeName: String? {
+        get { d.string(forKey: Key.previewTheme) }
+        set {
+            if let newValue { d.set(newValue, forKey: Key.previewTheme) }
+            else { d.removeObject(forKey: Key.previewTheme) }
+        }
     }
 
     static var editorSize: EditorSize {

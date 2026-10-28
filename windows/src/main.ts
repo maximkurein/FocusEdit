@@ -32,7 +32,7 @@ import {
   sizes,
   themeNames,
 } from "./settings";
-import { applyTheme } from "./themes";
+import { applyPreviewTheme, applyTheme } from "./themes";
 
 const PROJECT_URL = "https://github.com/maximkurein/FocusEdit";
 
@@ -95,6 +95,7 @@ const editor = new Editor($("editor"), {
 
 function applyAppearance(): void {
   applyTheme(settings.theme);
+  applyPreviewTheme(settings.previewTheme);
   const root = document.documentElement.style;
   root.setProperty("--column", `${columnWidth[settings.size]}px`);
   root.setProperty("--editor-font", fontStack[settings.font]);
@@ -108,7 +109,9 @@ function applyAppearance(): void {
   $("btn-typewriter").classList.toggle("on", settings.typewriter);
   $("btn-vim").classList.toggle("on", settings.vim);
   $("btn-vim").title = settings.vim ? "Vim mode is on — click (or :novim) to turn it off" : "Vim mode: learn Vim as you write";
-  $("btn-theme").title = `Theme: ${settings.theme} — click to change`;
+  $("btn-theme").title = settings.previewTheme === "Same"
+    ? `Theme: ${settings.theme} — the preview follows the editor`
+    : `Theme: ${settings.theme} — preview: ${settings.previewTheme}`;
   $("outline").hidden = !settings.outline;
   $("btn-outline").classList.toggle("on", settings.outline);
   if (settings.outline) refreshOutline();
@@ -610,8 +613,14 @@ function allCommands(): Command[] {
     { title: settings.typewriter ? "Typewriter scrolling: off" : "Typewriter scrolling: on", shortcut: key("T"), keywords: "centre center", run: () => actions["btn-typewriter"]() },
     ...themeNames.map((theme): Command => ({
       title: `Theme: ${theme}`,
-      keywords: { System: "auto follow windows", Light: "day white", Dark: "night black", Sepia: "paper warm" }[theme],
+      keywords: { System: "auto follow windows", Light: "day white", Dark: "night black", Sepia: "paper warm", PowerShell: "powershell blue navy console" }[theme],
       run: () => changeSettings(() => (settings.theme = theme)),
+    })),
+    { title: "Preview theme: Same as editor", keywords: "follow match", run: () => changeSettings(() => (settings.previewTheme = "Same")) },
+    ...themeNames.map((theme): Command => ({
+      title: `Preview theme: ${theme}`,
+      keywords: "preview page " + ({ System: "auto follow", Light: "day white", Dark: "night black", Sepia: "paper warm", PowerShell: "powershell blue navy console" }[theme]),
+      run: () => changeSettings(() => (settings.previewTheme = theme)),
     })),
     ...sizes.map((size): Command => ({ title: `Column width: ${size}`, run: () => changeSettings(() => (settings.size = size)) })),
     ...fonts.map((font): Command => ({ title: `Font: ${font[0].toUpperCase()}${font.slice(1)}`, run: () => changeSettings(() => (settings.font = font)) })),
@@ -757,7 +766,7 @@ editor.setVim(settings.vim);
 
 // "System" theme follows Windows switching between light and dark.
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (settings.theme === "System") applyAppearance();
+  if (settings.theme === "System" || settings.previewTheme === "System") applyAppearance();
 });
 
 const dropOverlay = $("drop-overlay");

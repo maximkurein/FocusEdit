@@ -34,6 +34,12 @@ const palettes: Record<Concrete, Palette> = {
     accent: "#99662a", cursor: "#99662a", selection: "rgba(153, 102, 42, 0.18)",
     chrome: "#f2e7cd", border: "#e2d3b3", hover: "rgba(77, 56, 31, 0.08)",
   },
+  // PowerShell 7's console (Campbell Powershell): navy #012456, light gray text.
+  PowerShell: {
+    dark: true, bg: "#012456", fg: "#cccccc", dim: "#8aa4c7", muted: "#7f93b0",
+    accent: "#3a96dd", cursor: "#ffffff", selection: "rgba(58, 150, 221, 0.35)",
+    chrome: "#011a40", border: "#1c4578", hover: "rgba(255, 255, 255, 0.08)",
+  },
 };
 
 /** "System" becomes Light or Dark according to the system setting. */
@@ -55,4 +61,25 @@ export function applyTheme(name: ThemeName): void {
   for (const [key, value] of Object.entries(vars)) root.style.setProperty(key, value);
   root.style.colorScheme = p.dark ? "dark" : "light";
   root.dataset.theme = resolved.toLowerCase();
+}
+
+const previewKeys = ["--bg", "--fg", "--dim", "--muted", "--accent", "--cursor", "--selection", "--chrome", "--border", "--hover"];
+
+/** "Same" clears the preview's own colours so it inherits the editor. */
+export function applyPreviewTheme(choice: ThemeName | "Same"): void {
+  const el = document.getElementById("preview");
+  if (!el) return;
+  if (choice === "Same") {
+    for (const key of previewKeys) el.style.removeProperty(key);
+    el.style.colorScheme = "";
+    return;
+  }
+  const p = palettes[resolveTheme(choice, prefersDark())];
+  const vars: Record<string, string> = {
+    "--bg": p.bg, "--fg": p.fg, "--dim": p.dim, "--muted": p.muted, "--accent": p.accent,
+    "--cursor": p.cursor, "--selection": p.selection, "--chrome": p.chrome,
+    "--border": p.border, "--hover": p.hover,
+  };
+  for (const [key, value] of Object.entries(vars)) el.style.setProperty(key, value);
+  el.style.colorScheme = p.dark ? "dark" : "light";
 }

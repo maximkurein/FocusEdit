@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the Release app (Apple Silicon and Intel) and pack it into a drag-to-install DMG.
-#   ./package.sh            → .build/FocusEdit.app and .build/dist/FocusEdit-<version>.dmg
+#   ./package.sh            → build/FocusEdit.app and build/FocusEdit-<version>.dmg
 #   ./package.sh --open     also open the DMG in Finder
 #   ./package.sh --no-dmg   only the app bundle (faster while developing)
 #
@@ -48,8 +48,10 @@ fi
 bin="$(swift build "${arch_flags[@]}" --show-bin-path)"
 
 step "Assemble FocusEdit.app"
-app=.build/FocusEdit.app
-rm -rf "$app"
+# Swift keeps its own files in the hidden .build directory. The app itself goes in
+# build/, which Finder shows, so it can be opened like any other application.
+app=build/FocusEdit.app
+rm -rf "$app" .build/FocusEdit.app
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/FocusEdit" "$app/Contents/MacOS/FocusEdit"
 cp Info.plist "$app/Contents/Info.plist"
@@ -80,8 +82,9 @@ if ! $make_dmg; then
 fi
 
 step "Pack DMG"
-dist=.build/dist
+dist=build
 dmg="$dist/FocusEdit-$version.dmg"
+rm -rf .build/dist
 stage="$dist/stage"
 rm -rf "$stage" "$dmg"
 mkdir -p "$stage"

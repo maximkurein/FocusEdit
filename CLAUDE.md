@@ -13,12 +13,12 @@ Run from the repo root (relative paths like `./package.sh` fail elsewhere).
 
 ```bash
 swift build && .build/debug/FocusEdit --selftest   # fast loop: compile + headless tests (no bundle needed)
-./package.sh                                  # release universal .app + DMG → .build/FocusEdit.app, .build/dist/
+./package.sh                                  # release universal .app + DMG → build/FocusEdit.app, build/
 ./package.sh --no-dmg                         # only the .app
 ./install.sh                                  # install the DMG into /Applications
-.build/FocusEdit.app/Contents/MacOS/FocusEdit --selftest            # headless tests; exit 1 on failure
-.build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md   # run the bundle directly (not `open`: forbidden in this lab); stop with pkill -f FocusEdit
-.build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md --snapshot out.png [--theme Dark] [--content]
+build/FocusEdit.app/Contents/MacOS/FocusEdit --selftest            # headless tests; exit 1 on failure
+build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md   # run the bundle directly (not `open`: forbidden in this lab); stop with pkill -f FocusEdit
+build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md --snapshot out.png [--theme Dark] [--content]
 python3 scripts/update_version.py status | bump patch|minor|major | sync X.Y.Z --dry-run
 ```
 

@@ -75,7 +75,7 @@ Updated README.md
    ```bash
    python3 scripts/update_version.py status
    ```
-4. Собрать DMG: `./package.sh`. Он **откажется собирать**, если `status` не `OK`, и назовёт файл `.build/dist/FocusEdit-X.Y.Z.dmg`.
+4. Собрать DMG: `./package.sh`. Он **откажется собирать**, если `status` не `OK`, и назовёт файл `build/FocusEdit-X.Y.Z.dmg`. Приложение лежит рядом: `build/FocusEdit.app` (папка видна в Finder; служебные файлы компилятора остаются в скрытой `.build`).
 5. Поставить в «Программы»: `./install.sh`.
 
 ## Если что-то не так

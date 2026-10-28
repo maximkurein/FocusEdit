@@ -396,9 +396,15 @@ extension MainSplitViewController {
             command(editor.sounds.enabled ? "Typewriter sounds: off" : "Typewriter sounds: on",
                     "toggleTypewriterSounds:", keywords: "audio click keys"),
         ]
-        let themeWords = ["System": "auto follow macos appearance", "Light": "day white", "Dark": "night black", "Sepia": "paper warm"]
+        let themeWords = ["System": "auto follow macos appearance", "Light": "day white", "Dark": "night black",
+                          "Sepia": "paper warm", "PowerShell": "powershell blue navy console"]
         for (i, theme) in ThemeStore.allThemes().enumerated() {
             list.append(tagged("Theme: \(theme.name)", "selectTheme:", i, keywords: themeWords[theme.name] ?? "colours"))
+        }
+        list.append(tagged("Preview theme: Same as editor", "selectPreviewTheme:", -1, keywords: "follow match"))
+        for (i, theme) in ThemeStore.allThemes().enumerated() {
+            list.append(tagged("Preview theme: \(theme.name)", "selectPreviewTheme:", i,
+                               keywords: "preview page " + (themeWords[theme.name] ?? "colours")))
         }
         list.append(command("Edit Themes…", "editThemes:", keywords: "colours custom"))
         for size in EditorSize.allCases {

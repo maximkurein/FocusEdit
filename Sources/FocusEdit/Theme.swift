@@ -47,7 +47,17 @@ struct Theme {
         cursor:     NSColor(srgbRed: 0.60, green: 0.40, blue: 0.16, alpha: 1)
     )
 
-    static let all: [Theme] = [.light, .dark, .sepia]
+    /// PowerShell 7's console: navy paper (#012456) and light gray text.
+    static let powerShell = Theme(
+        name: "PowerShell",
+        isDark: true,
+        background: NSColor(srgbRed: 1.0 / 255, green: 36.0 / 255, blue: 86.0 / 255, alpha: 1),
+        foreground: NSColor(srgbRed: 204.0 / 255, green: 204.0 / 255, blue: 204.0 / 255, alpha: 1),
+        dimmed:     NSColor(srgbRed: 138.0 / 255, green: 164.0 / 255, blue: 199.0 / 255, alpha: 1),
+        cursor:     NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)
+    )
+
+    static let all: [Theme] = [.light, .dark, .sepia, .powerShell]
 
     /// "System": Light or Dark, following the macOS appearance (and changing with it).
     static let systemName = "System"
@@ -60,6 +70,18 @@ struct Theme {
 
     static var systemIsDark: Bool {
         NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
+    /// The live preview uses the same paper and ink as this theme, not only light or dark.
+    var pageColors: PageColors {
+        PageColors(schemeDark: isDark, background: Self.hex(background), foreground: Self.hex(foreground),
+                   muted: Self.hex(dimmed), accent: Self.hex(cursor))
+    }
+
+    private static func hex(_ c: NSColor) -> String {
+        let s = c.usingColorSpace(.sRGB) ?? c
+        let part = { (v: CGFloat) in Int((Double(v) * 255).rounded()) }
+        return String(format: "#%02x%02x%02x", part(s.redComponent), part(s.greenComponent), part(s.blueComponent))
     }
 
     // MARK: Serialization (for custom themes)
@@ -107,6 +129,36 @@ enum ThemeStore {
         dicts.removeAll { ($0["name"] as? String) == theme.name }
         dicts.append(theme.toDict())
         d.set(dicts, forKey: key)
+    }
+}
+
+/// The theme button and the View ▸ Theme menu: the editor's theme, then the preview's.
+enum ThemeMenu {
+    static func fill(_ menu: NSMenu) {
+        menu.removeAllItems()
+        func heading(_ title: String) {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        heading("Editor")
+        for (i, theme) in ThemeStore.allThemes().enumerated() {
+            let item = NSMenuItem(title: theme.name, action: Selector(("selectTheme:")), keyEquivalent: "")
+            item.tag = i
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        heading("Preview")
+        let same = NSMenuItem(title: "Same as editor", action: Selector(("selectPreviewTheme:")), keyEquivalent: "")
+        same.tag = -1
+        menu.addItem(same)
+        for (i, theme) in ThemeStore.allThemes().enumerated() {
+            let item = NSMenuItem(title: theme.name, action: Selector(("selectPreviewTheme:")), keyEquivalent: "")
+            item.tag = i
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Edit Themes…", action: #selector(AppDelegate.editThemes(_:)), keyEquivalent: ""))
     }
 }
 

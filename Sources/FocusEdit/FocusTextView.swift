@@ -30,7 +30,8 @@ final class FocusTextView: NSTextView {
     }
 
     // MARK: Modus toggles
-    var typewriterScrollingEnabled = true
+    /// Off until the toolbar button (⌘T): a new or reopened file starts at the top.
+    var typewriterScrollingEnabled = false
     var focusMode: FocusMode = .paragraph
     var typewriterAnchor: CGFloat = 0.5
 

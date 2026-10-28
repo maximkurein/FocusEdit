@@ -2,7 +2,7 @@
 
 export type FocusMode = "off" | "sentence" | "paragraph";
 /** "System" follows the Windows light/dark setting. */
-export type ThemeName = "System" | "Light" | "Dark" | "Sepia";
+export type ThemeName = "System" | "Light" | "Dark" | "Sepia" | "PowerShell";
 export type EditorSize = "small" | "medium" | "large";
 export type FontKind = "system" | "monospace" | "serif";
 
@@ -21,11 +21,13 @@ export interface Settings {
   liveMarkdown: boolean;
   /** Words to write per session; 0 = no goal. */
   goal: number;
+  /** "Same" uses the editor's theme. Anything else is the preview's own theme. */
+  previewTheme: ThemeName | "Same";
 }
 
 export const defaults: Settings = {
   focusMode: "paragraph",
-  typewriter: true,
+  typewriter: false,
   theme: "System",
   size: "medium",
   font: "system",
@@ -36,6 +38,7 @@ export const defaults: Settings = {
   outline: false,
   liveMarkdown: true,
   goal: 0,
+  previewTheme: "Same",
 };
 
 const KEY = "focusedit.settings.v1";
@@ -66,7 +69,7 @@ export const fontStack: Record<FontKind, string> = {
 };
 
 export const focusModes: FocusMode[] = ["off", "sentence", "paragraph"];
-export const themeNames: ThemeName[] = ["System", "Light", "Dark", "Sepia"];
+export const themeNames: ThemeName[] = ["System", "Light", "Dark", "Sepia", "PowerShell"];
 export const sizes: EditorSize[] = ["small", "medium", "large"];
 export const fonts: FontKind[] = ["system", "monospace", "serif"];
 

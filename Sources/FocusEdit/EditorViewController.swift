@@ -30,6 +30,12 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     private(set) var vimEnabled = Preferences.vimMode
 
     private weak var document: FocusDocument?
+    /// The file this window is editing, used to remember how it was last shown.
+    var filePath: String? { document?.fileURL?.standardizedFileURL.path }
+    /// Save As gives the document a path; the split view stores the current look under it.
+    var onFileURLChanged: (() -> Void)?
+    /// Split: the text fills its half of the window, instead of the fixed writing column.
+    var fillsPane = false
 
     /// Called after any content change (text edit or load) so the split
     /// controller can refresh the outline and preview.
@@ -43,6 +49,15 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     var plainText: String { textView.string }
     var themeIsDark: Bool { theme.isDark }
+
+    /// The preview's own theme, or the editor's when it is set to follow.
+    var previewTheme: Theme {
+        guard let name = Preferences.previewThemeName else { return theme }
+        if name == Theme.systemName { return .system() }
+        return ThemeStore.allThemes().first { $0.name == name } ?? theme
+    }
+
+    var previewColors: PageColors { previewTheme.pageColors }
 
     override func loadView() {
         scrollView.hasVerticalScroller = true
@@ -311,9 +326,17 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
 
     private func layoutWritingColumn() {
         let available = scrollView.contentSize
-        // A narrow pane (the preview beside it, a small window) narrows the column too.
-        let width = max(120, min(columnWidth, available.width - 48))
-        let side = max(24, (available.width - width) / 2)
+        let width: CGFloat
+        let side: CGFloat
+        if fillsPane {
+            // The same side inset as the preview, so the two texts are one measure.
+            side = 36
+            width = max(160, available.width - side * 2)
+        } else {
+            // A narrow pane (the preview beside it, a small window) narrows the column too.
+            width = max(120, min(columnWidth, available.width - 48))
+            side = max(24, (available.width - width) / 2)
+        }
         // The page runs under the toolbar. That band is not part of the writing area,
         // so a half-window pad measured from the whole window shoved the line downward.
         let covered = scrollView.contentInsets.top
@@ -503,6 +526,18 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         Preferences.themeName = theme.name
     }
 
+    /// Tag −1 follows the editor. Any other tag is that theme, kept for the preview alone.
+    @objc func selectPreviewTheme(_ sender: NSMenuItem) {
+        if sender.tag < 0 {
+            Preferences.previewThemeName = nil
+        } else {
+            let themes = ThemeStore.allThemes()
+            guard sender.tag < themes.count else { return }
+            Preferences.previewThemeName = themes[sender.tag].name
+        }
+        onThemeChanged?()
+    }
+
     @objc func selectEditorSize(_ sender: NSMenuItem) {
         guard let size = EditorSize(rawValue: CGFloat(sender.tag)) else { return }
         editorSize = size
@@ -601,6 +636,14 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
             let themes = ThemeStore.allThemes()
             let match = item.tag >= 0 && item.tag < themes.count && themes[item.tag].name == theme.name
             item.state = match ? .on : .off
+        case #selector(selectPreviewTheme(_:)):
+            if item.tag < 0 {
+                item.state = Preferences.previewThemeName == nil ? .on : .off
+            } else {
+                let themes = ThemeStore.allThemes()
+                let match = item.tag < themes.count && themes[item.tag].name == Preferences.previewThemeName
+                item.state = match ? .on : .off
+            }
         case #selector(selectEditorSize(_:)):
             item.state = (CGFloat(item.tag) == editorSize.rawValue) ? .on : .off
         case #selector(selectFontKind(_:)):

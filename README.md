@@ -1,8 +1,8 @@
 # FocusEdit
 
-FocusEdit is a minimalist macOS text editor for distraction-free writing. It keeps your line in the middle of the screen, fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
+FocusEdit is a minimalist macOS text editor for distraction-free writing. It fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
 
-**Version:** `1.6.5`, released 22.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.6.8`, released 28.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 <p align="center">
   <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
@@ -24,7 +24,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 
 ## What it does
 
-- **Focus** — highlight only the current sentence or paragraph (the text up to the blank lines; a heading or a list item counts as its own block), with a short fade as you move; keep the active line fixed at the centre of the window (typewriter scrolling); optional typewriter sounds; full screen hides the toolbar and the menu bar.
+- **Focus** — highlight only the current sentence or paragraph (the text up to the blank lines; a heading or a list item counts as its own block), with a short fade as you move; the typewriter button keeps the active line at the centre of the window and starts off, so a file opens at the top; optional typewriter sounds; full screen hides the toolbar and the menu bar.
 - **Writing aids** — a grey suggestion completes the word you are typing from words already in the document, then from the system dictionary (English and Russian); brackets and quotes close themselves and wrap a selection; pasting a web address over selected text makes a Markdown link `[text](address)`; Return continues Markdown lists, task lists and quotes. In Fountain, scene headings and character names you have used are suggested.
 - **Live Markdown** — the marks of formatting (`#`, `**`, `*`, `~~`, `` ` ``, `[ ](…)`, `<…>`) are hidden away from the cursor and appear as it comes close; headings get their size. Modus ▸ Live Markup or the palette (*Markup*) turns it off.
 - **Plain text, styled on screen** — Markdown headings, emphasis, code, quotes, lists, links and CriticMarkup; Fountain scene headings, characters, parentheticals and transitions. Styling is display-only: the file on disk stays clean plain text.
@@ -34,7 +34,7 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 - **RTF** — `.rtf` files (TextEdit's default format) open as Markdown and save back as RTF: bold, italic, strikethrough, headings, lists, links and code survive the round trip; fonts, colours, images and tables do not, and FocusEdit warns when a file has them. **FocusEdit ▸ Make Default Editor for .txt and .rtf** makes double-clicked text and RTF files open in FocusEdit.
 - **Documents** — standard macOS documents: open, save, revert, recent files, drag and drop, and autosave elsewhere every minute so unsaved text survives a crash; quitting with unsaved changes always asks whether to save them. A library sidebar (⌥⌘L) lists one folder you choose — its documents and subfolders, opened with a double-click; choose the folder with the sidebar's button, Library ▸ Link Directory… or by dropping it on the sidebar; the outline jumps between headings and keeps the one you are in selected; the window subtitle shows the word count and reading time, the words in the selection, or — with a word goal set from the palette — the words written this session, the time spent writing and a thin progress bar under the toolbar; find and replace.
 - **Preview and export** — live HTML preview for Markdown in a pane beside the text (tables, task lists, strikethrough, nested lists, reference links), scrolling together with it, export as HTML or PDF, copy as HTML, print; print and PDF are dark on white in any theme, with nothing faded by focus.
-- **Themes and type** — System (follows the macOS light or dark appearance as it changes), Light, Dark, Sepia and custom themes; system, monospaced or serif font; three column widths.
+- **Themes and type** — System (follows the macOS light or dark appearance as it changes), Light, Dark, Sepia, PowerShell (the PowerShell 7 console: navy and light gray) and custom themes. The preview follows the editor until View ▸ Theme ▸ Preview gives it its own theme; that choice is remembered. System, monospaced or serif font; three column widths.
 - **Command palette** — `⇧⌘P`: type a few letters of what you want to do (a theme, a view, export, a recent file…) and press Return; a number sets a word goal or jumps to that line.
 - **Help where you are** — every toolbar button has a tooltip with its shortcut, ⌘? opens a cheat sheet for the current document type, and the first start opens a welcome tour that teaches by being edited (Help ▸ Welcome Tour shows it again).
 
@@ -63,11 +63,11 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It kee
 ## Build and run
 
 ```bash
-./package.sh   # build Release and pack .build/dist/FocusEdit-<version>.dmg
+./package.sh   # build Release and pack build/FocusEdit-<version>.dmg
 ./install.sh   # install that DMG into Applications and refresh the Dock icon
 ```
 
-`package.sh` checks that the version files agree, builds a universal Release (Apple Silicon and Intel), assembles the app bundle, stamps a UTC build number, renders the app icon (it is drawn in code), ad-hoc signs and verifies the bundle, then packs and verifies the DMG. `./package.sh --no-dmg` builds only `.build/FocusEdit.app`, which runs in place: `.build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md`. Always rebuild with `package.sh`: copying a new binary into an existing bundle invalidates its signature and macOS kills the app at launch.
+`package.sh` checks that the version files agree, builds a universal Release (Apple Silicon and Intel), assembles the app bundle, stamps a UTC build number, renders the app icon (it is drawn in code), ad-hoc signs and verifies the bundle, then packs and verifies the DMG. `./package.sh --no-dmg` builds only `build/FocusEdit.app` (Finder shows this folder; the compiler's own files stay in the hidden `.build`), which runs in place: `build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md`. Always rebuild with `package.sh`: copying a new binary into an existing bundle invalidates its signature and macOS kills the app at launch.
 
 `install.sh` quits a running FocusEdit, moves the installed copy to the Trash (nothing is deleted), copies the new one, re-registers it with Launch Services and restarts the Dock, which otherwise can keep a blank cached icon. To install by hand instead, `./package.sh --open` opens the DMG in Finder; drag **FocusEdit** into **Applications**.
 

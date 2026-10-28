@@ -18,6 +18,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     private var editorQuietUntil = Date.distantPast
     private(set) var outlineItem: NSSplitViewItem!
     let palette = CommandPaletteController()
+    /// Editor's share of the editor+preview area. 0.5 until the reader drags the divider.
+    private var editorShare: CGFloat = 0.5
+    /// This file has been shown in Split, so reopening uses the saved divider.
+    private var seenSplit = false
+    /// Ignore the resize notification caused by our own positioning.
+    private var applyingLayout = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -28,11 +34,13 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         libraryItem.canCollapse = true
 
         editorItem = NSSplitViewItem(viewController: editor)
-        editorItem.minimumThickness = 380
+        editorItem.minimumThickness = 320
+        editorItem.holdingPriority = NSLayoutConstraint.Priority(251)
 
         // The live preview beside the text; hidden until View ▸ Show Preview.
         previewItem = NSSplitViewItem(viewController: preview)
-        previewItem.minimumThickness = 300
+        previewItem.minimumThickness = 320
+        previewItem.holdingPriority = NSLayoutConstraint.Priority(251)
         previewItem.canCollapse = true
         previewItem.isCollapsed = true
 
@@ -59,7 +67,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         editor.onCursorMoved = { [weak self] location in self?.outline.setCursor(location) }
         editor.onThemeChanged = { [weak self] in
             guard let self, !self.previewItem.isCollapsed else { return }
-            self.preview.update(markdown: self.editor.plainText, dark: self.editor.themeIsDark)
+            self.preview.update(markdown: self.editor.plainText, colors: self.editor.previewColors)
         }
         preview.fontSize = Double(editor.fontSize)
         editor.onFontSizeChanged = { [weak self] in
@@ -70,6 +78,10 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         library.onOpenFile = { url in
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
+        editor.onFileURLChanged = { [weak self] in self?.saveAppearance() }
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(splitResized(_:)),
+            name: NSSplitView.didResizeSubviewsNotification, object: splitView)
     }
 
     /// Entry point used by the document after it sets content.
@@ -87,7 +99,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         updateViewSwitcher() // Save As can change the kind: Fountain has no preview
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
         if !previewItem.isCollapsed {
-            preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
+            preview.update(markdown: editor.plainText, colors: editor.previewColors)
         }
     }
 
@@ -201,10 +213,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         // Fountain stays in the editor; plain text and Markdown preview, as on Windows.
         if mode != .edit, !editor.documentKind.supportsHTML { return }
         let tv = editor.textView
+        editor.fillsPane = mode == .split
+        preview.fillsPane = mode == .split
         switch mode {
         case .edit, .split:
             if from == .edit {
-                preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
+                preview.update(markdown: editor.plainText, colors: editor.previewColors)
                 syncScrolling()
             }
             if from == .preview {
@@ -217,14 +231,24 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
                 tv.refreshFocusEffects()
             }
             if mode == .edit { previewItem.animator().isCollapsed = true }
-            if mode == .split, previewItem.isCollapsed { previewItem.animator().isCollapsed = false }
+            if mode == .split {
+                // The first time this file is split, open both halves wide enough to read.
+                // After that, the divider stays where the reader left it.
+                let fit = !seenSplit && !Snapshot.isActive
+                if fit { editorShare = 0.5 }
+                seenSplit = true
+                previewItem.isCollapsed = false
+                editorItem.isCollapsed = false
+                editorItem.canCollapse = false
+                if fit { widenForSplit() }
+            }
             view.window?.makeFirstResponder(tv)
             stopEscapeMonitor()
         case .preview:
             // The page opens where the cursor was.
             let ratio = ViewMode.ratio(forCaret: tv.selectedRange().location, in: tv.string)
             if from == .edit {
-                preview.update(markdown: editor.plainText, dark: editor.themeIsDark)
+                preview.update(markdown: editor.plainText, colors: editor.previewColors)
                 syncScrolling()
             }
             previewItem.isCollapsed = false
@@ -234,8 +258,13 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             view.window?.makeFirstResponder(preview.view)
             startEscapeMonitor()
         }
+        if mode == .split {
+            splitView.layoutSubtreeIfNeeded()
+            placeEditor(share: editorShare)
+        }
         // Passed in, not read back: the split pane may still be animating.
         updateViewSwitcher(mode)
+        saveAppearance()
     }
 
     /// The toolbar's Edit | Split | Preview shows `mode` (default: the current one).
@@ -251,6 +280,97 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         let mode = ViewMode.allCases[group.selectedIndex]
         if mode != .edit, !editor.documentKind.supportsHTML { NSSound.beep(); return }
         setView(mode)
+    }
+
+    // MARK: Remembered layout
+
+    /// After the window is on screen (and an empty document has handed over its frame),
+    /// put back the view, the pane sizes and the window size this file was closed with.
+    func restoreAppearanceIfNeeded() {
+        guard !Snapshot.isActive, let path = editor.filePath,
+              let saved = DocumentAppearanceStore.load(path) else { return }
+        seenSplit = saved.seenSplit
+        editorShare = CGFloat(saved.editorShare)
+        if let window = view.window,
+           DocumentAppearanceStore.usable(width: saved.contentWidth, height: saved.contentHeight) {
+            resize(window, content: NSSize(width: saved.contentWidth, height: saved.contentHeight))
+        }
+        if let mode = ViewMode(storage: saved.mode) {
+            setView(mode)
+            if mode == .split { placeEditor(share: editorShare) }
+        }
+    }
+
+    /// Write the current look under the file's path. Untitled documents have nothing to key.
+    func saveAppearance() {
+        guard !Snapshot.isActive, !applyingLayout, let path = editor.filePath, let window = view.window else { return }
+        if viewMode == .split {
+            let share = currentEditorShare()
+            if share > 0.15, share < 0.85 { editorShare = share }
+        }
+        let size = window.contentRect(forFrameRect: window.frame).size
+        guard DocumentAppearanceStore.usable(width: size.width, height: size.height) else { return }
+        DocumentAppearanceStore.save(DocumentAppearance(
+            mode: viewMode.storage, editorShare: Double(editorShare),
+            contentWidth: Double(size.width), contentHeight: Double(size.height),
+            seenSplit: seenSplit), for: path)
+    }
+
+    /// The first Split uses a reading width. A window that is already wider is narrowed to it.
+    private func widenForSplit() {
+        guard let window = view.window else { return }
+        let sidebars = (libraryItem.isCollapsed ? 0 : library.view.bounds.width)
+            + (outlineItem.isCollapsed ? 0 : outline.view.bounds.width)
+        let screen = window.screen?.visibleFrame.width ?? 1600
+        let current = window.contentRect(forFrameRect: window.frame).width
+        let wanted = ReadingLayout.contentWidth(sidebars: sidebars, screenWidth: screen, current: current)
+        guard abs(wanted - current) > 8 else { return }
+        let content = window.contentRect(forFrameRect: window.frame)
+        resize(window, content: NSSize(width: wanted, height: content.height))
+    }
+
+    /// Keep the top edge where it is, and keep the window on its screen.
+    private func resize(_ window: NSWindow, content size: NSSize) {
+        let current = window.contentRect(forFrameRect: window.frame)
+        var frame = window.frameRect(forContentRect: NSRect(
+            x: current.minX, y: current.maxY - size.height, width: size.width, height: size.height))
+        if let screen = window.screen?.visibleFrame {
+            frame.size.width = min(frame.width, screen.width)
+            frame.size.height = min(frame.height, screen.height)
+            frame.origin.x = min(max(frame.origin.x, screen.minX), screen.maxX - frame.width)
+            frame.origin.y = min(max(frame.origin.y, screen.minY), screen.maxY - frame.height)
+        }
+        applyingLayout = true
+        window.setFrame(frame, display: true)
+        applyingLayout = false
+    }
+
+    /// Put the divider so the editor occupies `share` of the area it shares with the preview.
+    private func placeEditor(share: CGFloat) {
+        guard viewMode == .split else { return }
+        splitView.layoutSubtreeIfNeeded()
+        let left = editor.view.frame.minX
+        let right = outlineItem.isCollapsed ? splitView.bounds.maxX : outline.view.frame.minX
+        let available = right - left
+        guard available > 1 else { return }
+        let editorW = ReadingLayout.editorWidth(available: available, share: share)
+        applyingLayout = true
+        splitView.setPosition(left + editorW, ofDividerAt: 1)
+        applyingLayout = false
+        editor.view.needsLayout = true
+    }
+
+    private func currentEditorShare() -> CGFloat {
+        let editorW = editor.view.frame.width
+        let previewW = preview.view.frame.width
+        let sum = editorW + previewW
+        guard sum > 1 else { return editorShare }
+        return editorW / sum
+    }
+
+    @objc private func splitResized(_ notification: Notification) {
+        guard !applyingLayout, viewMode == .split else { return }
+        saveAppearance()
     }
 
     // MARK: Zoom with ⌘-scroll
@@ -400,6 +520,23 @@ enum ViewMode: CaseIterable {
         case .edit: return "Edit"
         case .split: return "Split"
         case .preview: return "Preview"
+        }
+    }
+
+    var storage: String {
+        switch self {
+        case .edit: return "edit"
+        case .split: return "split"
+        case .preview: return "preview"
+        }
+    }
+
+    init?(storage: String) {
+        switch storage {
+        case "edit": self = .edit
+        case "split": self = .split
+        case "preview": self = .preview
+        default: return nil
         }
     }
 

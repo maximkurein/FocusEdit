@@ -1,5 +1,6 @@
 # Build output (swift build, package.sh)
 .build/
+build/
 .swiftpm/
 
 # macOS and Xcode user state

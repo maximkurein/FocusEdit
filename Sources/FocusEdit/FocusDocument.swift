@@ -12,6 +12,7 @@ final class FocusDocument: NSDocument {
         didSet {
             if let ext = fileURL?.pathExtension { editor?.updateKind(fileExtension: ext) }
             editor?.updateStart()
+            editor?.onFileURLChanged?()
         }
     }
     private weak var editor: EditorViewController?
@@ -38,6 +39,7 @@ final class FocusDocument: NSDocument {
         }
         warnAboutLostFormatting(in: controller.window)
         replacePristineDocuments(with: controller.window)
+        split.restoreAppearanceIfNeeded()
     }
 
     var isPristine: Bool { editor?.isPristine ?? false }

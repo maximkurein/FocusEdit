@@ -162,6 +162,14 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         [.fullScreen, .autoHideToolbar, .autoHideMenuBar]
     }
 
+    func windowDidEndLiveResize(_ notification: Notification) {
+        (contentViewController as? MainSplitViewController)?.saveAppearance()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        (contentViewController as? MainSplitViewController)?.saveAppearance()
+    }
+
     // MARK: NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -208,7 +216,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             item.image = ToolbarSymbol.image("circle.lefthalf.filled")
             item.label = "Theme"
             item.paletteLabel = "Theme"
-            item.toolTip = "Theme — Light, Dark, Sepia or your own"
+            item.toolTip = "Theme — editor and preview. The preview follows the editor until you give it its own"
             let menu = NSMenu()
             menu.delegate = self      // rebuilt on open: custom themes appear immediately
             item.menu = menu
@@ -280,13 +288,6 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
     // MARK: Theme menu (built on open)
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems()
-        for (i, theme) in ThemeStore.allThemes().enumerated() {
-            let mi = NSMenuItem(title: theme.name, action: Selector(("selectTheme:")), keyEquivalent: "")
-            mi.tag = i
-            menu.addItem(mi)
-        }
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Edit Themes…", action: #selector(AppDelegate.editThemes(_:)), keyEquivalent: ""))
+        ThemeMenu.fill(menu)
     }
 }

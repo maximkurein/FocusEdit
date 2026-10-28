@@ -262,6 +262,15 @@ enum SelfTest {
         check("javascript link is text", html("[x](javascript:alert(1))"), "<p>x</p>")
         check("preview follows the text size",
               MarkdownToHTML.document("x", dark: false, fontSize: 22).contains("font: 22.0px/1.6") ? "yes" : "no", "yes")
+        check("preview page keeps a reading measure",
+              MarkdownToHTML.document("x", dark: false).contains("max-width: 45em") ? "yes" : "no", "yes")
+        check("split preview fills its pane",
+              MarkdownToHTML.document("x", dark: false, fitted: true).contains("max-width: none") ? "yes" : "no", "yes")
+        check("sepia preview uses sepia paper",
+              MarkdownToHTML.document("x", dark: false, colors: Theme.sepia.pageColors).contains(Theme.sepia.pageColors.background) ? "yes" : "no", "yes")
+        check("sepia paper is not white", Theme.sepia.pageColors.background == "#ffffff" ? "yes" : "no", "no")
+        check("powershell paper is the console blue", Theme.powerShell.pageColors.background, "#012456")
+        check("powershell text is light gray", Theme.powerShell.pageColors.foreground, "#cccccc")
         check("zoom in by 2", "\(EditorViewController.zoomedFontSize(16, by: 2))", "18.0")
         check("zoom stops at 40", "\(EditorViewController.zoomedFontSize(39, by: 2))", "40.0")
         check("zoom stops at 10", "\(EditorViewController.zoomedFontSize(11, by: -2))", "10.0")
@@ -297,6 +306,11 @@ enum SelfTest {
         check("unsafe image is its alt text", html("![alt](javascript:x)"), "<p>alt</p>")
         check("empty document", html(""), "")
         check("view cycle", "\(ViewMode.edit.next) \(ViewMode.split.next) \(ViewMode.preview.next)", "split preview edit")
+        check("split opens at a reading width", "\(Int(ReadingLayout.contentWidth(sidebars: 0, screenWidth: 1800, current: 1600)))", "1120")
+        check("split stays on a small screen", "\(Int(ReadingLayout.contentWidth(sidebars: 0, screenWidth: 1000, current: 1180)))", "984")
+        check("a wide window is narrowed", "\(Int(ReadingLayout.contentWidth(sidebars: 200, screenWidth: 2200, current: 1800)))", "1320")
+        check("even split", "\(Int(ReadingLayout.editorWidth(available: 1440, share: 0.5)))", "720")
+        check("a saved wider editor", "\(Int(ReadingLayout.editorWidth(available: 1400, share: 0.62)))", "868")
         let five = "a\nb\nc\nd\ne"
         check("caret line → ratio", String(ViewMode.ratio(forCaret: 4, in: five)), "0.5")
         check("ratio → line start", String(ViewMode.lineStart(forRatio: 0.5, in: five)), "4")

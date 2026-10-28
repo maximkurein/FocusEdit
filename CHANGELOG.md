@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-10-28
+
+### Changed
+- Typewriter scrolling starts off. A new file and a file opened again begin at the top, under the toolbar. The toolbar button (⌘T / Ctrl+T) still keeps the caret line in the middle
+- Mac: the first Split opens both panes at a reading width (not half of a large screen). A window that is already wider is narrowed to that. After you drag the divider or resize the window, a file you close opens again with that view and those sizes
+- Mac and Windows: the preview can use the editor's theme, including Sepia, or its own. The choice is remembered. Until you pick one, the preview follows the editor. Print and exported HTML stay black on white
+- Mac and Windows: a PowerShell theme, the PowerShell 7 console — navy background and light gray text — for the editor and, separately, for the preview
+- The built app and DMG are written to `build/`, which Finder shows. The compiler's own files stay in the hidden `.build`
+
 ### Added
 - Mac: Edit | Split | Preview switcher in the toolbar in place of the single eye button, as on Windows. ⌥⌘P still cycles, Esc leaves Preview, and the switcher follows. For Fountain, Split and Preview are disabled. The default window is a little wider (1180 pt) so Hints and Outline stay out of the overflow menu
 - Mac: zoom as on Windows: ⌘+ / ⌘= / ⌘− step by 2 points (10–40), ⌘0 (View ▸ Actual Text Size) returns to 16, and ⌘-scroll with a mouse wheel or trackpad zooms. The preview's text follows the editor's size without reloading the page

@@ -381,13 +381,7 @@ enum MenuBuilder {
         let themeParent = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
         let themeMenu = NSMenu(title: "Theme")
         themeParent.submenu = themeMenu
-        for (i, theme) in ThemeStore.allThemes().enumerated() {
-            let it = item(theme.name, Selector(("selectTheme:")), "")
-            it.tag = i
-            themeMenu.addItem(it)
-        }
-        themeMenu.addItem(.separator())
-        themeMenu.addItem(item("Edit Themes…", #selector(AppDelegate.editThemes(_:)), ""))
+        ThemeMenu.fill(themeMenu)
         viewMenu.addItem(themeParent)
 
         let sizeParent = NSMenuItem(title: "Editor Size", action: nil, keyEquivalent: "")
