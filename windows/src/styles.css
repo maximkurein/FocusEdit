@@ -462,6 +462,11 @@ body {
   text-decoration: underline;
 }
 
+.about-coffee {
+  color: var(--muted);
+  text-decoration: none;
+}
+
 /* --------------------------------------------------------------------- drop */
 
 .drop-overlay {

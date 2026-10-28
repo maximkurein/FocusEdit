@@ -50,6 +50,23 @@ enum SelfTest {
         for t in tokens {
             print("  \(t.role)  \(NSStringFromRange(t.range))  \"\((md as NSString).substring(with: t.range))\"")
         }
+        // Highlighted spans of one role, as text: "a|b" for two spans.
+        func spans(_ text: String, _ role: SyntaxRole) -> String {
+            SyntaxEngine(highlighter: MarkdownHighlighter()).tokens(for: text as NSString)
+                .filter { $0.role == role }
+                .map { (text as NSString).substring(with: $0.range) }
+                .joined(separator: "|")
+        }
+        check("snake_case is not italic", spans("app_keys.json and xui_config.json", .emphasis), "")
+        check("_word_ is italic", spans("an _italic_ word", .emphasis), "_italic_")
+        check("*word* is italic", spans("an *italic* word", .emphasis), "*italic*")
+        check("no italic inside code", spans("`app_*keys*.json` and *real*", .emphasis), "*real*")
+        check("no bold inside code", spans("`**x**` **y**", .strong), "**y**")
+        check("fenced block is code", spans("a\n```bash\nchmod 600 a_b.json c_d.json\n```\nb", .code),
+              "```bash|chmod 600 a_b.json c_d.json|```")
+        check("nothing italic in a fence", spans("```\n*not* _this_\n```\n*yes*", .emphasis), "*yes*")
+        check("tilde fence closes only on tilde", spans("~~~\n```\n*x*\n~~~\n*y*", .emphasis), "*y*")
+
         let fountain = "INT. HOUSE - DAY\nMARY\n(whispering)\nHello there.\nCUT TO:"
         let ft = SyntaxEngine(highlighter: FountainHighlighter()).tokens(for: fountain as NSString)
         print("Fountain tokens: \(ft.count)")

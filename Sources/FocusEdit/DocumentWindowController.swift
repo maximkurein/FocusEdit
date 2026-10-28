@@ -13,6 +13,7 @@ extension NSToolbarItem.Identifier {
     static let open = NSToolbarItem.Identifier("focusedit.open")
     static let save = NSToolbarItem.Identifier("focusedit.save")
     static let saveAs = NSToolbarItem.Identifier("focusedit.saveAs")
+    static let print = NSToolbarItem.Identifier("focusedit.print")
     static let font = NSToolbarItem.Identifier("focusedit.font")
     static let fullScreen = NSToolbarItem.Identifier("focusedit.fullScreen")
 }
@@ -111,8 +112,9 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         self.init(window: window)
         window.delegate = self
 
-        // v6: the column-width button is gone (1.6.9). A saved layout would keep it.
-        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v6")
+        // v6: the column-width button is gone (1.6.9). v7: a Print button (1.6.11).
+        // A saved layout would keep the old set.
+        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v7")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -141,7 +143,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
     // MARK: NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .saveAs, .flexibleSpace,
+        [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .saveAs, .print, .flexibleSpace,
          .focusMode, .typewriter, .sounds, .vim, .theme, .font, .fullScreen,
          .space, .preview, .hints, .outline]
     }
@@ -213,6 +215,9 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         case .saveAs:
             return button(id, "square.and.arrow.down.on.square", "Save As",
                           "Save As… — a new name, folder or format: .txt, .md, .rtf (⇧⌘S)", "saveDocumentAs:")
+        case .print:
+            return button(id, "printer", "Print",
+                          "Print — or save as PDF from the print dialog (⌘P)", "printEditor:")
         default:
             return nil
         }

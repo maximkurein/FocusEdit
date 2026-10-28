@@ -63,6 +63,13 @@ struct SyntaxToken {
 protocol SyntaxHighlighter {
     /// Tokens with ranges relative to the start of `line`.
     func tokens(forLine line: String) -> [SyntaxToken]
+    /// The marker ("`" or "~") when `line` opens or closes a fenced code block.
+    /// The engine keeps the block's state across lines; inside it a line is all code.
+    func fenceMarker(forLine line: String) -> Character?
+}
+
+extension SyntaxHighlighter {
+    func fenceMarker(forLine line: String) -> Character? { nil }
 }
 
 /// Drives a `SyntaxHighlighter` incrementally: it tokenises per paragraph (line)
@@ -78,9 +85,20 @@ final class SyntaxEngine {
 
     func tokens(for text: NSString) -> [SyntaxToken] {
         var out: [SyntaxToken] = []
+        var fence: Character?
         let full = NSRange(location: 0, length: text.length)
         text.enumerateSubstrings(in: full, options: .byParagraphs) { substring, subRange, _, _ in
             guard let line = substring else { return }
+            // A fenced code block: its lines (and the fences) are code, with no inline rules.
+            // Not cached: the same text means something else outside the block.
+            let marker = self.highlighter.fenceMarker(forLine: line)
+            if fence != nil || marker != nil {
+                if let marker {
+                    if fence == nil { fence = marker } else if fence == marker { fence = nil }
+                }
+                if subRange.length > 0 { out.append(SyntaxToken(range: subRange, role: .code)) }
+                return
+            }
             let relative: [SyntaxToken]
             if let cached = self.cache[line] {
                 relative = cached

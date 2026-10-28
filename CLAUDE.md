@@ -22,7 +22,7 @@ build/FocusEdit.app/Contents/MacOS/FocusEdit examples/welcome.md --snapshot out.
 python3 scripts/update_version.py status | bump patch|minor|major | sync X.Y.Z --dry-run
 ```
 
-- There is no XCTest target. Tests are `SelfTest.swift` (groups: syntax, completion, editing, rtf, markdown, palette, session, link paste, outline, live markup, new file, focus unit, vim) — add new checks there via its `check(name, actual, expected)` helper.
+- There is no XCTest target. Tests are `SelfTest.swift` (groups: syntax, completion, editing, rtf, markdown — also preview size and `ReadingLayout` checks, palette, session, link paste, outline, live markup, new file, focus unit, vim) — add new checks there via its `check(name, actual, expected)` helper.
 - Always rebuild with `package.sh`; copying a binary into an existing bundle invalidates the ad-hoc signature and macOS kills the app.
 - Version lives in `Info.plist` (`CFBundleShortVersionString`) and is changed **only** via `scripts/update_version.py` (it also edits README version line, CHANGELOG headings and the Windows version files). `package.sh` refuses to build if versions disagree; `CFBundleVersion` is stamped by `package.sh`, never by hand.
 - `package-lock.json` may be modified locally by `npm`; when committing a version bump, commit only its version lines.
@@ -53,6 +53,9 @@ CI (`.github/workflows/windows.yml`) runs `npm ci`, `npm test`, `tauri build` on
 - Window: `DocumentWindowController` → `MainSplitViewController` hosting `LibraryViewController`, `EditorViewController`, `OutlineViewController`. `EditorViewController` owns theme/size/font/focus-mode state and the writing aids, and forwards edits to outline/preview.
 - Editing surface: `FocusTextView` (focus fade, typewriter scrolling) with `EditorCommands` (formatting, CriticMarkup). Highlighting is split in `SyntaxHighlighter` (semantic `SyntaxRole` tokens via `SyntaxEngine`) with `MarkdownHighlighter` / `FountainHighlighter`; roles are resolved to colours/traits at render time from `Theme`, so theme switches do not retokenise.
 - `CompletionEngine` (grey inline word suggestion), `VimEngine` (pure operator+motion grammar, teaching mode with explanations) driven by `VimController` in the view; `MarkdownToHTML` + `PreviewViewController` (split pane beside the editor) for preview; `Snapshot` for headless rendering; `IconFactory` draws the app icon in code (no PNG assets).
+- Preview: the page is loaded once and only its body is replaced while typing (scroll position kept); text size follows the editor's zoom (`PreviewViewController.fontSize`, no reload). Colours come from a `Theme`'s `pageColors`: the editor's theme, or the preview's own (`Preferences.previewThemeName`, nil = same as editor; Windows `settings.previewTheme`, `"Same"`). Print and exported HTML stay black on white.
+- View modes (`ViewMode`: edit / split / preview, `setView` in `MainSplitViewController`): the toolbar's Edit | Split | Preview group is built by `ViewSwitcher` and set from `setView`, not by validation — `NSToolbarItemGroup`'s initialisers are Objective-C factories that return a plain group, so a subclass's overrides never run. Split holds the editor's share of the width with a constraint (priority 255, just above the panes' holding priority 251) through every layout pass; only a divider drag changes it. `ReadingLayout` (pure numbers: first-Split window width, editor width for a share) and `DocumentAppearanceStore` (per-file view, share and window size in UserDefaults, key `document.appearance.v5` — bump the suffix to drop layouts saved by older builds) live in `ReadingLayout.swift`.
+- Zoom: ⌘+ / ⌘= / ⌘− step by 2 (10–40), ⌘0 resets; ⌘-scroll goes through a local `scrollWheel` monitor in `MainSplitViewController` (covers the web view too).
 - `--snapshot` extras for checking UI headlessly: `--view split|preview`, `--palette QUERY`, `--goal N`, `--library`, `--welcome` and `--start` (both with no file). Snapshots ignore saved window state (argument-domain `ApplePersistenceIgnoreState`), so they never reopen the user's windows.
 - Library sidebar (`LibraryViewController`): one linked folder (`Preferences.libraryPath`) as a lazy `FileNode` tree of document files; reread on every show; a folder dropped on it becomes the library. `--theme`/`--view` values need a file argument, otherwise AppKit takes them for files to open. The glass outline inspector and a dark toolbar don't render off-screen.
 - Live Markdown: `LiveMarkdown` finds elements per line; `FocusTextView` draws hidden marks as `.null` glyphs (`NSLayoutManagerDelegate`) and keeps the hidden index set in step with edits (`NSTextStorageDelegate`) so only changed glyphs are regenerated. `ToolbarSymbol` can draw a word instead of a symbol (`text:Vim`).
@@ -86,6 +89,7 @@ The same behaviour is written twice. Pure logic lives in types that can be teste
 | `NewFile` / `NewFileWizard` | `newfile.ts` / `wizard.ts` | `newfile` / New File |
 | `MarkdownToHTML` | `markdown-html.ts` | `markdown-html` / Markdown |
 | `ViewMode` (in `MainSplitViewController.swift`) | `setView` in `main.ts` | — |
+| `Theme` / `ThemeStore` (+ preview theme, `pageColors`) | `themes.ts`, `settings.ts` | `themes` |
 | `CommandPalette.swift` (`PaletteSearch`; commands in a `MainSplitViewController` extension, shortcuts read from the menus) | `palette.ts`, `allCommands()` in `main.ts` | `palette-session-links` / Palette |
 | `Session` (+ `GoalBar` in the editor) | `session.ts` | same / Session |
 | `LinkPaste` | `links.ts` | same / Link paste |
@@ -93,7 +97,7 @@ The same behaviour is written twice. Pure logic lives in types that can be teste
 | `OutlineExtractor` (in `DocumentKind.swift`) | `outline.ts` | `outline` / Outline |
 | `LiveMarkdown` | `live.ts` | `live` / Live markup |
 
-Known, deliberate differences: the Mac preview shows images (Windows shows the caption); Fountain forced scenes (`.SCENE`) only on the Mac; on the Mac the window's close button closes everything and a Dock click opens a new document.
+Known, deliberate differences: the Mac preview shows images (Windows shows the caption); Fountain forced scenes (`.SCENE`) only on the Mac; on the Mac the window's close button closes everything and a Dock click opens a new document; per-file remembered view and pane sizes (`DocumentAppearanceStore`) only on the Mac.
 
 ## Windows architecture
 

@@ -82,7 +82,12 @@ export function hintSections(kind: DocKind, mod: string): { title: string; rows:
   return sections;
 }
 
-export function appendAbout(container: HTMLElement, version: string, openPage: () => void): void {
+export function appendAbout(
+  container: HTMLElement,
+  version: string,
+  openPage: () => void,
+  openSupport: () => void,
+): void {
   const about = document.createElement("div");
   about.className = "about";
   const title = document.createElement("div");
@@ -95,7 +100,13 @@ export function appendAbout(container: HTMLElement, version: string, openPage: (
   link.className = "about-link";
   link.textContent = "github.com/maximkurein/FocusEdit";
   link.addEventListener("click", openPage);
-  about.append(title, author, link);
+  // Optional and quiet: one line, only here.
+  const coffee = document.createElement("button");
+  coffee.type = "button";
+  coffee.className = "about-link about-coffee";
+  coffee.textContent = "☕ Buy the developer a coffee";
+  coffee.addEventListener("click", openSupport);
+  about.append(title, author, link, document.createElement("br"), coffee);
   container.append(about);
 }
 

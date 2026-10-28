@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [1.6.11] - 2026-10-28
+
+### Added
+- Mac and Windows: a Print button in the toolbar next to Save (⌘P / Ctrl+P); the print dialog also saves as PDF. On the Mac a customised toolbar starts from the default layout once more
+- FocusEdit is open source under the GNU GPL v3.0. The About window (Mac) and the About block in the hints (Windows) have one quiet line for an optional tip
+
+### Changed
+- Mac: the app identifier is now `com.kurein.focusedit`, as on Windows, instead of the `com.example…` placeholder. Settings saved by earlier versions are copied over at the first launch
+
+### Fixed
+- Mac: underscores inside words (`app_keys.json`, `snake_case`) no longer turn the text between them italic, nothing is styled inside `` `code` ``, and the lines of a fenced code block are shown as code without emphasis
+
 ## [1.6.10] - 2026-10-28
 
 ### Changed

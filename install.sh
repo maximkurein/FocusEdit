@@ -38,7 +38,9 @@ running() { /bin/ps -ax -o command= | grep -q "^$app/Contents/MacOS/FocusEdit"; 
 
 if running; then
   # A document with unsaved changes asks whether to save; answer it, then run install.sh again.
-  osascript -e 'tell application id "com.example.focusedit" to quit' >/dev/null 2>&1 || true
+  # The running copy's own identifier: builds up to 1.6.10 were com.example.focusedit.
+  running_id=$(plist CFBundleIdentifier "$app" 2>/dev/null || echo com.kurein.focusedit)
+  osascript -e "tell application id \"$running_id\" to quit" >/dev/null 2>&1 || true
   for _ in $(seq 1 40); do running || break; sleep 0.25; done
   running && fail "FocusEdit is still running; quit it (save your documents) and try again"
 fi

@@ -4,7 +4,7 @@
 
 Связано: [START_HERE.md](START_HERE.md) · [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) · [implementation-plan.md](../implementation-plan.md) · [00-recon.md](../00-recon.md)
 
-FocusEdit — минималистичный macOS-редактор (Swift + AppKit + TextKit 1), прототип, воссозданный по статической разведке uFocus. Собирается через SwiftPM; `.app`-бандл собирается скриптом поверх `swift build`.
+FocusEdit — минималистичный macOS-редактор (Swift + AppKit + TextKit 1), прототип; вдохновлён редакторами без отвлечений вроде uFocus, написан с нуля. Собирается через SwiftPM; `.app`-бандл собирается скриптом поверх `swift build`.
 
 ## Что получается
 
@@ -46,7 +46,7 @@ FocusEdit/
 ## Шаг 1. Собрать
 
 ```bash
-cd /Users/olgazaharova/Project/rea-lab/work/uFocus/FocusEdit
+cd FocusEdit            # каталог, куда вы клонировали репозиторий
 ./package.sh            # → build/FocusEdit.app и build/FocusEdit-X.Y.Z.dmg
 ./package.sh --no-dmg   # только приложение — быстрее, пока идёт разработка
 ./package.sh --open     # ещё и открыть DMG в Finder
@@ -101,7 +101,7 @@ build/FocusEdit.app/Contents/MacOS/FocusEdit "$PWD/examples/welcome.md"
 pkill -f FocusEdit
 ```
 
-> **Почему не `open`.** В этой лаборатории `open` и запись в глобальные конфиги запрещены правилами проекта (`.claude/settings.json`, `CLAUDE.md`), поэтому бандл запускается напрямую. Вне лаборатории `open build/FocusEdit.app` тоже работает.
+> Обычный способ — `open build/FocusEdit.app` или двойной щелчок в Finder; вызов внутреннего бинаря удобен, когда нужно видеть вывод в терминале.
 
 Команды проекта с относительными путями (`./package.sh`, `build/...`) работают только из каталога проекта — сначала `cd` в него либо используйте абсолютные пути.
 
@@ -147,7 +147,7 @@ python3 scripts/update_version.py status
 ```bash
 TMP="$(mktemp -d)/AppIcon.iconset"; mkdir -p "$TMP"
 .build/debug/FocusEdit --makeicon "$TMP"
-open "$TMP/icon_256x256.png"   # вне лаборатории
+open "$TMP/icon_256x256.png"
 ```
 
 После правки рисунка просто пересоберите `./package.sh`.
@@ -158,7 +158,7 @@ open "$TMP/icon_256x256.png"   # вне лаборатории
 
 ```bash
 cd windows
-npm install                 # один раз; в лаборатории запускает пользователь (npm install здесь запрещён агенту)
+npm install                 # один раз
 npm test                    # проверки логики
 npm run build               # типы + сборка интерфейса
 npm run tauri -- build --bundles app   # на macOS: проверить, что Rust-часть собирается
@@ -170,11 +170,11 @@ npm run tauri -- build --bundles app   # на macOS: проверить, что 
 
 ## Частые проблемы
 
-**`no such file or directory: ./package.sh`** — вы не в каталоге проекта. Сделайте `cd` в `…/work/uFocus/FocusEdit` или запускайте по абсолютному пути.
+**`no such file or directory: ./package.sh`** — вы не в каталоге проекта. Сделайте `cd` в каталог репозитория или запускайте по абсолютному пути.
 
 **`sandbox-exec: sandbox_apply: Operation not permitted` / недоступен кэш SwiftPM** — песочница мешает `swift build`. В Claude Code это снимается разрешением на команду; вне — запускайте сборку в обычной оболочке. Управление песочницей — `/sandbox`.
 
-**Окно не появляется, только иконка в Dock** — исправлено: после назначения `contentViewController` окну явно задаётся размер и центрирование (иначе оно схлопывалось до полоски заголовка, и это запоминалось в настройках). Если всплывёт старый кривой frame: `defaults delete com.example.focusedit`.
+**Окно не появляется, только иконка в Dock** — исправлено: после назначения `contentViewController` окну явно задаётся размер и центрирование (иначе оно схлопывалось до полоски заголовка, и это запоминалось в настройках). Если всплывёт старый кривой frame: `defaults delete com.kurein.focusedit`.
 
 **Приложение сразу падает: `SIGKILL (Code Signature Invalid)`, `Taskgated Invalid Signature`** — исполняемый файл внутри бандла перезаписали на месте (например, `cp .build/debug/FocusEdit build/FocusEdit.app/Contents/MacOS/`). macOS кэширует проверку подписи файла, и подменённый Mach-O ядро убивает при запуске. Не копируйте бинарь в бандл руками — пересоберите `./package.sh`: он удаляет бандл целиком, собирает и подписывает заново.
 
@@ -215,7 +215,7 @@ killall Dock
 
 ```bash
 # Запуск сессии в папке проекта
-cd /Users/olgazaharova/Project/rea-lab/work/uFocus/FocusEdit && claude
+cd FocusEdit && claude
 
 # Продолжить последнюю сессию с полным контекстом
 claude --continue
@@ -226,8 +226,6 @@ claude --resume
 # Запуск с явным указанием модели
 claude --model claude-opus-5-5
 ```
-
-> Сессия, запущенная в `work/uFocus/FocusEdit`, не подхватит `.mcp.json` лаборатории — инструменты REA будут недоступны. Для реверса запускайте `claude` из корня `rea-lab`.
 
 ### 3. Контроль сборки и процессов
 

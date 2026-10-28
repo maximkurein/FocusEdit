@@ -1,28 +1,78 @@
-# FocusEdit
+<p align="center">
+  <img src="docs/images/icon.png" width="112" alt="FocusEdit icon">
+</p>
 
-FocusEdit is a minimalist macOS text editor for distraction-free writing. It fades everything you are not working on, and saves plain text files: Markdown, Fountain screenplays or ordinary text. An experimental Windows version lives in [`windows/`](windows/) — see [Windows (experimental)](#windows-experimental).
-
-**Version:** `1.6.10`, released 28.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+<h1 align="center">FocusEdit</h1>
 
 <p align="center">
-  <img src="docs/images/window-light.png" width="760" alt="FocusEdit editing a Markdown document: a toolbar with focus, typewriter, sound, theme, preview, hints and outline buttons, the word count under the title, faded paragraphs around the active list item, and a grey suggestion completing the word Markdown">
+  <b>A calm, minimalist editor for distraction-free writing.</b><br>
+  It fades everything you are not working on — and saves plain text: Markdown, Fountain or ordinary <code>.txt</code>.
 </p>
+
+<p align="center">
+  <a href="https://github.com/maximkurein/FocusEdit/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/maximkurein/FocusEdit?label=release&color=3399d9"></a>
+  <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-111?logo=apple&logoColor=white">
+  <img alt="Windows (experimental)" src="https://img.shields.io/badge/Windows-experimental-0078D4?logo=windows&logoColor=white">
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue"></a>
+  <a href="https://github.com/maximkurein/FocusEdit/actions/workflows/windows.yml"><img alt="Windows build" src="https://github.com/maximkurein/FocusEdit/actions/workflows/windows.yml/badge.svg"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/maximkurein/FocusEdit/releases/latest"><b>Download</b></a> ·
+  <a href="#highlights">Highlights</a> ·
+  <a href="#shortcuts">Shortcuts</a> ·
+  <a href="#build-and-run">Build</a> ·
+  <a href="#windows-experimental">Windows</a> ·
+  <a href="#support">☕ Support</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/split.png" width="880" alt="FocusEdit in Split view: the Markdown source in the Sepia theme on the left, its live preview in the PowerShell theme in the middle with a rendered table and task list, and the outline of headings on the right">
+</p>
+
+**Version:** `1.6.11`, released 28.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+
+## Highlights
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/editor-dark.png" alt="The same document in the dark theme"></td>
-    <td width="50%">
-      <b>Dark, Light and Sepia themes</b>, or your own.<br><br>
-      Formatting stays visible in faded paragraphs: bold, italic and code keep their style while the color steps back.
-    </td>
+    <td width="33%" valign="top"><b>🎯 Focus</b><br>Only the current sentence or paragraph stays bright; the rest steps back. Typewriter scrolling keeps your line in the middle.</td>
+    <td width="33%" valign="top"><b>✍️ Plain text, styled</b><br>Live Markdown hides the marks away from the cursor. Fountain screenplays are highlighted too. The file stays clean text.</td>
+    <td width="33%" valign="top"><b>👀 Edit · Split · Preview</b><br>A live preview beside the text with its own theme, scrolling together with it. Export to HTML or PDF.</td>
+  </tr>
+  <tr>
+    <td valign="top"><b>💡 Writing aids</b><br>A quiet grey word suggestion, auto-closing pairs, list continuation, paste a URL over text to make a link.</td>
+    <td valign="top"><b>⌨️ Learn Vim</b><br>A Vim mode with a coach that explains every command — in English and in the Russian layout.</td>
+    <td valign="top"><b>🎨 Themes</b><br>System, Light, Dark, Sepia, PowerShell or your own. Zoom with ⌘+/⌘− or ⌘-scroll; the preview follows.</td>
   </tr>
 </table>
 
-<sub>Screenshots come from <code>FocusEdit examples/welcome.md --snapshot</code>; see <a href="#command-line">Command line</a>.</sub>
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/editor-sepia.png" alt="The editor alone in the Sepia theme: a reading column of Markdown with headings, a list, a quote, a table and a task list, and the outline on the right"></td>
+    <td width="50%"><img src="docs/images/windows-light.png" alt="The Windows version in the light theme"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>macOS · Sepia, editor and outline</sub></td>
+    <td align="center"><sub>Windows · Light</sub></td>
+  </tr>
+</table>
+
+## Download
+
+| Platform | Get it | Notes |
+|---|---|---|
+| **macOS 13+** (Apple Silicon and Intel) | `FocusEdit-<version>.dmg` from [Releases](https://github.com/maximkurein/FocusEdit/releases/latest) | Open the DMG and drag FocusEdit into Applications. The build is not notarized: the first time, choose **System Settings → Privacy & Security → Open Anyway**. |
+| **Windows 10/11** (experimental) | the `.exe` installer from [Releases](https://github.com/maximkurein/FocusEdit/releases/latest), or the latest **FocusEdit-windows** artifact in [Actions](https://github.com/maximkurein/FocusEdit/actions/workflows/windows.yml) | A separate app built with Tauri; see [Windows (experimental)](#windows-experimental). |
+
+Or build it yourself: [Build and run](#build-and-run).
 
 > **Status: prototype.** Everything listed below works. Not yet done: iCloud sync and version conflicts, a Quick Look extension, screenplay page layout for Fountain PDF export, and a signed, notarized build.
 
-## What it does
+## Everything it does
+
+<details>
+<summary>The full feature list</summary>
 
 - **Focus** — highlight only the current sentence or paragraph (the text up to the blank lines; a heading or a list item counts as its own block), with a short fade as you move; the typewriter button keeps the active line at the centre of the window and starts off, so a file opens at the top; optional typewriter sounds; full screen hides the toolbar and the menu bar.
 - **Writing aids** — a grey suggestion completes the word you are typing from words already in the document, then from the system dictionary (English and Russian); brackets and quotes close themselves and wrap a selection; pasting a web address over selected text makes a Markdown link `[text](address)`; Return continues Markdown lists, task lists and quotes. In Fountain, scene headings and character names you have used are suggested.
@@ -37,6 +87,8 @@ FocusEdit is a minimalist macOS text editor for distraction-free writing. It fad
 - **Themes and type** — System (follows the macOS light or dark appearance as it changes), Light, Dark, Sepia, PowerShell (the PowerShell 7 console: navy and light gray) and custom themes. The preview follows the editor until View ▸ Theme ▸ Preview gives it its own theme; that choice is remembered. System, monospaced or serif font. In the editor alone the text sits in a reading column; beside the preview it uses the pane, and the divider sets the width.
 - **Command palette** — `⇧⌘P`: type a few letters of what you want to do (a theme, a view, export, a recent file…) and press Return; a number sets a word goal or jumps to that line.
 - **Help where you are** — every toolbar button has a tooltip with its shortcut, ⌘? opens a cheat sheet for the current document type, and the first start opens a welcome tour that teaches by being edited (Help ▸ Welcome Tour shows it again).
+
+</details>
 
 ## Shortcuts
 
@@ -124,14 +176,31 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
 - [VIM_GUIDE.md](VIM_GUIDE.md) — learning Vim with FocusEdit's Vim mode: lessons, exercises, moving on to NeoVim (in Russian)
 - [START_HERE.md](START_HERE.md) — how to work in the app: focus modes, writing aids, Markdown and Fountain, shortcuts (in Russian)
 - [windows/BUILD.md](windows/BUILD.md) — the experimental Windows version: what is ported and how to build it (in Russian)
-- [PROMT_MAC.md](PROMT_MAC.md) — a task for Claude Code on a Mac: what to check and what to port from the Windows version (in Russian)
 - [BUILD.md](BUILD.md) — how to build, run and check (in Russian)
 - [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) — how versions are changed and kept in sync (in Russian)
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version
-- [implementation-plan.md](../implementation-plan.md) — milestones M0–M6 (in Russian)
 
-FocusEdit is an independent implementation written from scratch. Its feature set was modelled on uFocus, studied through static analysis of the shipped app bundle; no code, icons, sounds or other assets were copied, and the project is not affiliated with its authors.
+Inspired by distraction-free editors such as uFocus. FocusEdit is written from scratch and is not affiliated with their authors.
+
+<a id="support"></a>
+## ☕ Support
+
+FocusEdit is free and stays free. If it helps you write and you feel like buying the developer a coffee, a small tip in **TON** or **USDT (on the TON network)** is very welcome — and entirely optional.
+
+<table>
+  <tr>
+    <td><img src="docs/images/support-ton-qr.png" width="168" alt="QR code with the TON address below"></td>
+    <td valign="middle">
+      Scan with Telegram Wallet, Tonkeeper or any TON wallet,<br>
+      or copy the address:<br><br>
+      <code>UQC5_oQMKNNQHh3gVBjYQj_390odIpANJQVAxf6v-fl7w2oj</code><br><br>
+      <sub>TON network only — please do not send coins from other networks (TRON, Ethereum…) to this address.</sub>
+    </td>
+  </tr>
+</table>
+
+A ⭐ star, a bug report or an idea in [Issues](https://github.com/maximkurein/FocusEdit/issues) helps just as much.
 
 ## License
 
-No license has been chosen yet.
+FocusEdit is free software, released under the [GNU General Public License v3.0](LICENSE). Copyright © 2026 Maxim Kurein.

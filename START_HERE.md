@@ -11,7 +11,7 @@ FocusEdit ставится в «Программы» и запускается �
 Установить или обновить после изменений в коде:
 
 ```bash
-cd ~/Project/rea-lab/work/uFocus/FocusEdit
+cd FocusEdit   # каталог репозитория
 ./package.sh && ./install.sh
 ```
 
@@ -195,7 +195,7 @@ cd ~/Project/rea-lab/work/uFocus/FocusEdit
 
 **Accept/Reject изменил весь документ** — ничего не было выделено. **⌘Z** отменяет.
 
-**Окно не появилось, только иконка в Dock** — кликните иконку. Если не помогает: `defaults delete com.example.focusedit` (сбросит и настройки) и запустите снова.
+**Окно не появилось, только иконка в Dock** — кликните иконку. Если не помогает: `defaults delete com.kurein.focusedit` (сбросит и настройки) и запустите снова.
 
 **Приложение сразу закрывается, в отчёте `Code Signature Invalid`** — бандл испорчен ручным копированием бинаря. Пересоберите: `./package.sh`.
 

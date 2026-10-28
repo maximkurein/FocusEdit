@@ -26,6 +26,18 @@ enum FontKind: Int, CaseIterable {
 enum Preferences {
     private static let d = UserDefaults.standard
 
+    /// Up to 1.6.10 the app was `com.example.focusedit`. The first launch under the new
+    /// identifier copies those settings (themes, sizes, remembered layouts) once;
+    /// the old domain is left as it was, so going back to an old build still works.
+    static let previousBundleIdentifier = "com.example.focusedit"
+
+    static func migrateFromPreviousBundleIdentifier() {
+        guard let current = Bundle.main.bundleIdentifier, current != previousBundleIdentifier,
+              d.persistentDomain(forName: current)?.isEmpty ?? true,
+              let old = d.persistentDomain(forName: previousBundleIdentifier), !old.isEmpty else { return }
+        d.setPersistentDomain(old, forName: current)
+    }
+
     enum Key {
         static let theme = "theme.name"
         static let previewTheme = "theme.preview"

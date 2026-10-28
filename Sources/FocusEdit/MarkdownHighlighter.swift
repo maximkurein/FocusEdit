@@ -6,9 +6,12 @@ struct MarkdownHighlighter: SyntaxHighlighter {
     private static let heading  = RegexUtil.regex(#"^\s{0,3}#{1,6}\s.*$"#)
     private static let quote    = RegexUtil.regex(#"^\s{0,3}>.*$"#)
     private static let listMark = RegexUtil.regex(#"^(\s*)([-+*]|\d+\.)(\s)"#)
-    private static let strong   = RegexUtil.regex(#"(\*\*|__)(?=\S)(.+?)(?<=\S)\1"#)
-    private static let emphasis = RegexUtil.regex(#"(?<![\*_])([\*_])(?=\S)([^\*_]+?)(?<=\S)\1(?![\*_])"#)
-    private static let code     = RegexUtil.regex(#"`[^`]+`"#)
+    // Emphasis follows `LiveMarkdown` (and CommonMark): `_` inside a word is not emphasis,
+    // so `app_keys.json` and `snake_case` stay plain.
+    private static let strong   = RegexUtil.regex(#"(?<![*_\\])(\*\*|__)(?=\S)(.+?)(?<=\S)\1"#)
+    private static let emStar   = RegexUtil.regex(#"(?<![*\w\\])\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?![*\w])"#)
+    private static let emUnder  = RegexUtil.regex(#"(?<![_\w\\])_(?=[^\s_])(.+?)(?<=[^\s_])_(?![_\w])"#)
+    private static let code     = RegexUtil.regex(#"(`+)(?:.+?)(?<!`)\1(?!`)"#)
     private static let link     = RegexUtil.regex(#"\[[^\]]+\]\([^)]+\)"#)
     // CriticMarkup
     private static let cmAdd    = RegexUtil.regex(#"\{\+\+.+?\+\+\}"#)
@@ -30,18 +33,25 @@ struct MarkdownHighlighter: SyntaxHighlighter {
             tokens.append(SyntaxToken(range: m.range(at: 2), role: .listMarker))
         }
 
-        // Inline spans (applied on top; fonts combine, colors layer)
-        for m in RegexUtil.matches(Self.code, in: line) {
-            tokens.append(SyntaxToken(range: m.range, role: .code))
+        // Inline spans (applied on top; fonts combine, colors layer).
+        // Code spans come first: nothing else is highlighted inside them.
+        let codeSpans = RegexUtil.matches(Self.code, in: line).map(\.range)
+        func outsideCode(_ r: NSRange) -> Bool {
+            !codeSpans.contains { NSIntersectionRange($0, r).length > 0 }
         }
-        for m in RegexUtil.matches(Self.link, in: line) {
+        for r in codeSpans {
+            tokens.append(SyntaxToken(range: r, role: .code))
+        }
+        for m in RegexUtil.matches(Self.link, in: line) where outsideCode(m.range) {
             tokens.append(SyntaxToken(range: m.range, role: .link))
         }
-        for m in RegexUtil.matches(Self.strong, in: line) {
+        for m in RegexUtil.matches(Self.strong, in: line) where outsideCode(m.range) {
             tokens.append(SyntaxToken(range: m.range, role: .strong))
         }
-        for m in RegexUtil.matches(Self.emphasis, in: line) {
-            tokens.append(SyntaxToken(range: m.range, role: .emphasis))
+        for re in [Self.emStar, Self.emUnder] {
+            for m in RegexUtil.matches(re, in: line) where outsideCode(m.range) {
+                tokens.append(SyntaxToken(range: m.range, role: .emphasis))
+            }
         }
         for m in RegexUtil.matches(Self.cmAdd, in: line) {
             tokens.append(SyntaxToken(range: m.range, role: .cmAddition))
@@ -59,5 +69,9 @@ struct MarkdownHighlighter: SyntaxHighlighter {
             tokens.append(SyntaxToken(range: m.range, role: .cmComment))
         }
         return tokens
+    }
+
+    func fenceMarker(forLine line: String) -> Character? {
+        LiveMarkdown.fenceMarker(line)
     }
 }

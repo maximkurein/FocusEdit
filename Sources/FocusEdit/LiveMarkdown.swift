@@ -157,7 +157,8 @@ final class LiveMarkdown {
     // MARK: Blocks
 
     /// "`" or "~" for a fence line (three or more, up to three spaces in).
-    private static func fenceMarker(_ line: String) -> Character? {
+    /// Also used by `MarkdownHighlighter`, so both agree on where code blocks are.
+    static func fenceMarker(_ line: String) -> Character? {
         let t = line.drop(while: { $0 == " " })
         guard line.count - t.count <= 3, let c = t.first, c == "`" || c == "~",
               t.prefix(while: { $0 == c }).count >= 3 else { return nil }

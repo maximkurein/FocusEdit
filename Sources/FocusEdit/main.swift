@@ -161,6 +161,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var link = base
         link[.link] = URL(string: "https://github.com/maximkurein/FocusEdit")
         credits.append(NSAttributedString(string: "github.com/maximkurein/FocusEdit", attributes: link))
+        // Optional and quiet: one line, only here.
+        var coffee = base
+        coffee[.foregroundColor] = NSColor.secondaryLabelColor
+        coffee[.link] = URL(string: "https://github.com/maximkurein/FocusEdit#support")
+        credits.append(NSAttributedString(string: "\n☕ Buy the developer a coffee", attributes: coffee))
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
@@ -463,6 +468,9 @@ enum MenuBuilder {
         return it
     }
 }
+
+// Settings saved under the old bundle identifier come along once (not for snapshots).
+if !Snapshot.isActive { Preferences.migrateFromPreviousBundleIdentifier() }
 
 // A snapshot must not reopen (and then close) the user's restored windows and autosaves:
 // ignore saved state for this launch only (argument domain, never written to disk).

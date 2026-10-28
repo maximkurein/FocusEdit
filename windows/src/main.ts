@@ -446,7 +446,12 @@ function openFileMenu(): void {
 
 function renderHelp(): void {
   renderHints(hintsEl, doc.kind, mod);
-  appendAbout(hintsEl, __APP_VERSION__, () => void platform.openUrl(PROJECT_URL));
+  appendAbout(
+    hintsEl,
+    __APP_VERSION__,
+    () => void platform.openUrl(PROJECT_URL),
+    () => void platform.openUrl(`${PROJECT_URL}#support`),
+  );
 }
 
 function toggleHints(show = hintsEl.hidden): void {
@@ -674,6 +679,7 @@ const actions: Record<string, () => void> = {
   "btn-new": () => void newFile(),
   "btn-open": () => void openDocument(),
   "btn-save": () => void save(),
+  "btn-print": printDocument,
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
   "btn-file": openFileMenu,
   "btn-outline": () => changeSettings(() => (settings.outline = !settings.outline)),
