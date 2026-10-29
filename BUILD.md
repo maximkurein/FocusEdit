@@ -156,15 +156,38 @@ open "$TMP/icon_256x256.png"
 
 В папке `windows/` есть экспериментальная Windows-версия. Это отдельное приложение на Tauri 2 (Rust) и CodeMirror 6 (TypeScript): AppKit под Windows нет, поэтому интерфейс написан заново, а логика (фокус, печатная машинка, подсказки, автоскобки, списки, Vim-режим) перенесена из Swift; превью, outline, недавние файлы, экспорт и восстановление после сбоя написаны заново. Подробно — [windows/BUILD.md](windows/BUILD.md).
 
-```bash
-cd windows
-npm install                 # один раз
-npm test                    # проверки логики
-npm run build               # типы + сборка интерфейса
-npm run tauri -- build --bundles app   # на macOS: проверить, что Rust-часть собирается
+### Собрать установщик `.exe` на Windows
+
+Нужны: Node.js 22+, Rust (stable, `rustup` с профилем MSVC) и Microsoft C++ Build Tools (компонент «Разработка классических приложений на C++»). WebView2 в Windows 11 уже есть.
+
+```powershell
+cd C:\Project\FocusEdit\windows
+npm install        # один раз
+npm test           # проверки логики
+npm run tauri -- build
 ```
 
-Установщик `.exe` (NSIS) собирает GitHub Actions на Windows при пуше в `main`, затрагивающем `windows/` (`.github/workflows/windows.yml`): **Actions** → последний запуск → артефакт **FocusEdit-windows**. На Mac их не собрать.
+Двойное `--` обязательно: без него флаги уйдут в npm, а не в `tauri`. Готовый установщик (NSIS):
+
+```
+windows\src-tauri\target\release\bundle\nsis\FocusEdit_<версия>_x64-setup.exe
+```
+
+Первая сборка долгая (несколько минут: компилируются все Rust-пакеты), следующие быстрее.
+
+### Собрать через GitHub Actions
+
+Ничего ставить не нужно: после `git push origin main` с изменениями в `windows/` workflow `.github/workflows/windows.yml` сам соберёт установщик. Скачать: вкладка **Actions** → последний запуск → артефакт **FocusEdit-windows** (`.exe`). Запустить вручную можно кнопкой **Run workflow**.
+
+### Проверка и разработка
+
+```bash
+cd windows
+npm run build          # типы + сборка интерфейса в dist/
+npm run tauri -- dev   # приложение в режиме разработки
+```
+
+На Mac установщик Windows не собрать. `npm run tauri -- build --bundles app` там лишь проверяет, что Rust-часть компилируется. Подробнее о стеке — [windows/STACK_INSTALL.md](windows/STACK_INSTALL.md).
 
 Версия у Windows-порта общая с macOS: `update_version.py` меняет и `windows/package.json`, `package-lock.json`, `tauri.conf.json`, `Cargo.toml`, `Cargo.lock`.
 
