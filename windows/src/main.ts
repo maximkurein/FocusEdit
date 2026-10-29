@@ -15,6 +15,7 @@ import { fileContents, fileName, freeName, isoDate, joinPath, startingText } fro
 import { type Command, filterCommands, Palette } from "./palette";
 import { extractHeadings, OutlinePanel } from "./outline";
 import { describeLost } from "./rtf";
+import { type Appearance, clampShare, DEFAULT_SHARE, loadAppearance, saveAppearance } from "./appearance";
 import { addRecent, folderOf, loadRecent, removeRecent, saveRecent } from "./recent";
 import { countWords, formatDuration, Session } from "./session";
 import type { VimAction } from "./vim";
@@ -30,6 +31,7 @@ import {
   next,
   saveSettings,
   sizes,
+  type ThemeName,
   themeNames,
 } from "./settings";
 import { applyPreviewTheme, applyTheme } from "./themes";
@@ -51,6 +53,7 @@ interface DocState {
 type ViewMode = "edit" | "split" | "preview";
 const viewModes: ViewMode[] = ["edit", "split", "preview"];
 let view: ViewMode = "edit";
+let share = DEFAULT_SHARE;
 
 const doc: DocState = { path: null, name: "Untitled", kind: "plain", dirty: false, bom: false };
 
@@ -215,6 +218,7 @@ function load(text: string, path: string | null, name: string, keepDraft = false
   updateStats(editor.view.state.doc);
   session.reset(wordCount);
   renderHelp();
+  if (path) restoreAppearance(path);
   applyView();
   refreshOutline(1);
   if (!keepDraft) dropDraft();
@@ -319,6 +323,7 @@ async function saveAs(): Promise<void> {
   }
   if (!(await platform.writeFile(path, contents()))) return;
   doc.path = path;
+  rememberAppearance();
   doc.name = platform.baseName(path);
   // Untitled → notes.md switches highlighting and list continuation at once.
   doc.kind = kindForPath(path);
@@ -412,6 +417,21 @@ async function copyHtml(): Promise<void> {
 
 function printDocument(): void {
   printMarkdown($("print-root"), editor.text);
+}
+
+/** The preview's own colour scheme: "Same" follows the editor. */
+function openPreviewThemeMenu(): void {
+  if (closeMenu()) return;
+  const choices: (ThemeName | "Same")[] = ["Same", ...themeNames];
+  const items: MenuItem[] = [{ label: "Preview theme", heading: true }];
+  for (const choice of choices) {
+    items.push({
+      label: choice === "Same" ? "Same as editor" : choice,
+      detail: settings.previewTheme === choice ? "✓" : "",
+      run: () => changeSettings(() => (settings.previewTheme = choice)),
+    });
+  }
+  showMenu($("btn-preview-theme"), items);
 }
 
 function openFileMenu(): void {
@@ -517,9 +537,33 @@ function moveCaretTo(ratio: number): void {
   });
 }
 
+/** Remember this file's view, outline and pane split for the next time it opens. */
+function rememberAppearance(): void {
+  if (doc.path) saveAppearance(doc.path, { view, outline: settings.outline, share });
+}
+
+function setShare(value: number, persist = true): void {
+  share = clampShare(value);
+  document.documentElement.style.setProperty("--share", String(share));
+  if (persist) rememberAppearance();
+}
+
+/** A file that was opened before comes back as it was left; a new one starts in Edit with equal panes. */
+function restoreAppearance(path: string): void {
+  const look: Appearance = loadAppearance(path) ?? { view: "edit", outline: settings.outline, share: DEFAULT_SHARE };
+  view = look.view;
+  setShare(look.share, false);
+  if (settings.outline !== look.outline) {
+    settings.outline = look.outline;
+    saveSettings(settings);
+    applyAppearance();
+  }
+}
+
 function applyView(): void {
   if (!previewable()) view = "edit";
   document.body.dataset.view = view;
+  $("splitter").hidden = view !== "split";
   previewEl.hidden = view === "edit";
   for (const button of viewButtons) {
     button.classList.toggle("on", button.dataset.view === view);
@@ -533,6 +577,7 @@ function setView(mode: ViewMode): void {
   const readingAt = view === "preview" ? scrollRatio(previewEl) : null;
   view = mode;
   applyView();
+  rememberAppearance();
   syncPreviewScroll(mode === "preview");
   if (mode === "preview") {
     previewEl.focus();
@@ -541,6 +586,30 @@ function setView(mode: ViewMode): void {
   if (readingAt !== null) moveCaretTo(readingAt);
   editor.focusEditor();
 }
+
+// Drag the divider between the editor and the preview; a double-click makes the panes equal.
+const splitter = $("splitter");
+splitter.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  splitter.setPointerCapture(e.pointerId);
+  document.body.classList.add("resizing");
+  const move = (ev: PointerEvent) => {
+    const left = $("editor").getBoundingClientRect();
+    const right = previewEl.getBoundingClientRect();
+    setShare((ev.clientX - left.left) / (right.right - left.left), false);
+  };
+  const stop = () => {
+    splitter.removeEventListener("pointermove", move);
+    splitter.removeEventListener("pointerup", stop);
+    splitter.removeEventListener("pointercancel", stop);
+    document.body.classList.remove("resizing");
+    rememberAppearance();
+  };
+  splitter.addEventListener("pointermove", move);
+  splitter.addEventListener("pointerup", stop);
+  splitter.addEventListener("pointercancel", stop);
+});
+splitter.addEventListener("dblclick", () => setShare(DEFAULT_SHARE));
 
 editor.view.scrollDOM.addEventListener("scroll", () => {
   if (view === "split" && performance.now() >= quiet.editor) syncPreviewScroll();
@@ -646,8 +715,8 @@ function allCommands(): Command[] {
     })),
     ...sizes.map((size): Command => ({ title: `Column width: ${size}`, run: () => changeSettings(() => (settings.size = size)) })),
     ...fonts.map((font): Command => ({ title: `Font: ${font[0].toUpperCase()}${font.slice(1)}`, run: () => changeSettings(() => (settings.font = font)) })),
-    { title: "Text size: larger", shortcut: key("+"), run: () => setFontSize(1) },
-    { title: "Text size: smaller", shortcut: key("−"), run: () => setFontSize(-1) },
+    { title: "Text size: larger", shortcut: key("+"), run: () => setFontSize(2) },
+    { title: "Text size: smaller", shortcut: key("−"), run: () => setFontSize(-2) },
     { title: "Full screen", shortcut: platform.isMac ? "⌃⌘F" : "F11", run: () => void platform.toggleFullscreen() },
     {
       title: settings.liveMarkdown ? "Markup: always show the marks" : "Markup: hide the marks away from the cursor",
@@ -699,7 +768,11 @@ const actions: Record<string, () => void> = {
   "btn-print": printDocument,
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
   "btn-file": openFileMenu,
-  "btn-outline": () => changeSettings(() => (settings.outline = !settings.outline)),
+  "btn-preview-theme": openPreviewThemeMenu,
+  "btn-outline": () => {
+    changeSettings(() => (settings.outline = !settings.outline));
+    rememberAppearance();
+  },
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
   "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
   "btn-theme": () => changeSettings(() => (settings.theme = next(themeNames, settings.theme))),
@@ -718,7 +791,7 @@ for (const [id, run] of Object.entries(actions)) {
   const button = $(id);
   button.addEventListener("click", () => {
     run();
-    if (id !== "btn-hints" && id !== "btn-file") editor.focusEditor();
+    if (id !== "btn-hints" && id !== "btn-file" && id !== "btn-preview-theme") editor.focusEditor();
   });
   // Show the platform's modifier in tooltips (⌘ on macOS test builds).
   button.title = button.title.replaceAll("Ctrl+", mod);
@@ -820,19 +893,9 @@ async function start(): Promise<void> {
   dropDraft();
   const startup = await platform.startupFile();
   if (startup) return openPath(startup);
-  const last = platform.isTauri ? loadRecent()[0] : undefined;
-  let opened = false;
-  if (last) {
-    try {
-      const file = await platform.readFile(last.path);
-      loadFile(file);
-      opened = true;
-    } catch {
-      removeRecent(last.path); // gone since last time: start with an empty document
-    }
-  }
+  // No file given: the start screen (New / Open / Recent) instead of silently reopening the last document.
   // The very first start: a document that teaches by being edited.
-  if (!opened && !wasWelcomed()) load(welcomeText(mod), null, "Welcome.md");
+  if (!wasWelcomed()) load(welcomeText(mod), null, "Welcome.md");
   markWelcomed();
 }
 void start();

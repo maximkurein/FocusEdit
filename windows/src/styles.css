@@ -515,8 +515,10 @@ body[data-view="preview"] .vim-coach {
 .preview {
   flex: 1;
   min-width: 0;
+  box-sizing: border-box;
   overflow: auto;
-  padding: 40px 32px 64px;
+  /* No side padding on the box itself: it would widen the preview beyond its share of Split. */
+  padding: 40px 0 64px;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--editor-font);
@@ -529,8 +531,48 @@ body[data-view="split"] .preview {
   border-left: 1px solid var(--border);
 }
 
+/* Split: the panes share the width by --share (0.5 = equal); padding no longer widens the preview. */
+body[data-view="split"] #editor {
+  flex: var(--share, 0.5) 1 0;
+}
+
+body[data-view="split"] .preview {
+  flex: calc(1 - var(--share, 0.5)) 1 0;
+}
+
+/* A zero-width divider with a wider invisible grip, so it does not shift the 50/50 split. */
+.splitter {
+  position: relative;
+  z-index: 5;
+  flex: none;
+  width: 0;
+  cursor: col-resize;
+}
+
+.splitter::before {
+  content: "";
+  position: absolute;
+  inset: 0 -5px;
+}
+
+.splitter:hover::before,
+body.resizing .splitter::before {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  inset: 0 -1px;
+}
+
+.splitter[hidden] {
+  display: none;
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 /* The reading column, centred like the editor's. */
 .preview > * {
+  width: calc(100% - 64px);
   max-width: var(--column);
   margin-left: auto;
   margin-right: auto;
@@ -655,7 +697,9 @@ body[data-view="split"] .preview {
 
 /* A table is as wide as its content: start it at the column's left edge instead of centring it. */
 .preview > table {
-  margin-left: max(0px, calc((100% - var(--column)) / 2));
+  width: auto;
+  max-width: calc(100% - 64px);
+  margin-left: max(32px, calc((100% - var(--column)) / 2));
   margin-right: 0;
 }
 

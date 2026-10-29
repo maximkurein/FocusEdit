@@ -45,6 +45,7 @@
           <svg viewBox="0 0 20 20"><path d="M3 16 7 4l4 12M4.6 11.5h4.8M14 3.5h3M14 16.5h3M15.5 3.5v13"/></svg>
         </button>
         <span class="sep" aria-hidden="true"></span>
+        <button id="btn-preview-theme" class="tool word" title="Preview theme" aria-label="Preview theme" aria-haspopup="menu">Page</button>
         <button id="btn-theme" class="tool" title="Theme" aria-label="Theme">
           <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14Z" class="fill"/></svg>
         </button>
@@ -68,6 +69,7 @@
     <div id="workspace" class="workspace">
       <main id="editor"></main>
       <div id="start" class="start" hidden></div>
+      <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" title="Drag to resize · double-click for equal panes" hidden></div>
       <section id="preview" class="preview" tabindex="0" aria-label="Markdown preview" hidden></section>
       <aside id="outline" class="outline" aria-label="Outline" hidden></aside>
     </div>
