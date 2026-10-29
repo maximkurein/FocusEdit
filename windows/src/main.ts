@@ -113,8 +113,8 @@ function applyAppearance(): void {
   $("btn-vim").classList.toggle("on", settings.vim);
   $("btn-vim").title = settings.vim ? "Vim mode is on — click (or :novim) to turn it off" : "Vim mode: learn Vim as you write";
   $("btn-theme").title = settings.previewTheme === "Same"
-    ? `Theme: ${settings.theme} — the preview follows the editor`
-    : `Theme: ${settings.theme} — preview: ${settings.previewTheme}`;
+    ? `Theme: ${settings.theme} — the preview follows the editor. Click to choose the editor's and the preview's theme`
+    : `Theme: ${settings.theme}, preview: ${settings.previewTheme} — click to change`;
   $("outline").hidden = !settings.outline;
   $("btn-outline").classList.toggle("on", settings.outline);
   if (settings.outline) refreshOutline();
@@ -419,19 +419,24 @@ function printDocument(): void {
   printMarkdown($("print-root"), editor.text);
 }
 
-/** The preview's own colour scheme: "Same" follows the editor. */
-function openPreviewThemeMenu(): void {
+/** The theme button, as on the Mac: the editor's theme, then the preview's own ("Same" follows the editor). */
+function openThemeMenu(): void {
   if (closeMenu()) return;
+  const mark = (on: boolean) => (on ? "✓" : "");
+  const items: MenuItem[] = [{ label: "Editor", heading: true }];
+  for (const theme of themeNames) {
+    items.push({ label: theme, detail: mark(settings.theme === theme), run: () => changeSettings(() => (settings.theme = theme)) });
+  }
+  items.push({ label: "", separator: true }, { label: "Preview", heading: true });
   const choices: (ThemeName | "Same")[] = ["Same", ...themeNames];
-  const items: MenuItem[] = [{ label: "Preview theme", heading: true }];
   for (const choice of choices) {
     items.push({
       label: choice === "Same" ? "Same as editor" : choice,
-      detail: settings.previewTheme === choice ? "✓" : "",
+      detail: mark(settings.previewTheme === choice),
       run: () => changeSettings(() => (settings.previewTheme = choice)),
     });
   }
-  showMenu($("btn-preview-theme"), items);
+  showMenu($("btn-theme"), items);
 }
 
 function openFileMenu(): void {
@@ -768,14 +773,13 @@ const actions: Record<string, () => void> = {
   "btn-print": printDocument,
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
   "btn-file": openFileMenu,
-  "btn-preview-theme": openPreviewThemeMenu,
   "btn-outline": () => {
     changeSettings(() => (settings.outline = !settings.outline));
     rememberAppearance();
   },
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
   "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
-  "btn-theme": () => changeSettings(() => (settings.theme = next(themeNames, settings.theme))),
+  "btn-theme": openThemeMenu,
   "btn-size": () => changeSettings(() => (settings.size = next(sizes, settings.size))),
   "btn-font": () => changeSettings(() => (settings.font = next(fonts, settings.font))),
   "btn-fullscreen": () => void platform.toggleFullscreen(),
@@ -791,7 +795,7 @@ for (const [id, run] of Object.entries(actions)) {
   const button = $(id);
   button.addEventListener("click", () => {
     run();
-    if (id !== "btn-hints" && id !== "btn-file" && id !== "btn-preview-theme") editor.focusEditor();
+    if (id !== "btn-hints" && id !== "btn-file" && id !== "btn-theme") editor.focusEditor();
   });
   // Show the platform's modifier in tooltips (⌘ on macOS test builds).
   button.title = button.title.replaceAll("Ctrl+", mod);

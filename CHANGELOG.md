@@ -12,7 +12,7 @@
 - Windows: Edit / Split / Preview are three buttons in the toolbar instead of one that cycles; Ctrl+Shift+V still cycles
 - Windows: a divider between the editor and the preview; drag to resize, double-click for equal panes
 - Windows: each saved file remembers its view, outline and pane split and gets them back when opened again
-- Windows: the Page button picks the preview's own theme (or "Same as editor")
+- Windows: the theme button opens a menu like the Mac: the editor's theme and the preview's own (or "Same as editor")
 - Windows: Ctrl+wheel zooms, Ctrl+0 resets, the keypad +/- work; zoom steps by 2 (10-40)
 - Windows: with no file given the start screen (New file, Open, recent files) is shown instead of reopening the last document
 
