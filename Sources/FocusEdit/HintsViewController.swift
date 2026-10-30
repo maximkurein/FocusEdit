@@ -111,7 +111,8 @@ final class HintsViewController: NSViewController {
         }
         list.append((title: "Files", rows: [
             ("⇧⌘N  ⌘N", "New file… · empty document"),
-            ("⌘O  ⌘S  ⇧⌘S", "Open · save · save as"),
+            ("⌘O  ⌘S", "Open · save"),
+            ("⇧⌘S", "Save as… — a new name, folder or format (.txt, .md, .fountain, .rtf). The toolbar button does the same"),
             ("⌘W", "Close the file; the window stays with a start screen"),
             ("⌘P", "Print, or save as PDF from the print dialog"),
             ("⌥⌘L", "Library — link a folder of documents"),

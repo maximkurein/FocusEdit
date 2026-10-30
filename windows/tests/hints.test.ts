@@ -24,6 +24,15 @@ describe("hints follow the OS the app is running on", () => {
     expect(keys).not.toContain("F1");
   });
 
+  it("gives Save as its own shortcut and says the name and format can change", () => {
+    const files = hintSections("plain", hintKeys(false)).find((s) => s.title === "Files");
+    const row = files?.rows.find(([key]) => key === "Ctrl+Shift+S");
+    expect(row?.[1]).toMatch(/new name/);
+    expect(row?.[1]).toMatch(/\.txt/);
+    expect(row?.[1]).toMatch(/\.md/);
+    expect(row?.[1]).toMatch(/toolbar/);
+  });
+
   it("mentions click-to-copy only for Markdown", () => {
     expect(keysOf(false, "markdown")).toContain("Click a code block");
     expect(keysOf(false, "plain")).not.toContain("Click a code block");

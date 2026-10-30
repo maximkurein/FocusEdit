@@ -1,6 +1,6 @@
 [package]
 name = "focusedit"
-version = "1.7.1"
+version = "1.7.2"
 description = "FocusEdit for Windows (experimental)"
 license = "GPL-3.0-only"
 edition = "2021"

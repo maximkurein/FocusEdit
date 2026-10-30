@@ -141,7 +141,8 @@ export function hintSections(kind: DocKind, keys: HintKeys): { title: string; ro
     title: "Files",
     rows: [
       [`${k.newFile}  ${k.neu}`, "New file… · empty document"],
-      [`${k.open}  ${k.save}  ${k.saveAs}`, "Open · save · save as"],
+      [`${k.open}  ${k.save}`, "Open · save"],
+      [k.saveAs, "Save as… — a new name, folder or format (.txt, .md, .fountain, .rtf). The toolbar button does the same"],
       [k.close, "Close the file; the window stays with a start screen"],
       [k.print, "Print, or save as PDF from the print dialog"],
       ["⋯ toolbar", "Recent files · export HTML · copy as HTML"],

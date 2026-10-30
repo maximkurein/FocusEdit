@@ -30,7 +30,7 @@
   <img src="docs/images/split.png" width="880" alt="FocusEdit in Split view: the Markdown source in the Sepia theme on the left, its live preview in the PowerShell theme in the middle with a rendered table and task list, and the outline of headings on the right">
 </p>
 
-**Version:** `1.7.1`, released 29.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.7.2`, released 30.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 ## Highlights
 
@@ -160,6 +160,8 @@ The snapshot window stays invisible and never takes keyboard focus, and its demo
   |---|---|
   | Ctrl+Shift+P | Command palette: type what you want to do (themes, view, export, word goal, recent files…) |
   | Ctrl+Shift+N | New file…: pick txt, md or rtf, a template, a name and a folder |
+  | Ctrl+S | Save |
+  | Ctrl+Shift+S | Save as…: a new name, folder or format (.txt, .md, .fountain, .rtf). Also the toolbar button next to Save |
   | Ctrl+W | Close the file, keep the app: a start screen offers New file… and Open… |
   | Ctrl+Shift+V | View: Edit → Split → Preview (Esc leaves the preview) |
   | Ctrl+Shift+O | Outline of headings |

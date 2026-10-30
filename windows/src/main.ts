@@ -446,6 +446,7 @@ function openFileMenu(): void {
     { label: "New file…", detail: `${mod}Shift+N`, run: () => void newFile() },
     { label: "New document", detail: `${mod}N`, run: () => void newDocument() },
     { label: "Close file", detail: `${mod}W`, run: () => void closeDocument() },
+    { label: "Save as…", detail: `${mod}Shift+S`, run: () => void saveAs() },
     { label: "", separator: true },
   ];
   if (platform.isTauri) {
@@ -770,6 +771,7 @@ const actions: Record<string, () => void> = {
   "btn-new": () => void newFile(),
   "btn-open": () => void openDocument(),
   "btn-save": () => void save(),
+  "btn-save-as": () => void saveAs(),
   "btn-print": printDocument,
   "btn-focus": () => changeSettings(() => (settings.focusMode = next(focusModes, settings.focusMode))),
   "btn-file": openFileMenu,

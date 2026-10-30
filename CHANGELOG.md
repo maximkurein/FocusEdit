@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-30
+
+### Added
+- Windows: a Save as… button in the toolbar next to Save (Ctrl+Shift+S). The hints sheet lists it on its own row: a new name, folder or format (.txt, .md, .fountain, .rtf). The same row is in the Mac hints
+
 ## [1.7.1] - 2026-10-29
 
 ### Added
