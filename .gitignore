@@ -3,6 +3,9 @@
 build/
 .swiftpm/
 
+# Local browser-tool logs
+.playwright-mcp/
+
 # macOS and Xcode user state
 .DS_Store
 xcuserdata/
