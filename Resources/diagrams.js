@@ -284,7 +284,9 @@
   function fitScale(fig, d, box) {
     if (!isSolo(fig)) return Math.min(1, box / d.w);
     var top = fig.getBoundingClientRect().top + window.scrollY;
-    var room = Math.max(160, window.innerHeight - top - 40);
+    // The page keeps its bottom margin (72px in Split), so no scrollbar appears.
+    var margin = parseFloat(getComputedStyle(document.body).marginBottom) || 0;
+    var room = Math.max(160, window.innerHeight - top - margin - 8);
     return Math.max(MIN_ZOOM, Math.min(1.5, box / d.w, room / d.h));
   }
 
