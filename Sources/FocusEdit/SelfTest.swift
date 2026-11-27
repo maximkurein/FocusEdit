@@ -288,6 +288,13 @@ enum SelfTest {
         check("sepia paper is not white", Theme.sepia.pageColors.background == "#ffffff" ? "yes" : "no", "no")
         check("powershell paper is the console blue", Theme.powerShell.pageColors.background, "#012456")
         check("powershell text is light gray", Theme.powerShell.pageColors.foreground, "#cccccc")
+        // Mermaid: the block keeps its language class, which the diagram script looks for.
+        has("mermaid block is marked for drawing", "```mermaid\nflowchart LR\n  A --> B\n```",
+            "<pre><code class=\"language-mermaid\">flowchart LR\n  A --&gt; B</code></pre>")
+        check("mermaid script is found", Diagrams.mermaidSource?.contains("mermaid") == true ? "yes" : "no", "yes")
+        check("diagram script is found", Diagrams.scriptSource?.contains("__feDiagrams") == true ? "yes" : "no", "yes")
+        check("diagram colours are passed as JSON",
+              Diagrams.configureScript(Theme.sepia.pageColors).contains("\"background\":\"\(Theme.sepia.pageColors.background)\"") ? "yes" : "no", "yes")
         check("zoom in by 2", "\(EditorViewController.zoomedFontSize(16, by: 2))", "18.0")
         check("zoom stops at 40", "\(EditorViewController.zoomedFontSize(39, by: 2))", "40.0")
         check("zoom stops at 10", "\(EditorViewController.zoomedFontSize(11, by: -2))", "10.0")
@@ -321,6 +328,7 @@ enum SelfTest {
         check("hints use Mac keys", hintKeys.contains("⇧⌘P") && hintKeys.contains("⌥⌘P")
               && hintKeys.contains("⌘?") && !hintKeys.contains("Ctrl+") ? "yes" : "no", "yes")
         check("hints mention copy", hintKeys.contains("Click a code block") ? "yes" : "no", "yes")
+        check("hints mention diagrams", hintKeys.contains("```mermaid") ? "yes" : "no", "yes")
         let fountainHints = HintsViewController.catalog(kind: .fountain, vim: false)
             .map(\.title).joined(separator: " ")
         check("fountain hints have no preview", fountainHints.contains("View") ? "yes" : "no", "no")

@@ -85,7 +85,8 @@ final class HintsViewController: NSViewController {
                 ("⌥⌘O", "Outline of the headings"),
                 ("Preview theme", "Palette: same as the editor, or its own"),
             ] + (kind == .markdown
-                ? [("Click a code block", "In the preview, copies the command")]
+                ? [("Click a code block", "In the preview, copies the command"),
+                   ("```mermaid", "Drawn as a diagram: ⌥-scroll zooms, double-click opens it full size")]
                 : [])))
         }
         switch kind {

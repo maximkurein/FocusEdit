@@ -30,7 +30,7 @@
   <img src="docs/images/split.png" width="880" alt="FocusEdit in Split view: the Markdown source in the Sepia theme on the left, its live preview in the PowerShell theme in the middle with a rendered table and task list, and the outline of headings on the right">
 </p>
 
-**Version:** `1.7.2`, released 30.10.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
+**Version:** `1.8.0`, released 27.11.2026 · [changelog](CHANGELOG.md) · [how versions are managed](VERSION_MANAGEMENT.md)
 
 ## Highlights
 
@@ -38,7 +38,7 @@
   <tr>
     <td width="33%" valign="top"><b>🎯 Focus</b><br>Only the current sentence or paragraph stays bright; the rest steps back. Typewriter scrolling keeps your line in the middle.</td>
     <td width="33%" valign="top"><b>✍️ Plain text, styled</b><br>Live Markdown hides the marks away from the cursor. Fountain screenplays are highlighted too. The file stays clean text.</td>
-    <td width="33%" valign="top"><b>👀 Edit · Split · Preview</b><br>A live preview beside the text with its own theme, scrolling together with it. Export to HTML or PDF.</td>
+    <td width="33%" valign="top"><b>👀 Edit · Split · Preview</b><br>A live preview beside the text with its own theme, scrolling together with it. Mermaid diagrams are drawn in it (Mac). Export to HTML or PDF.</td>
   </tr>
   <tr>
     <td valign="top"><b>💡 Writing aids</b><br>A quiet grey word suggestion, auto-closing pairs, list continuation, paste a URL over text to make a link.</td>

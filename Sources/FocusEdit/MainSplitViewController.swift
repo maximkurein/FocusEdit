@@ -504,8 +504,13 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         guard escapeMonitor == nil else { return }
         escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, event.keyCode == 53, event.window === self.view.window,
-                  event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
-                  self.viewMode == .preview else { return event }
+                  event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else { return event }
+            // A diagram open full size closes first (in Split the page handles Esc itself).
+            if self.preview.showsDiagram, self.viewMode != .edit {
+                self.preview.closeDiagram()
+                return nil
+            }
+            guard self.viewMode == .preview else { return event }
             self.setView(.edit)
             return nil
         }

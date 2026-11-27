@@ -6,13 +6,26 @@ import WebKit
 /// scroll position stays where it is.
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
-    /// Forwards `copyCode` so the web view does not retain this controller.
+    /// Forwards `copyCode` and `diagramView` so the web view does not retain this controller.
     private final class CopyBridge: NSObject, WKScriptMessageHandler {
         weak var owner: PreviewViewController?
         func userContentController(_ userContentController: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
-            owner?.copyCode(message.body)
+            if message.name == "diagramView" {
+                owner?.showsDiagram = (message.body as? Bool) ?? false
+            } else {
+                owner?.copyCode(message.body)
+            }
         }
+    }
+
+    /// A diagram is open full size over the page (double-click on it). Esc closes it
+    /// instead of leaving Preview.
+    private(set) var showsDiagram = false
+
+    func closeDiagram() {
+        showsDiagram = false
+        webView?.evaluateJavaScript(Diagrams.closeScript, completionHandler: nil)
     }
 
     private let copyBridge = CopyBridge()
@@ -68,6 +81,9 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         // Markdown is escaped, so a document cannot run a script. JavaScript is on so a
         // click in a code block can copy it; the listener is the app's (installCopy).
         config.userContentController.add(copyBridge, name: "copyCode")
+        config.userContentController.add(copyBridge, name: "diagramView")
+        // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).
+        Diagrams.install(in: config.userContentController)
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         webView = web
@@ -140,7 +156,9 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         let html = MarkdownToHTML.render(markdown)
         guard let data = try? JSONSerialization.data(withJSONObject: [html]),
               let json = String(data: data, encoding: .utf8) else { return }
-        webView?.evaluateJavaScript("document.body.innerHTML = \(json)[0];") { [weak self] _, error in
+        // Diagrams are swapped in by the same script, before the page is painted, so a
+        // drawn diagram does not flicker while typing.
+        webView?.evaluateJavaScript("document.body.innerHTML = \(json)[0]; \(Diagrams.refreshScript)") { [weak self] _, error in
             // Could not update in place: load the whole page again.
             guard error != nil, let self else { return }
             self.ready = false
@@ -197,9 +215,11 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         ready = true
+        showsDiagram = false
         applyFontSize() // zoomed while the page was loading
         applyMeasure()
         installCopy()
+        webView.evaluateJavaScript(Diagrams.configureScript(loadedColors), completionHandler: nil)
         inject(latest) // anything typed while the page was loading
         if let ratio = pendingRatio {
             pendingRatio = nil
