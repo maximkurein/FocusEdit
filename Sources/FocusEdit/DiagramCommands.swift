@@ -12,8 +12,8 @@ extension EditorViewController {
         ("Same as the Preview", nil), ("Default", "default"), ("Neutral", "neutral"), ("Dark", "dark"), ("Forest", "forest"),
     ]
 
-    /// Mermaid works in Markdown and in diagram files.
-    var diagramsAllowed: Bool { documentKind == .markdown || documentKind == .mermaid }
+    /// Mermaid works in Markdown, plain text (a ```mermaid block) and diagram files.
+    var diagramsAllowed: Bool { documentKind == .markdown || documentKind == .plain || documentKind == .mermaid }
 
     /// The source range of the diagram under the cursor.
     var currentDiagramRange: NSRange? {
@@ -249,6 +249,24 @@ extension EditorViewController {
         let caret = min(max(textView.selectedRange().location - range.location, 0), (text as NSString).length)
         let line = (text as NSString).substring(to: caret).components(separatedBy: "\n").count - 1
         return (range, text, line)
+    }
+
+    /// The diagram under the cursor and the block on the cursor's line, for the preview
+    /// to outline it; nil outside a flowchart block.
+    var cursorDiagramBlock: (source: String, id: String)? {
+        guard let c = cursorInDiagram, ["flowchart", "graph"].contains(MermaidEdit.diagramType(c.text) ?? ""),
+              let id = MermaidEdit.block(c.text, line: c.line) else { return nil }
+        return (c.text, id)
+    }
+
+    // MARK: Completion inside a diagram
+
+    /// Suggestions while typing in a diagram: its block ids, Mermaid words for its kind,
+    /// the diagram kinds on its first line, config values in its front matter. nil
+    /// outside a diagram (the usual word completion applies).
+    func diagramCompletions(prefix: String, linePrefix: String) -> [String]? {
+        guard diagramsAllowed, let c = cursorInDiagram else { return nil }
+        return MermaidEdit.completions(prefix: prefix, linePrefix: linePrefix, source: c.text, line: c.line)
     }
 
     /// What the Properties of the Diagrams tab show; nil outside a flowchart.

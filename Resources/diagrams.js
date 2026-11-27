@@ -21,6 +21,7 @@
 // - Drag from a flowchart block to another to connect them (`diagramConnect`); the
 //   right-click menu of a block also renames, adds a next block, duplicates or deletes
 //   it (`diagramNodeAction`). The app makes each change in the text.
+// - `highlight(source, id)` outlines the block on the editor's cursor line (in Split).
 // - `freeze()` swaps every figure for a plain SVG picture, for HTML export and printing.
 // - Drawings are cached by source and colours, so typing elsewhere does not redraw
 //   them and the page does not flicker. A diagram being edited keeps its last good
@@ -321,6 +322,27 @@
     }
     fig.classList.toggle('fe-stale', !!stale);
     layout(fig);
+    markCurrent(fig);
+  }
+
+  /// The block on the editor's cursor line, outlined in its picture (`highlight`).
+  var current = null;
+  function sameSource(a, b) { return (a || '').replace(/\s+$/, '') === (b || '').replace(/\s+$/, ''); }
+  function blockId(el) {
+    var id = el.getAttribute('id') || '';
+    var m = /-flowchart-(.+)-\d+$/.exec(id);
+    return m ? m[1] : (el.getAttribute('data-id') || '');
+  }
+  function markCurrent(fig) {
+    Array.prototype.forEach.call(fig.querySelectorAll('.fe-current'), function (el) { el.classList.remove('fe-current'); });
+    if (!current || !current.id || !sameSource(fig.__source, current.source)) return;
+    Array.prototype.forEach.call(fig.querySelectorAll('g.node'), function (el) {
+      if (blockId(el) === current.id) el.classList.add('fe-current');
+    });
+  }
+  function highlight(source, id) {
+    current = source && id ? { source: source, id: id } : null;
+    Array.prototype.forEach.call(document.querySelectorAll('.fe-diagram'), markCurrent);
   }
 
   // MARK: Figures in the page
@@ -703,6 +725,7 @@
       '.fe-link line{stroke:#3399d9;stroke-width:2;stroke-dasharray:6 4}',
       '.fe-diagram g.node.fe-link-target > :is(rect,polygon,circle,ellipse,path){stroke:#3399d9!important;stroke-width:3px!important}',
       '.fe-menu hr{border:0;border-top:1px solid rgba(127,127,127,.3);margin:4px 0}',
+      '.fe-diagram g.node.fe-current > :is(rect,polygon,circle,ellipse,path){stroke:#f59e0b!important;stroke-width:3px!important}',
       '.fe-rename{position:fixed;z-index:5;height:30px;box-sizing:border-box;padding:4px 8px;border-radius:6px;',
       '  border:2px solid #3399d9;font:14px -apple-system,system-ui,sans-serif;text-align:center;',
       '  background:Canvas;color:CanvasText;outline:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}'
@@ -966,6 +989,7 @@
 
     /// For tests: the error line for a source and Mermaid's message.
     errorLine: errorLine,
+    highlight: highlight,
 
     /// Drawings still to make (0 when every figure is ready).
     pending: function () { return queue.length + (busy ? 1 : 0); },

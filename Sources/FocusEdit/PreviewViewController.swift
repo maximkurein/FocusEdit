@@ -53,6 +53,20 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         webView?.evaluateJavaScript(Diagrams.closeScript, completionHandler: nil)
     }
 
+    private var highlighted: [String]?
+
+    /// Outline the block on the editor's cursor line in its picture (nil, nil clears it).
+    func highlightDiagramBlock(source: String?, id: String?) {
+        let key = [source ?? "", id ?? ""]
+        guard key != highlighted else { return }
+        highlighted = key
+        guard let data = try? JSONSerialization.data(withJSONObject: key),
+              let json = String(data: data, encoding: .utf8) else { return }
+        webView?.evaluateJavaScript(
+            "try { window.__feDiagrams && window.__feDiagrams.highlight.apply(null, \(json)); } catch (e) {}",
+            completionHandler: nil)
+    }
+
     private let copyBridge = CopyBridge()
     private var webView: WKWebView?
 

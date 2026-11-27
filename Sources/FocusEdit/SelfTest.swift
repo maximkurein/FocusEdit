@@ -959,6 +959,25 @@ enum SelfTest {
         check("block on a line", MermaidEdit.block(blocks, line: 2), "B")
         check("block on its style line", MermaidEdit.block(blue, line: 3), "A")
 
+        // Completion inside a diagram.
+        check("diagram kinds on the first line",
+              MermaidEdit.completions(prefix: "fl", linePrefix: "fl", source: "fl", line: 0).joined(separator: ","), "flowchart")
+        check("block ids then words",
+              MermaidEdit.completions(prefix: "st", linePrefix: "  st", source: "flowchart LR\n  start --> stop\n  st", line: 2)
+                .joined(separator: ","), "start,stop,style")
+        check("sequence words",
+              MermaidEdit.completions(prefix: "pa", linePrefix: "  pa", source: seq + "\n  pa", line: 3).joined(separator: ","),
+              "participant,par")
+        check("config words in front matter",
+              MermaidEdit.completions(prefix: "lo", linePrefix: "  lo", source: "---\nconfig:\n  lo\n---\nflowchart LR", line: 2)
+                .joined(separator: ","), "look")
+
+        // New File ▸ Mermaid diagram.
+        check("diagram file name", NewFile.fileName("Diagram", format: .mmd), "Diagram.mmd")
+        check("typed .mmd is not doubled", NewFile.fileName("net.mmd", format: .mmd), "net.mmd")
+        check("new diagram starts from its template", NewFile.startingDiagram(2), MermaidEdit.templates[2].source + "\n")
+        check("unknown template falls back to the first", NewFile.startingDiagram(99), MermaidEdit.templates[0].source + "\n")
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

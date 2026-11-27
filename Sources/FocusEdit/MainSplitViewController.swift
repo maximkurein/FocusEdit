@@ -227,6 +227,10 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
     /// The Properties of the Diagrams tab follow the cursor (only while they are shown).
     func updateDiagramProperties() {
+        if viewMode == .split, !previewItem.isCollapsed {
+            let block = editor.cursorDiagramBlock
+            preview.highlightDiagramBlock(source: block?.source, id: block?.id)
+        }
         guard !outlineItem.isCollapsed, outline.showsProperties else { return }
         outline.setProperties(editor.diagramProperties)
     }

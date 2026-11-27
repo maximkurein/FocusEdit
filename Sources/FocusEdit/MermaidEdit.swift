@@ -941,4 +941,64 @@ enum MermaidEdit {
         }
         return flowIDs(inLine: lines[line]).first
     }
+
+    // MARK: Completion
+
+    static let diagramKinds = [
+        "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram-v2", "erDiagram", "gantt",
+        "mindmap", "timeline", "architecture-beta", "pie", "journey", "gitGraph", "quadrantChart",
+        "xychart-beta", "block-beta", "kanban", "sankey-beta", "requirementDiagram",
+    ]
+
+    private static let keywords: [String: [String]] = [
+        "flowchart": ["subgraph", "end", "direction", "style", "classDef", "class", "click", "linkStyle"],
+        "sequenceDiagram": ["participant", "actor", "loop", "alt", "else", "opt", "par", "and", "critical",
+                            "break", "rect", "end", "Note", "activate", "deactivate", "autonumber", "over"],
+        "classDiagram": ["class", "namespace", "note", "direction"],
+        "stateDiagram-v2": ["state", "note", "direction", "end"],
+        "gantt": ["title", "dateFormat", "axisFormat", "section", "excludes", "todayMarker", "done", "active",
+                  "crit", "milestone", "after"],
+        "timeline": ["title", "section"],
+        "pie": ["title", "showData"],
+        "journey": ["title", "section"],
+        "architecture-beta": ["group", "service", "junction", "cloud", "database", "server", "internet", "disk"],
+    ]
+
+    private static let configWords = ["config", "look", "layout", "theme", "title", "handDrawn", "classic",
+                                      "elk", "dagre", "default", "neutral", "dark", "forest", "base"]
+
+    /// Words to offer for `prefix` while typing on line `line` (0-based) of a diagram:
+    /// the kinds on its first line, config words in its front matter, else its block ids
+    /// (or participants) and then Mermaid's words for its kind.
+    static func completions(prefix: String, linePrefix: String, source: String, line: Int) -> [String] {
+        guard !prefix.isEmpty else { return [] }
+        let lines = source.components(separatedBy: "\n")
+        func matching(_ words: [String], caseSensitive: Bool) -> [String] {
+            let p = caseSensitive ? prefix : prefix.lowercased()
+            return words.filter {
+                let w = caseSensitive ? $0 : $0.lowercased()
+                return w.hasPrefix(p) && w != p
+            }
+        }
+        if let end = frontMatter(lines), line < end {
+            return matching(configWords, caseSensitive: false)
+        }
+        if lines.first?.trimmingCharacters(in: .whitespaces) == "---", frontMatter(lines) == nil {
+            return matching(configWords, caseSensitive: false)
+        }
+        let header = headerLine(lines)
+        if header == nil || header == line {
+            return linePrefix.trimmingCharacters(in: .whitespaces) == prefix
+                ? matching(diagramKinds, caseSensitive: false) : []
+        }
+        var type = diagramType(source) ?? ""
+        if type == "graph" { type = "flowchart" }
+        let names = type == "flowchart" ? nodeIDs(source) : type == "sequenceDiagram" ? participants(source) : []
+        var out: [String] = []
+        for w in matching(names, caseSensitive: true) + matching(keywords[type] ?? [], caseSensitive: false)
+        where !out.contains(w) {
+            out.append(w)
+        }
+        return out
+    }
 }

@@ -178,7 +178,7 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
 
     /// The tabs only where there can be diagrams; the buttons only on the Diagrams tab.
     private func showChrome() {
-        let diagramsPossible = kind == .markdown || kind == .mermaid
+        let diagramsPossible = kind == .markdown || kind == .plain || kind == .mermaid
         tabs.isHidden = !diagramsPossible || kind == .mermaid
         listUnderTabs?.isActive = false
         listAtTop?.isActive = false
@@ -241,8 +241,8 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
 
     /// Show the Diagrams tab (Edit ▸ Diagram ▸ Show Diagram List).
     func showDiagrams() {
-        guard kind == .markdown || kind == .mermaid else { return }
-        if kind == .markdown { markdownTab = .diagrams }
+        guard kind == .markdown || kind == .plain || kind == .mermaid else { return }
+        if kind != .mermaid { markdownTab = .diagrams }
         tab = .diagrams
         reload()
     }
@@ -252,7 +252,7 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         self.kind = kind
         switch kind {
         case .mermaid: tab = .diagrams
-        case .markdown: tab = markdownTab
+        case .markdown, .plain: tab = markdownTab
         default: tab = .headings
         }
         reload()

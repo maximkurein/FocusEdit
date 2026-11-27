@@ -128,8 +128,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let choice = NewFileWizard().run() else { return }
         let url = NewFile.freeURL(
             folder: choice.folder, name: NewFile.fileName(choice.name, format: choice.format))
-        let text = NewFile.startingText(
-            choice.template, format: choice.format, title: choice.name, date: NewFile.isoDate())
+        let text = choice.format == .mmd
+            ? NewFile.startingDiagram(choice.diagram)
+            : NewFile.startingText(choice.template, format: choice.format, title: choice.name, date: NewFile.isoDate())
         do {
             try NewFile.data(format: choice.format, text: text).write(to: url, options: .atomic)
         } catch {
