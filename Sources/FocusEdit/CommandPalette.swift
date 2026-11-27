@@ -370,6 +370,28 @@ extension MainSplitViewController {
                 command("Export Preview as PDF…", "exportPreviewAsPDF:", keywords: "diagram mermaid pages"),
             ]
         }
+        if markdown || editor.documentKind == .mermaid {
+            for (i, t) in MermaidEdit.templates.enumerated() {
+                list.append(tagged("Diagram: Insert \(t.title)", "insertDiagramTemplate:", i,
+                                   keywords: "mermaid template chart schema"))
+            }
+            if editor.currentDiagramRange != nil {
+                let dirs = ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"]
+                for (i, t) in dirs.enumerated() {
+                    list.append(tagged("Diagram Direction: \(t)", "setDiagramDirection:", i,
+                                       keywords: "mermaid flowchart TB LR BT RL"))
+                }
+                for (i, o) in EditorViewController.diagramLooks.enumerated() {
+                    list.append(tagged("Diagram Look: \(o.title)", "setDiagramLook:", i, keywords: "mermaid sketch hand drawn"))
+                }
+                for (i, o) in EditorViewController.diagramLayouts.enumerated() {
+                    list.append(tagged("Diagram Layout: \(o.title)", "setDiagramLayout:", i, keywords: "mermaid elk dagre"))
+                }
+                for (i, o) in EditorViewController.diagramThemes.enumerated() {
+                    list.append(tagged("Diagram Theme: \(o.title)", "setDiagramTheme:", i, keywords: "mermaid colors"))
+                }
+            }
+        }
         list += [
             command("Export as PDF…", "exportAsPDF:"),
             command("Print…", "printEditor:", keywords: "pdf paper"),

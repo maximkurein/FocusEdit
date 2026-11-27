@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-27
+
+### Added
+- Mac: Edit ▸ Diagram works on the Mermaid diagram under the cursor (in Markdown or a .mmd file). Insert Template adds a ready diagram: flowchart, flowchart with groups, sequence, class, state, entity relationship, Gantt, mindmap, timeline, architecture. Direction turns a flowchart top to bottom, left to right, bottom to top or right to left. Look switches between the classic and the hand-drawn style. Layout ELK lays out large diagrams with fewer crossing arrows. Diagram Theme gives one diagram its own colours (default, neutral, dark, forest) instead of the preview's. The settings go into the diagram's own front matter (`config:`), so GitHub and mermaid.live show it the same way; ⌘Z undoes each change. The command palette has the same commands
+- Mac: in Split, a click on a block in the picture puts the cursor on the line that defines it
+- Mac: a diagram Mermaid cannot read gets the line with the mistake underlined in red in the text, until the next edit
+
 ## [1.8.0] - 2026-11-27
 
 ### Added

@@ -795,6 +795,74 @@ enum SelfTest {
               .contains { $0.title == "Mermaid" } ? "yes" : "no", "yes")
         editor.updateKind(fileExtension: "md")
 
+        // Diagram menu (MermaidEdit): settings in the diagram's front matter.
+        let flow = "flowchart LR\n  A --> B"
+        let hand = MermaidEdit.settingConfig(flow, key: "look", value: "handDrawn")
+        check("diagram look adds front matter", hand, "---\nconfig:\n  look: handDrawn\n---\nflowchart LR\n  A --> B")
+        check("diagram look is read back", MermaidEdit.configValue(hand, key: "look"), "handDrawn")
+        check("diagram without config", MermaidEdit.configValue(flow, key: "look"), nil)
+        check("diagram second setting joins config",
+              MermaidEdit.settingConfig(hand, key: "layout", value: "elk"),
+              "---\nconfig:\n  look: handDrawn\n  layout: elk\n---\nflowchart LR\n  A --> B")
+        check("diagram setting is replaced", MermaidEdit.settingConfig(hand, key: "look", value: "classic"),
+              "---\nconfig:\n  look: classic\n---\nflowchart LR\n  A --> B")
+        check("diagram last setting removes front matter", MermaidEdit.settingConfig(hand, key: "look", value: nil), flow)
+        check("diagram removing a missing setting", MermaidEdit.settingConfig(flow, key: "look", value: nil), flow)
+        let titled = "---\ntitle: Net\n---\ngraph TD\n  A --> B"
+        let themed = MermaidEdit.settingConfig(titled, key: "theme", value: "forest")
+        check("diagram title is kept", themed, "---\ntitle: Net\nconfig:\n  theme: forest\n---\ngraph TD\n  A --> B")
+        check("diagram title stays after removal", MermaidEdit.settingConfig(themed, key: "theme", value: nil), titled)
+
+        // Direction of a flowchart.
+        check("diagram direction TD", MermaidEdit.direction("graph TD\n  A --> B"), "TB")
+        check("diagram direction LR", MermaidEdit.direction(hand), "LR")
+        check("diagram direction default", MermaidEdit.direction("flowchart\n  A --> B"), "TB")
+        check("no direction for a sequence", MermaidEdit.direction("sequenceDiagram\n  A->>B: hi"), nil)
+        check("diagram turned LR", MermaidEdit.settingDirection("graph TD\n  A --> B", "LR"), "graph LR\n  A --> B")
+        check("diagram given a direction", MermaidEdit.settingDirection("flowchart\n  A", "RL"), "flowchart RL\n  A")
+        check("diagram turned under front matter", MermaidEdit.settingDirection(hand, "BT"),
+              "---\nconfig:\n  look: handDrawn\n---\nflowchart BT\n  A --> B")
+        check("sequence has no direction", MermaidEdit.settingDirection("sequenceDiagram", "LR"), nil)
+
+        // Which diagram the cursor is in.
+        let doc = "intro\n```mermaid\ngraph LR\n  A --> B\n```\nafter" as NSString
+        func inDiagram(_ cursor: Int, _ kind: DocumentKind = .markdown) -> String? {
+            MermaidEdit.diagramRange(in: doc, cursor: cursor, kind: kind).map { doc.substring(with: $0) }
+        }
+        check("cursor in a mermaid block", inDiagram(20), "graph LR\n  A --> B")
+        check("cursor on the fence", inDiagram(8), "graph LR\n  A --> B")
+        check("cursor outside the block", inDiagram(2), nil)
+        check("cursor after the block", inDiagram(doc.length), nil)
+        check("a diagram file is one diagram", inDiagram(0, .mermaid), doc as String)
+        let unclosed = "x\n```mermaid\ngraph LR" as NSString
+        check("unclosed block runs to the end",
+              MermaidEdit.diagramRange(in: unclosed, cursor: unclosed.length, kind: .markdown).map { unclosed.substring(with: $0) },
+              "graph LR")
+        let other = "```python\nx = 1\n```" as NSString
+        check("other code is not a diagram",
+              MermaidEdit.diagramRange(in: other, cursor: 12, kind: .markdown).map { _ in "found" }, nil)
+
+        // From the picture back to the text.
+        func line(_ source: String, _ range: NSRange?) -> String? {
+            range.map { (source as NSString).substring(with: $0) }
+        }
+        check("clicked block finds its line", line(flow, MermaidEdit.lineRange(in: flow, nodeID: "B", label: "")), "  A --> B")
+        let seq = "sequenceDiagram\n  participant A as Alice\n  A->>B: hi"
+        check("clicked label finds its line",
+              line(seq, MermaidEdit.lineRange(in: seq, nodeID: "", label: "Alice")), "  participant A as Alice")
+        check("block id skips front matter",
+              line(hand, MermaidEdit.lineRange(in: hand, nodeID: "look", label: "")), nil)
+        check("error line", line(flow, MermaidEdit.lineRange(in: flow, line: 2)), "  A --> B")
+        check("error line out of range", line(flow, MermaidEdit.lineRange(in: flow, line: 3)), nil)
+
+        // Templates.
+        check("diagram templates", "\(MermaidEdit.templates.count)", "10")
+        check("template in Markdown is a block",
+              MermaidEdit.insertion(MermaidEdit.templates[0], kind: .markdown).hasPrefix("```mermaid\nflowchart LR\n") ? "yes" : "no", "yes")
+        check("template in a diagram file is bare",
+              MermaidEdit.insertion(MermaidEdit.templates[0], kind: .mermaid).hasPrefix("flowchart LR\n") ? "yes" : "no", "yes")
+        check("ELK layout script is found", Diagrams.elkSource?.contains("registerLayoutLoaders") == true ? "yes" : "no", "yes")
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

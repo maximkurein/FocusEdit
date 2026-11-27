@@ -13,6 +13,9 @@
 //   scroll or pinch zooms there, drag pans, Esc or × closes.
 // - Copy (the ⧉ button or a right-click): the picture as PNG or SVG, or its Mermaid
 //   code. The app puts it on the clipboard (message `copyDiagram`).
+// - A click on a block (no drag) tells the app which node it was (`diagramNode`), so the
+//   editor can put the cursor on its line; a syntax error reports its line
+//   (`diagramError`) so the editor can mark it.
 // - `freeze()` swaps every figure for a plain SVG picture, for HTML export and printing.
 // - Drawings are cached by source and colours, so typing elsewhere does not redraw
 //   them and the page does not flicker. A diagram being edited keeps its last good
@@ -184,7 +187,49 @@
         fig.classList.add('fe-empty');
       }
       setError(fig, text);
+      reportError(fig.__source, text);
     });
+  }
+
+  /// "Parse error on line 3" counts lines after the --- front matter --- block; the app
+  /// gets the line within the whole diagram source (1-based, at most its last line).
+  function errorLine(source, text) {
+    var m = /line (\d+)/i.exec(text || '');
+    if (!m) return 0;
+    var lines = source.split('\n');
+    var skip = 0;
+    if (/^---\s*$/.test(lines[0] || '')) {
+      for (var i = 1; i < lines.length; i++) {
+        if (/^---\s*$/.test(lines[i])) { skip = i + 1; break; }
+      }
+    }
+    return Math.max(1, Math.min(lines.length, skip + parseInt(m[1], 10)));
+  }
+
+  function reportError(source, text) {
+    var line = errorLine(source || '', text);
+    if (!line) return;
+    try { window.webkit.messageHandlers.diagramError.postMessage({ source: source, line: line, message: text }); }
+    catch (e) { window.__feLastError = { source: source, line: line }; }
+  }
+
+  /// The Mermaid id and label of the block under `target`, if it is one.
+  function nodeAt(target, fig) {
+    var el = target && target.closest ? target.closest('g.node, g.cluster, [data-id], g[id]') : null;
+    var svg = fig.querySelector('svg');
+    while (el && svg && svg.contains(el) && el !== svg) {
+      var id = el.getAttribute('id') || '';
+      var m = /-flowchart-(.+)-\d+$/.exec(id);
+      var nodeId = m ? m[1] : (el.getAttribute('data-id') || (el.classList.contains('cluster') ? id.replace(/^fe-mermaid-\d+-/, '') : ''));
+      if (nodeId && !/^L_/.test(nodeId) && !/^i\d+$/.test(nodeId)) {
+        return { id: nodeId, label: (el.textContent || '').replace(/\s+/g, ' ').trim() };
+      }
+      el = el.parentElement ? el.parentElement.closest('g.node, g.cluster, [data-id], g[id]') : null;
+    }
+    // Other diagram kinds: the text that was clicked is enough to find its line.
+    var text = target && target.closest ? target.closest('text') : null;
+    var label = text ? (text.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    return label ? { id: '', label: label } : null;
   }
 
   function setError(fig, text) {
@@ -582,7 +627,8 @@
       '.fe-copied{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:3;padding:4px 10px;',
       '  border-radius:6px;font:12px/1.2 -apple-system,system-ui,sans-serif;background:rgba(127,127,127,.35);pointer-events:none}',
       '.fe-static{margin:1em 0;text-align:center}',
-      '.fe-static svg{max-width:100%;height:auto}'
+      '.fe-static svg{max-width:100%;height:auto}',
+      '.fe-diagram g.node, .fe-diagram g.cluster > rect{cursor:pointer}'
     ].join('\n');
     document.documentElement.appendChild(style);
 
@@ -593,6 +639,21 @@
       e.stopPropagation();
       act(b.getAttribute('data-act'), figureOf(b), b);
     }, true);
+
+    // A click (not a drag) on a block: the app moves the cursor to its line.
+    var press = null;
+    document.addEventListener('mousedown', function (e) { press = { x: e.clientX, y: e.clientY }; }, true);
+    document.addEventListener('click', function (e) {
+      if (e.detail > 1 || overlay || (e.target.closest && e.target.closest('.fe-tools, .fe-menu'))) return;
+      if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 4) return;
+      var fig = figureOf(e.target);
+      if (!fig || !fig.__drawing) return;
+      var node = nodeAt(e.target, fig);
+      if (!node) return;
+      var msg = { source: fig.__source, id: node.id, label: node.label };
+      try { window.webkit.messageHandlers.diagramNode.postMessage(msg); }
+      catch (err) { window.__feLastNode = msg; }
+    });
 
     // Right-click a diagram: the copy menu instead of the web view's own.
     document.addEventListener('contextmenu', function (e) {
@@ -749,6 +810,9 @@
 
     /// Plain pictures instead of figures; returns the body's HTML (export, print).
     freeze: freeze,
+
+    /// For tests: the error line for a source and Mermaid's message.
+    errorLine: errorLine,
 
     /// Drawings still to make (0 when every figure is ready).
     pending: function () { return queue.length + (busy ? 1 : 0); },

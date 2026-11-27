@@ -357,6 +357,34 @@ enum MenuBuilder {
         cmMenu.addItem(item("Reject Change", Selector(("cmReject:")), ""))
         editMenu.addItem(cmParent)
 
+        // Diagram (Mermaid, DiagramCommands.swift): the diagram under the cursor.
+        let dgParent = NSMenuItem(title: "Diagram", action: nil, keyEquivalent: "")
+        let dgMenu = NSMenu(title: "Diagram")
+        dgParent.submenu = dgMenu
+        func dgSub(_ title: String, _ action: Selector, _ titles: [String]) {
+            let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: title)
+            for (i, t) in titles.enumerated() {
+                let it = item(t, action, "")
+                it.tag = i
+                menu.addItem(it)
+            }
+            parent.submenu = menu
+            dgMenu.addItem(parent)
+        }
+        dgSub("Insert Template", #selector(EditorViewController.insertDiagramTemplate(_:)),
+              MermaidEdit.templates.map(\.title))
+        dgMenu.addItem(.separator())
+        dgSub("Direction", #selector(EditorViewController.setDiagramDirection(_:)),
+              ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"])
+        dgSub("Look", #selector(EditorViewController.setDiagramLook(_:)),
+              EditorViewController.diagramLooks.map(\.title))
+        dgSub("Layout", #selector(EditorViewController.setDiagramLayout(_:)),
+              EditorViewController.diagramLayouts.map(\.title))
+        dgSub("Diagram Theme", #selector(EditorViewController.setDiagramTheme(_:)),
+              EditorViewController.diagramThemes.map(\.title))
+        editMenu.addItem(dgParent)
+
         // Writing aids
         editMenu.addItem(.separator())
         editMenu.addItem(item("Suggest Completions", Selector(("toggleAutocomplete:")), ""))

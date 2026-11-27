@@ -12,6 +12,10 @@ enum Diagrams {
 
     static let mermaidFile = "mermaid.min.js"
     static let scriptFile = "diagrams.js"
+    /// ELK layout for big diagrams (`layout: elk`); optional, Mermaid works without it.
+    /// `@mermaid-js/layout-elk` 1.0.2 (MIT) with elkjs (EPL-2.0 or GPL-3.0-or-later,
+    /// used under the GPL), `Resources/mermaid-layout-elk-LICENSE.txt`.
+    static let elkFile = "mermaid-layout-elk.min.js"
 
     /// Where the scripts are: the app's Resources, or `Resources/` of the repository
     /// for `.build/debug/FocusEdit` (a few folders above the binary).
@@ -38,6 +42,7 @@ enum Diagrams {
     /// Read once; every preview page gets the same scripts.
     static let mermaidSource: String? = load(mermaidFile)
     static let scriptSource: String? = load(scriptFile)
+    static let elkSource: String? = load(elkFile)
 
     static var isAvailable: Bool { mermaidSource != nil && scriptSource != nil }
 
@@ -45,6 +50,9 @@ enum Diagrams {
     static func install(in controller: WKUserContentController) {
         guard let mermaid = mermaidSource, let script = scriptSource else { return }
         controller.addUserScript(WKUserScript(source: mermaid, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        if let elk = elkSource {
+            controller.addUserScript(WKUserScript(source: elk, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
         controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
     }
 

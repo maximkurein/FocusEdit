@@ -56,7 +56,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/FocusEdit" "$app/Contents/MacOS/FocusEdit"
 cp Info.plist "$app/Contents/Info.plist"
 # Mermaid diagrams in the preview (Diagrams.swift): the library and the figure script.
-for f in mermaid.min.js mermaid-LICENSE.txt diagrams.js; do
+for f in mermaid.min.js mermaid-LICENSE.txt mermaid-layout-elk.min.js mermaid-layout-elk-LICENSE.txt diagrams.js; do
   cp "Resources/$f" "$app/Contents/Resources/$f" || fail "Resources/$f is missing"
 done
 printf 'APPL????' >"$app/Contents/PkgInfo"

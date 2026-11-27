@@ -624,6 +624,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     // MARK: Menu validation
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let diagram = validateDiagramItem(item) { return diagram }
         switch item.action {
         case #selector(toggleTypewriterScrolling(_:)):
             item.state = textView.typewriterScrollingEnabled ? .on : .off

@@ -89,6 +89,15 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
         editor.onFileURLChanged = { [weak self] in self?.saveAppearance() }
+        // From the picture back to the text (Split): a clicked block puts the cursor on
+        // its line; a diagram Mermaid can't read underlines the line it stopped at.
+        preview.onDiagramNode = { [weak self] source, id, label in
+            guard let self, self.viewMode == .split else { return }
+            self.editor.revealDiagramNode(source: source, id: id, label: label)
+        }
+        preview.onDiagramError = { [weak self] source, line in
+            self?.editor.markDiagramError(source: source, line: line)
+        }
         NotificationCenter.default.addObserver(
             self, selector: #selector(splitResized(_:)),
             name: NSSplitView.didResizeSubviewsNotification, object: splitView)
@@ -108,6 +117,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         if !editor.documentKind.supportsHTML, viewMode != .edit { setView(.edit) }
         updateViewSwitcher() // Save As can change the kind: Fountain has no preview
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
+        editor.clearDiagramError() // the preview marks it again if it is still there
         if !previewItem.isCollapsed {
             preview.update(markdown: editor.previewMarkdown, colors: editor.previewColors)
         }

@@ -6,7 +6,7 @@ import WebKit
 /// scroll position stays where it is.
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
-    /// Forwards `copyCode` and `diagramView` so the web view does not retain this controller.
+    /// Forwards `copyCode`, `diagramView`, `copyDiagram`, `diagramNode` and `diagramError` so the web view does not retain this controller.
     private final class CopyBridge: NSObject, WKScriptMessageHandler {
         weak var owner: PreviewViewController?
         func userContentController(_ userContentController: WKUserContentController,
@@ -15,6 +15,13 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
                 owner?.showsDiagram = (message.body as? Bool) ?? false
             } else if message.name == "copyDiagram" {
                 Diagrams.copy(message.body)
+            } else if message.name == "diagramNode" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String else { return }
+                owner?.onDiagramNode?(source, m["id"] as? String ?? "", m["label"] as? String ?? "")
+            } else if message.name == "diagramError" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let line = (m["line"] as? NSNumber)?.intValue else { return }
+                owner?.onDiagramError?(source, line)
             } else {
                 owner?.copyCode(message.body)
             }
@@ -64,6 +71,10 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     /// Called when the reader scrolls the page: 0 is the top, 1 the bottom.
     var onScroll: ((Double) -> Void)?
+    /// A block clicked in a diagram: its diagram's source, the block's id and label.
+    var onDiagramNode: ((String, String, String) -> Void)?
+    /// A diagram Mermaid could not read: its source and the 1-based line of the error.
+    var onDiagramError: ((String, Int) -> Void)?
     private var lastRatio = 0.0
     /// Where the reader is (0 top, 1 bottom), as last read or set.
     var currentRatio: Double { lastRatio }
@@ -85,6 +96,8 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         config.userContentController.add(copyBridge, name: "copyCode")
         config.userContentController.add(copyBridge, name: "diagramView")
         config.userContentController.add(copyBridge, name: "copyDiagram")
+        config.userContentController.add(copyBridge, name: "diagramNode")
+        config.userContentController.add(copyBridge, name: "diagramError")
         // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).
         Diagrams.install(in: config.userContentController)
         let web = WKWebView(frame: .zero, configuration: config)
