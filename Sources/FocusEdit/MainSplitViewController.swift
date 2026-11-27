@@ -572,18 +572,34 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         panel.nameFieldStringValue = "export.html"
         panel.beginSheetModal(for: view.window ?? NSApp.keyWindow ?? NSWindow()) { [weak self] resp in
             guard resp == .OK, let url = panel.url, let self else { return }
-            let html = MarkdownToHTML.document(self.editor.plainText, dark: false)
-            try? html.data(using: .utf8)?.write(to: url)
+            // Diagrams are drawn first and saved as pictures (SVG inside the page).
+            DiagramPage.exportDocument(self.editor.previewMarkdown) { html in
+                try? html.data(using: .utf8)?.write(to: url)
+            }
         }
     }
 
     @objc func copyAsHTML(_ sender: Any?) {
         guard editor.documentKind.supportsHTML else { NSSound.beep(); return }
-        let html = MarkdownToHTML.document(editor.plainText, dark: false)
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(html, forType: .html)
-        pb.setString(html, forType: .string)
+        DiagramPage.exportDocument(editor.previewMarkdown) { html in
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(html, forType: .html)
+            pb.setString(html, forType: .string)
+        }
+    }
+
+    /// File ▸ Export Preview as PDF…: the page as the preview shows it (diagrams drawn),
+    /// black on white, in pages. Export as PDF… keeps printing the text itself.
+    @objc func exportPreviewAsPDF(_ sender: Any?) {
+        guard editor.documentKind.supportsHTML, let window = view.window else { NSSound.beep(); return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = "preview.pdf"
+        panel.beginSheetModal(for: window) { [weak self] resp in
+            guard resp == .OK, let url = panel.url, let self else { return }
+            PagePrint.run(markdown: self.editor.previewMarkdown, window: window, pdf: url)
+        }
     }
 
     // MARK: Validation
@@ -607,7 +623,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         case #selector(togglePreview(_:)):
             item.title = viewMode.menuTitle
             return editor.documentKind.supportsHTML
-        case #selector(exportAsHTML(_:)), #selector(copyAsHTML(_:)):
+        case #selector(exportAsHTML(_:)), #selector(copyAsHTML(_:)), #selector(exportPreviewAsPDF(_:)):
             return editor.documentKind.supportsHTML
         default:
             break

@@ -104,6 +104,11 @@ extension EditorViewController {
     // MARK: Print / PDF
 
     @objc func printEditor(_ sender: Any?) {
+        // A diagram file prints its picture, not its code.
+        if documentKind == .mermaid {
+            PagePrint.run(markdown: previewMarkdown, window: view.window)
+            return
+        }
         let info = NSPrintInfo.shared.copy() as! NSPrintInfo
         let op = NSPrintOperation(view: printableView(for: info), printInfo: info)
         op.printInfo.horizontalPagination = .fit
@@ -116,7 +121,11 @@ extension EditorViewController {
         panel.nameFieldStringValue = "export.pdf"
         panel.beginSheetModal(for: view.window ?? NSApp.keyWindow ?? NSWindow()) { [weak self] resp in
             guard resp == .OK, let url = panel.url, let self else { return }
-            self.writePDF(to: url)
+            if self.documentKind == .mermaid {
+                PagePrint.run(markdown: self.previewMarkdown, window: self.view.window, pdf: url)
+            } else {
+                self.writePDF(to: url)
+            }
         }
     }
 

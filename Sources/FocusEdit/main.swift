@@ -289,6 +289,7 @@ enum MenuBuilder {
         fileMenu.addItem(item("Print…", Selector(("printEditor:")), "p"))
         fileMenu.addItem(item("Export as HTML…", Selector(("exportAsHTML:")), ""))
         fileMenu.addItem(item("Export as PDF…", Selector(("exportAsPDF:")), ""))
+        fileMenu.addItem(item("Export Preview as PDF…", Selector(("exportPreviewAsPDF:")), ""))
 
         // Edit menu
         let editItem = NSMenuItem()

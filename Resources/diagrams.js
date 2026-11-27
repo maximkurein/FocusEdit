@@ -11,6 +11,9 @@
 //   scrolls inside its own frame and can be dragged.
 // - Double-click (or ⤢) opens it over the whole page, fitted to width and height;
 //   scroll or pinch zooms there, drag pans, Esc or × closes.
+// - Copy (the ⧉ button or a right-click): the picture as PNG or SVG, or its Mermaid
+//   code. The app puts it on the clipboard (message `copyDiagram`).
+// - `freeze()` swaps every figure for a plain SVG picture, for HTML export and printing.
 // - Drawings are cached by source and colours, so typing elsewhere does not redraw
 //   them and the page does not flicker. A diagram being edited keeps its last good
 //   picture, dimmed, until the new one is ready; a syntax error is shown under it.
@@ -230,6 +233,7 @@
         '<button data-act="fit" title="Fit to width">Fit</button>' +
         '<button data-act="in" title="Zoom in (⌥-scroll)">+</button>' +
         '<button data-act="full" title="Open full size (double-click)">⤢</button>' +
+        '<button data-act="copy" title="Copy as PNG, SVG or code (right-click)">⧉</button>' +
       '</div>' +
       '<div class="fe-frame"><div class="fe-canvas"></div></div>';
     pre.parentNode.replaceChild(fig, pre);
@@ -334,6 +338,7 @@
         '<button data-act="out" title="Zoom out (−)">−</button>' +
         '<button data-act="fit" title="Fit to window (0)">Fit</button>' +
         '<button data-act="in" title="Zoom in (+)">+</button>' +
+        '<button data-act="copy" title="Copy as PNG, SVG or code">⧉</button>' +
         '<button data-act="close" title="Close (Esc)">×</button>' +
       '</div>';
     o.querySelector('.fe-overlay-canvas').innerHTML = d.svg;
@@ -342,7 +347,7 @@
     svg.removeAttribute('width');
     svg.removeAttribute('height');
     document.documentElement.appendChild(o);
-    overlay = { el: o, d: d, svg: svg, scale: 1, x: 0, y: 0 };
+    overlay = { el: o, d: d, svg: svg, scale: 1, x: 0, y: 0, source: fig.__source };
     fitFull();
     tellApp(true);
   }
@@ -392,11 +397,142 @@
     placeFull();
   }
 
+  // MARK: Copy and export
+
+  /// Space around a copied or exported picture, so shapes at its edge are not cut.
+  var PAD = 12;
+
+  /// The drawing as a picture of its own: natural size plus a margin, the page's background.
+  function standaloneSVG(d, responsive) {
+    var doc = new DOMParser().parseFromString(d.svg, 'image/svg+xml');
+    var svg = doc.documentElement;
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    var vb = (svg.getAttribute('viewBox') || ('0 0 ' + d.w + ' ' + d.h)).trim().split(/[\s,]+/).map(parseFloat);
+    svg.setAttribute('viewBox', [vb[0] - PAD, vb[1] - PAD, vb[2] + 2 * PAD, vb[3] + 2 * PAD].join(' '));
+    var w = d.w + 2 * PAD, h = d.h + 2 * PAD;
+    if (responsive) {
+      svg.setAttribute('width', '100%');
+      svg.removeAttribute('height');
+      svg.setAttribute('style', 'max-width:' + w + 'px;height:auto');
+    } else {
+      svg.setAttribute('width', String(w));
+      svg.setAttribute('height', String(h));
+      svg.setAttribute('style', 'background-color:' + ((colors && colors.background) || '#ffffff'));
+    }
+    return new XMLSerializer().serializeToString(svg);
+  }
+
+  /// PNG at twice the size (sharp on Retina), on the page's background.
+  function pngData(d, done) {
+    var scale = 2;
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.ceil((d.w + 2 * PAD) * scale);
+        canvas.height = Math.ceil((d.h + 2 * PAD) * scale);
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = (colors && colors.background) || '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        done(canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, ''));
+      } catch (e) { done(null); }
+    };
+    img.onerror = function () { done(null); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(standaloneSVG(d, false));
+  }
+
+  function postCopy(type, data) {
+    try { window.webkit.messageHandlers.copyDiagram.postMessage({ type: type, data: data }); return true; }
+    catch (e) {
+      // Outside the app (a browser while testing): the text kinds go to the clipboard.
+      if (type !== 'png' && navigator.clipboard) navigator.clipboard.writeText(data);
+      window.__feLastCopy = { type: type, data: data };
+      return true;
+    }
+  }
+
+  function copied(fig, text) {
+    var host = fig || (overlay && overlay.el);
+    if (!host) return;
+    var tag = document.createElement('div');
+    tag.className = 'fe-copied';
+    tag.textContent = text;
+    if (!fig) { tag.style.position = 'fixed'; tag.style.top = '16px'; }
+    host.appendChild(tag);
+    setTimeout(function () { tag.remove(); }, 900);
+  }
+
+  function copy(type, d, source, fig) {
+    if (type === 'code') { postCopy('code', source); copied(fig, 'Code copied'); return; }
+    if (type === 'svg') { postCopy('svg', standaloneSVG(d, false)); copied(fig, 'SVG copied'); return; }
+    pngData(d, function (b64) {
+      if (b64) { postCopy('png', b64); copied(fig, 'PNG copied'); }
+      else copied(fig, 'Could not make a PNG');
+    });
+  }
+
+  var menu = null;
+  function closeCopyMenu() { if (menu) { menu.remove(); menu = null; } }
+
+  function openCopyMenu(d, source, at, fig) {
+    closeCopyMenu();
+    var m = document.createElement('div');
+    m.className = 'fe-menu';
+    [['png', 'Copy as PNG'], ['svg', 'Copy as SVG'], ['code', 'Copy Mermaid code']].forEach(function (item) {
+      var b = document.createElement('button');
+      b.textContent = item[1];
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        closeCopyMenu();
+        copy(item[0], d, source, fig);
+      });
+      m.appendChild(b);
+    });
+    document.documentElement.appendChild(m);
+    var x, y;
+    if (at && at.getBoundingClientRect) {
+      var r = at.getBoundingClientRect();
+      x = r.right - m.offsetWidth; y = r.bottom + 4;
+    } else { x = at.x; y = at.y; }
+    m.style.left = Math.max(4, Math.min(x, window.innerWidth - m.offsetWidth - 4)) + 'px';
+    m.style.top = Math.max(4, Math.min(y, window.innerHeight - m.offsetHeight - 4)) + 'px';
+    menu = m;
+  }
+
+  /// For export: each figure becomes a plain picture (or its code if it did not draw).
+  function freeze() {
+    closeFull();
+    closeCopyMenu();
+    Array.prototype.forEach.call(document.querySelectorAll('.fe-diagram'), function (fig) {
+      var out;
+      if (fig.__drawing && !fig.classList.contains('fe-broken')) {
+        out = document.createElement('figure');
+        out.className = 'fe-static';
+        out.innerHTML = standaloneSVG(fig.__drawing, true);
+      } else {
+        out = document.createElement('pre');
+        var code = document.createElement('code');
+        code.className = 'language-mermaid';
+        code.textContent = fig.__source || '';
+        out.appendChild(code);
+      }
+      fig.parentNode.replaceChild(out, fig);
+    });
+    return document.body.innerHTML;
+  }
+
   // MARK: Events (installed once per page; the body is replaced while typing)
 
   function figureOf(t) { return t && t.closest ? t.closest('.fe-diagram') : null; }
 
-  function act(name, fig) {
+  function act(name, fig, button) {
+    if (name === 'copy') {
+      if (fig && fig.__drawing) openCopyMenu(fig.__drawing, fig.__source, button, fig);
+      else if (overlay) openCopyMenu(overlay.d, overlay.source, button, null);
+      return;
+    }
     if (overlay && (!fig || name === 'close')) {
       if (name === 'in') zoomFull(STEP);
       else if (name === 'out') zoomFull(1 / STEP);
@@ -436,7 +572,17 @@
       '.fe-overlay-stage{position:absolute;inset:0}',
       '.fe-overlay-canvas{position:absolute;line-height:0}',
       '.fe-overlay-canvas svg{display:block;max-width:none}',
-      '.fe-overlay-tools{opacity:1;top:12px;right:12px;position:fixed}'
+      '.fe-overlay-tools{opacity:1;top:12px;right:12px;position:fixed}',
+      '.fe-menu{position:fixed;z-index:1100;min-width:150px;padding:4px;border-radius:8px;',
+      '  font:13px/1.2 -apple-system,system-ui,sans-serif;color:var(--fe-fg,CanvasText);background:var(--fe-bg,Canvas);',
+      '  border:1px solid rgba(127,127,127,.35);box-shadow:0 6px 24px rgba(0,0,0,.22)}',
+      '.fe-menu button{display:block;width:100%;text-align:left;padding:6px 10px;border:0;border-radius:5px;',
+      '  background:none;color:inherit;font:inherit;cursor:pointer}',
+      '.fe-menu button:hover{background:rgba(127,127,127,.2)}',
+      '.fe-copied{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:3;padding:4px 10px;',
+      '  border-radius:6px;font:12px/1.2 -apple-system,system-ui,sans-serif;background:rgba(127,127,127,.35);pointer-events:none}',
+      '.fe-static{margin:1em 0;text-align:center}',
+      '.fe-static svg{max-width:100%;height:auto}'
     ].join('\n');
     document.documentElement.appendChild(style);
 
@@ -445,8 +591,21 @@
       if (!b) return;
       e.preventDefault();
       e.stopPropagation();
-      act(b.getAttribute('data-act'), figureOf(b));
+      act(b.getAttribute('data-act'), figureOf(b), b);
     }, true);
+
+    // Right-click a diagram: the copy menu instead of the web view's own.
+    document.addEventListener('contextmenu', function (e) {
+      var fig = figureOf(e.target);
+      var d = fig ? fig.__drawing : (overlay && overlay.el.contains(e.target) ? overlay.d : null);
+      if (!d) return;
+      e.preventDefault();
+      openCopyMenu(d, fig ? fig.__source : overlay.source, { x: e.clientX, y: e.clientY }, fig);
+    });
+    document.addEventListener('mousedown', function (e) {
+      if (menu && !menu.contains(e.target)) closeCopyMenu();
+    }, true);
+    window.addEventListener('scroll', closeCopyMenu, true);
 
     document.addEventListener('dblclick', function (e) {
       if (overlay) {
@@ -498,7 +657,7 @@
     // Drag to pan: the full size view, or a zoomed figure inside its frame.
     var drag = null;
     document.addEventListener('mousedown', function (e) {
-      if (e.button !== 0 || (e.target.closest && e.target.closest('.fe-tools'))) return;
+      if (e.button !== 0 || (e.target.closest && e.target.closest('.fe-tools, .fe-menu'))) return;
       if (overlay) {
         drag = { el: overlay.el, x: e.clientX, y: e.clientY, ox: overlay.x, oy: overlay.y };
       } else {
@@ -528,6 +687,7 @@
     });
 
     document.addEventListener('keydown', function (e) {
+      if (menu && e.key === 'Escape') { closeCopyMenu(); e.preventDefault(); e.stopPropagation(); return; }
       if (!overlay) return;
       if (e.key === 'Escape') { closeFull(); e.preventDefault(); e.stopPropagation(); }
       else if (e.key === '+' || e.key === '=') { zoomFull(STEP); e.preventDefault(); }
@@ -553,6 +713,7 @@
       colors = c;
       themeKey = JSON.stringify(c) + '\n';
       document.documentElement.style.setProperty('--fe-bg', c.background);
+      document.documentElement.style.setProperty('--fe-fg', c.foreground);
       if (window.mermaid) window.mermaid.initialize(mermaidConfig());
     },
 
@@ -584,7 +745,13 @@
 
     /// For tests: how many figures are drawn, waiting, broken.
     /// Close the full size view (the app's Esc).
-    close: function () { closeFull(); },
+    close: function () { closeFull(); closeCopyMenu(); },
+
+    /// Plain pictures instead of figures; returns the body's HTML (export, print).
+    freeze: freeze,
+
+    /// Drawings still to make (0 when every figure is ready).
+    pending: function () { return queue.length + (busy ? 1 : 0); },
 
     status: function () {
       var figs = document.querySelectorAll('.fe-diagram');

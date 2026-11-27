@@ -293,6 +293,14 @@ enum SelfTest {
             "<pre><code class=\"language-mermaid\">flowchart LR\n  A --&gt; B</code></pre>")
         check("mermaid script is found", Diagrams.mermaidSource?.contains("mermaid") == true ? "yes" : "no", "yes")
         check("diagram script is found", Diagrams.scriptSource?.contains("__feDiagrams") == true ? "yes" : "no", "yes")
+        check("export page takes the drawn body",
+              MarkdownToHTML.document("```mermaid\nx\n```", dark: false, body: "<figure class=\"fe-static\"></figure>")
+                .contains("<figure class=\"fe-static\"></figure>") ? "yes" : "no", "yes")
+        check("export page styles the pictures",
+              MarkdownToHTML.document("x", dark: false).contains("figure.fe-static svg") ? "yes" : "no", "yes")
+        check("a document with a diagram is drawn for export",
+              DiagramPage.hasDiagrams("text\n\n```mermaid\ngraph LR\n  A --> B\n```") ? "yes" : "no", "yes")
+        check("a document without one is exported as before", DiagramPage.hasDiagrams("# Title\n\n```js\nx\n```") ? "yes" : "no", "no")
         check("diagram colours are passed as JSON",
               Diagrams.configureScript(Theme.sepia.pageColors).contains("\"background\":\"\(Theme.sepia.pageColors.background)\"") ? "yes" : "no", "yes")
         check("zoom in by 2", "\(EditorViewController.zoomedFontSize(16, by: 2))", "18.0")

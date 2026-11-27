@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import WebKit
 
 /// Mermaid diagrams in the preview: ```mermaid blocks are drawn as pictures.
@@ -65,6 +65,28 @@ enum Diagrams {
     /// Draw the blocks in the body; run after every body replacement.
     /// A failure here must not make the preview reload the page (see `inject`).
     static let refreshScript = "try { window.__feDiagrams && window.__feDiagrams.refresh(); } catch (e) {}"
+
+    /// The figure's copy menu: a PNG (base64), an SVG or the Mermaid code.
+    static func copy(_ body: Any) {
+        guard let message = body as? [String: Any], let type = message["type"] as? String,
+              let data = message["data"] as? String else { return }
+        let pb = NSPasteboard.general
+        switch type {
+        case "png":
+            guard let png = Data(base64Encoded: data) else { return }
+            pb.clearContents()
+            pb.setData(png, forType: .png)
+            // Some apps only take TIFF from the clipboard.
+            if let tiff = NSImage(data: png)?.tiffRepresentation { pb.setData(tiff, forType: .tiff) }
+        case "svg":
+            pb.clearContents()
+            pb.setData(Data(data.utf8), forType: NSPasteboard.PasteboardType("public.svg-image"))
+            pb.setString(data, forType: .string)
+        default:
+            pb.clearContents()
+            pb.setString(data, forType: .string)
+        }
+    }
 
     /// Closes the full size view, if one is open.
     static let closeScript = "try { window.__feDiagrams && window.__feDiagrams.close(); } catch (e) {}"

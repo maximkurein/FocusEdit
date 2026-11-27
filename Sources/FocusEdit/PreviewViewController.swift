@@ -13,6 +13,8 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
                                    didReceive message: WKScriptMessage) {
             if message.name == "diagramView" {
                 owner?.showsDiagram = (message.body as? Bool) ?? false
+            } else if message.name == "copyDiagram" {
+                Diagrams.copy(message.body)
             } else {
                 owner?.copyCode(message.body)
             }
@@ -82,6 +84,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         // click in a code block can copy it; the listener is the app's (installCopy).
         config.userContentController.add(copyBridge, name: "copyCode")
         config.userContentController.add(copyBridge, name: "diagramView")
+        config.userContentController.add(copyBridge, name: "copyDiagram")
         // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).
         Diagrams.install(in: config.userContentController)
         let web = WKWebView(frame: .zero, configuration: config)
