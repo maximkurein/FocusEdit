@@ -260,7 +260,7 @@
       fig.style.marginLeft = (left - parentLeft) + 'px';
     }
     var box = fig.clientWidth;
-    var fit = Math.min(1, box / d.w);
+    var fit = fitScale(fig, d, box);
     var z = zooms[fig.__index];
     var scale = z == null ? fit : z;
     svg.style.width = (d.w * scale) + 'px';
@@ -273,11 +273,26 @@
     if (label) label.textContent = z == null ? 'Fit' : Math.round(scale * 100) + '%';
   }
 
+  /// Alone on the page (a .mmd file), the diagram fits the window both ways, like a
+  /// live editor, and a small one is drawn a little larger. In a document it fits the
+  /// width and is never enlarged.
+  function isSolo(fig) {
+    var body = document.body;
+    return fig.parentElement === body && body.children.length === 1;
+  }
+
+  function fitScale(fig, d, box) {
+    if (!isSolo(fig)) return Math.min(1, box / d.w);
+    var top = fig.getBoundingClientRect().top + window.scrollY;
+    var room = Math.max(160, window.innerHeight - top - 40);
+    return Math.max(MIN_ZOOM, Math.min(1.5, box / d.w, room / d.h));
+  }
+
   function currentScale(fig) {
     var d = fig.__drawing;
     if (!d) return 1;
     var z = zooms[fig.__index];
-    return z == null ? Math.min(1, fig.clientWidth / d.w) : z;
+    return z == null ? fitScale(fig, d, fig.clientWidth) : z;
   }
 
   function zoomFigure(fig, factor, clientX, clientY) {

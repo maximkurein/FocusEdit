@@ -77,7 +77,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         editor.onCursorMoved = { [weak self] location in self?.outline.setCursor(location) }
         editor.onThemeChanged = { [weak self] in
             guard let self, !self.previewItem.isCollapsed else { return }
-            self.preview.update(markdown: self.editor.plainText, colors: self.editor.previewColors)
+            self.preview.update(markdown: self.editor.previewMarkdown, colors: self.editor.previewColors)
         }
         preview.fontSize = Double(editor.fontSize)
         editor.onFontSizeChanged = { [weak self] in
@@ -109,7 +109,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         updateViewSwitcher() // Save As can change the kind: Fountain has no preview
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
         if !previewItem.isCollapsed {
-            preview.update(markdown: editor.plainText, colors: editor.previewColors)
+            preview.update(markdown: editor.previewMarkdown, colors: editor.previewColors)
         }
     }
 
@@ -242,7 +242,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         switch mode {
         case .edit, .split:
             if from == .edit {
-                preview.update(markdown: editor.plainText, colors: editor.previewColors)
+                preview.update(markdown: editor.previewMarkdown, colors: editor.previewColors)
                 syncScrolling()
             }
             if from == .preview {
@@ -272,7 +272,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             // The page opens where the cursor was.
             let ratio = ViewMode.ratio(forCaret: tv.selectedRange().location, in: tv.string)
             if from == .edit {
-                preview.update(markdown: editor.plainText, colors: editor.previewColors)
+                preview.update(markdown: editor.previewMarkdown, colors: editor.previewColors)
                 syncScrolling()
             }
             previewItem.isCollapsed = false
@@ -308,8 +308,11 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     /// After the window is on screen (and an empty document has handed over its frame),
     /// put back the view, the pane sizes and the window size this file was closed with.
     func restoreAppearanceIfNeeded() {
-        guard !Snapshot.isActive, let path = editor.filePath,
-              let saved = DocumentAppearanceStore.load(path) else { return }
+        guard !Snapshot.isActive else { return }
+        guard let path = editor.filePath, let saved = DocumentAppearanceStore.load(path) else {
+            showDiagramIfNeeded()
+            return
+        }
         seenSplit = saved.seenSplit
         editorShare = CGFloat(saved.editorShare)
         if saved.libraryWidth > 0 { libraryWidth = sidebarWidth(saved.libraryWidth, libraryItem) }
@@ -322,6 +325,13 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         if let mode = ViewMode(storage: saved.mode) { setView(mode) }
     }
 
+
+    /// A Mermaid file opened for the first time (or from the template) shows its
+    /// picture beside the text, like a live editor.
+    func showDiagramIfNeeded() {
+        guard editor.documentKind == .mermaid, viewMode == .edit else { return }
+        setView(.split)
+    }
 
     /// Write the current look under the file's path. Untitled documents have nothing to key.
     /// The share is the one the panes are held to, never a width measured mid-layout.

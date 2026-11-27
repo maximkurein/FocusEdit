@@ -63,7 +63,7 @@ CI (`.github/workflows/windows.yml`) runs `npm ci`, `npm test`, `tauri build` on
 
 ## Documents: create, open, save, close
 
-Formats on both sides: `.txt` (plain), `.md` / `.markdown` / `.mdown` / `.mkd` / `.mdwn` (Markdown; the Windows Open dialog filters only `.md` / `.markdown`), `.fountain`, and `.rtf`, which is edited as Markdown and converted on read and write (`RTFMarkdown.swift` / `rtf.ts`; bold, italic, strikethrough, headings, lists, quotes, links and code survive, fonts, colours, images and tables don't, and opening such a file warns). The kind comes from the extension (`DocumentKind` / `kindForPath`) and switches on Save As (`FocusDocument.fileURL` didSet → `updateKind`).
+Formats on both sides: `.txt` (plain), `.md` / `.markdown` / `.mdown` / `.mkd` / `.mdwn` (Markdown; the Windows Open dialog filters only `.md` / `.markdown`), `.fountain`, `.mmd` / `.mermaid` (Mac only so far: `DocumentKind.mermaid`, `MermaidHighlighter`; the preview gets the whole text as one ```` ```mermaid ```` block via `DocumentKind.previewMarkdown`, a lone figure fits the pane both ways, and such a file opens in Split unless it has a remembered view — `showDiagramIfNeeded`), and `.rtf`, which is edited as Markdown and converted on read and write (`RTFMarkdown.swift` / `rtf.ts`; bold, italic, strikethrough, headings, lists, quotes, links and code survive, fonts, colours, images and tables don't, and opening such a file warns). The kind comes from the extension (`DocumentKind` / `kindForPath`) and switches on Save As (`FocusDocument.fileURL` didSet → `updateKind`).
 
 | | Mac (`NSDocument`, one window per document) | Windows (one document per window, `main.ts` + `platform.ts`) |
 |---|---|---|

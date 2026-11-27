@@ -14,7 +14,7 @@ import QuartzCore
 ///  4. Live Markdown — the marks of formatting away from the cursor get `.null`
 ///     glyphs (`LiveMarkdown` finds them), and headings get their size.
 ///
-/// Dropping a .txt/.md/.fountain file opens it as a document instead of pasting.
+/// Dropping a .txt/.md/.fountain/.mmd file opens it as a document instead of pasting.
 final class FocusTextView: NSTextView {
 
     /// Focus-highlighting granularity.
@@ -202,7 +202,7 @@ final class FocusTextView: NSTextView {
         let opts: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
                                                          options: opts) as? [URL] ?? []
-        let exts: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain", "rtf"]
+        let exts: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain", "rtf", "mmd", "mermaid"]
         return urls.filter { exts.contains($0.pathExtension.lowercased()) }
     }
 

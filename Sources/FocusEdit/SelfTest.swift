@@ -756,6 +756,37 @@ enum SelfTest {
               "\(editor.textView.listContinuationEnabled)", "true")
         check("text kept after type switch", editor.plainText, "# Title\n- item")
 
+        // Mermaid diagram files (.mmd / .mermaid).
+        check(".mmd is a diagram", "\(DocumentKind(fileExtension: "mmd"))", "mermaid")
+        check(".mermaid is a diagram", "\(DocumentKind(fileExtension: "MERMAID"))", "mermaid")
+        check("a diagram can be previewed", DocumentKind.mermaid.supportsHTML ? "yes" : "no", "yes")
+        check("diagram preview is one mermaid block", DocumentKind.mermaid.previewMarkdown("graph LR\n  A --> B"),
+              "```mermaid\ngraph LR\n  A --> B\n```\n")
+        check("diagram fence outgrows backticks in it",
+              DocumentKind.mermaid.previewMarkdown("graph LR\n  A[\"````\"]").hasPrefix("`````mermaid\n") ? "yes" : "no", "yes")
+        check("empty diagram previews nothing", DocumentKind.mermaid.previewMarkdown(" \n"), "")
+        check("markdown preview is the text", DocumentKind.markdown.previewMarkdown("# A"), "# A")
+        check("diagram is drawn as one figure",
+              MarkdownToHTML.render(DocumentKind.mermaid.previewMarkdown("graph LR\n  A --> B")),
+              "<pre><code class=\"language-mermaid\">graph LR\n  A --&gt; B</code></pre>\n")
+        let mermaid = MermaidHighlighter()
+        func roles(_ line: String) -> String {
+            mermaid.tokens(forLine: line).map { "\($0.role):\((line as NSString).substring(with: $0.range))" }
+                .joined(separator: " ")
+        }
+        check("diagram kind line", roles("flowchart TB"), "heading:flowchart TB")
+        check("arrow and label", roles("  A -->|\"go --> on\"| B"), "link:--> emphasis:|\"go --> on\"|")
+        check("keyword", roles("  subgraph mesh[\"Tailnet\"]"), "strong:subgraph emphasis:\"Tailnet\"")
+        check("comment line", roles("%% note"), "quote:%% note")
+        check("comment after a statement", roles("A --> B %% why"), "link:--> quote:%% why")
+        check("dashes in a name are not an arrow", roles("  rust-x --> b"), "link:-->")
+        editor.updateKind(fileExtension: "mmd")
+        check("diagram file: no list continuation", "\(editor.textView.listContinuationEnabled)", "false")
+        check("diagram file: preview text", editor.previewMarkdown.hasPrefix("```mermaid\n") ? "yes" : "no", "yes")
+        check("diagram hints", HintsViewController.catalog(kind: .mermaid, vim: false)
+              .contains { $0.title == "Mermaid" } ? "yes" : "no", "yes")
+        editor.updateKind(fileExtension: "md")
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

@@ -107,18 +107,27 @@ final class HintsViewController: NSViewController {
                 ("CUT TO:", "Transition"),
                 ("# Act  = note", "Section · synopsis"),
             ]))
+        case .mermaid:
+            list.append((title: "Mermaid", rows: [
+                ("flowchart LR", "First line: the kind — also sequenceDiagram, classDiagram, gantt…"),
+                ("A --> B", "An arrow · A -- text --> B labels it · A -.-> B dotted"),
+                ("A[\"Box<br/>two lines\"]", "A node with a label · (round) · ([pill]) · [(database)]"),
+                ("subgraph x[\"…\"] … end", "A group of nodes"),
+                ("%% note", "A comment, not drawn"),
+                ("Split", "The picture updates as you type; double-click it for full size"),
+            ]))
         case .plain:
             break
         }
         list.append((title: "Files", rows: [
             ("⇧⌘N  ⌘N", "New file… · empty document"),
             ("⌘O  ⌘S", "Open · save"),
-            ("⇧⌘S", "Save as… — a new name, folder or format (.txt, .md, .fountain, .rtf). The toolbar button does the same"),
+            ("⇧⌘S", "Save as… — a new name, folder or format (.txt, .md, .fountain, .rtf, .mmd). The toolbar button does the same"),
             ("⌘W", "Close the file; the window stays with a start screen"),
             ("⌘P", "Print, or save as PDF from the print dialog"),
             ("⌥⌘L", "Library — link a folder of documents"),
             ("⌘F  ⌥⌘F", "Find · find and replace"),
-            ("drag a file", "Drop .md, .txt, .rtf or .fountain on the window"),
+            ("drag a file", "Drop .md, .txt, .rtf, .fountain or .mmd on the window"),
         ]))
         return list
     }

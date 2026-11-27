@@ -3,13 +3,15 @@ import AppKit
 /// What kind of document is being edited — drives highlighting, outline
 /// extraction and whether HTML preview/export is offered.
 enum DocumentKind {
-    case plain, markdown, fountain
+    case plain, markdown, fountain, mermaid
 
     init(fileExtension ext: String) {
         switch ext.lowercased() {
         // RTF opens as Markdown (RTFMarkdown converts both ways).
         case "md", "markdown", "mdown", "mkd", "mdwn", "rtf": self = .markdown
         case "fountain":                                self = .fountain
+        // A Mermaid diagram on its own: the whole file is one picture in the preview.
+        case "mmd", "mermaid":                          self = .mermaid
         default:                                        self = .plain
         }
     }
@@ -18,6 +20,7 @@ enum DocumentKind {
         switch self {
         case .markdown: return MarkdownHighlighter()
         case .fountain: return FountainHighlighter()
+        case .mermaid:  return MermaidHighlighter()
         case .plain:    return nil
         }
     }
@@ -25,6 +28,17 @@ enum DocumentKind {
     /// Fountain is a screenplay, not a page. Plain text and Markdown can be
     /// previewed and exported, as on Windows.
     var supportsHTML: Bool { self != .fountain }
+
+    /// What the preview renders: the text itself, or for a diagram file the whole
+    /// text as one ```mermaid block (with a fence longer than any backtick run in it).
+    func previewMarkdown(_ text: String) -> String {
+        guard self == .mermaid else { return text }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "" }
+        var longest = 0, run = 0
+        for ch in text { run = ch == "`" ? run + 1 : 0; longest = max(longest, run) }
+        let fence = String(repeating: "`", count: max(3, longest + 1))
+        return "\(fence)mermaid\n\(text)\n\(fence)\n"
+    }
 }
 
 /// One entry in the document outline.

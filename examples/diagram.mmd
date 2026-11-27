@@ -1,0 +1,9 @@
+%% A Mermaid diagram file: FocusEdit opens it in Split, the picture beside the text.
+flowchart TB
+    subgraph app["FocusEdit (macOS)"]
+        direction LR
+        doc["FocusDocument<br/>.md · .fountain · .mmd"] --> editor["EditorViewController"]
+        editor -->|"live"| preview["PreviewViewController<br/>(WKWebView + Mermaid)"]
+    end
+    you(["You"]) --> editor
+    preview -. "double-click" .-> full["Full size view"]

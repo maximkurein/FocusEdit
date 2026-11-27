@@ -13,7 +13,7 @@ final class FileNode {
 
     var title: String { url.lastPathComponent }
 
-    static let documentExtensions: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain", "rtf"]
+    static let documentExtensions: Set<String> = ["txt", "md", "markdown", "mdown", "mkd", "fountain", "rtf", "mmd", "mermaid"]
 
     var children: [FileNode] {
         if let loaded { return loaded }
@@ -37,7 +37,7 @@ final class FileNode {
 }
 
 /// Leading sidebar, the Library: one folder you choose, shown as a tree of the
-/// documents FocusEdit opens (txt, md, rtf, fountain) and its subfolders.
+/// documents FocusEdit opens (txt, md, rtf, fountain, mmd) and its subfolders.
 /// Double-click opens a document (or opens and closes a subfolder). Choose the folder with the header
 /// button, Library ▸ Link Directory…, or by dropping a folder on the sidebar.
 final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
@@ -47,7 +47,7 @@ final class LibraryViewController: NSViewController, NSOutlineViewDataSource, NS
     private let scrollView = NSScrollView()
     private let outlineView = NSOutlineView()
     private let placeholder = NSTextField(wrappingLabelWithString:
-        "Keep a folder of your writing here: its documents (.txt, .md, .rtf, .fountain) "
+        "Keep a folder of your writing here: its documents (.txt, .md, .rtf, .fountain, .mmd) "
         + "are listed and open with a double-click.")
     private let chooseButton = NSButton(title: "Choose Folder…", target: nil, action: #selector(MainSplitViewController.linkLibraryDirectory(_:)))
     private let titleLabel = NSTextField(labelWithString: "LIBRARY")
