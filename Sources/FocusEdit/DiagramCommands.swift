@@ -58,6 +58,11 @@ extension EditorViewController {
         let tag = (sender as? NSMenuItem)?.tag ?? 0
         guard diagramsAllowed, MermaidEdit.templates.indices.contains(tag) else { NSSound.beep(); return }
         let template = MermaidEdit.templates[tag]
+        // An empty untitled document becomes a diagram file (.mmd) with the picture beside it.
+        if isPristine, let document {
+            document.applyTemplate(template.source + "\n", fileExtension: "mmd")
+            return
+        }
         let text = MermaidEdit.insertion(template, kind: documentKind)
         let all = textView.string as NSString
         if documentKind == .mermaid {
@@ -71,6 +76,8 @@ extension EditorViewController {
         let before = at.location > 0 && all.character(at: at.location - 1) != 10 ? "\n\n" : ""
         replaceText(in: at, with: before + text,
                     select: NSRange(location: at.location + (before as NSString).length + 11, length: 0))
+        // The picture is the point: a template inserted in the bare editor opens the preview beside it.
+        (view.window?.contentViewController as? MainSplitViewController)?.showSplitForDiagram()
     }
 
     /// Block, Arrow or Group (tag = `MermaidEdit.Element`) after the cursor's line, with

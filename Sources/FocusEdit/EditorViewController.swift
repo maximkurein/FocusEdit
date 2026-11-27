@@ -29,7 +29,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     let vimCoach = VimCoachView()
     private(set) var vimEnabled = Preferences.vimMode
 
-    private weak var document: FocusDocument?
+    private(set) weak var document: FocusDocument?
     /// The file this window is editing, used to remember how it was last shown.
     var filePath: String? { document?.fileURL?.standardizedFileURL.path }
     /// Save As gives the document a path; the split view stores the current look under it.

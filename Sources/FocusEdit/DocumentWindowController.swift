@@ -16,6 +16,7 @@ extension NSToolbarItem.Identifier {
     static let print = NSToolbarItem.Identifier("focusedit.print")
     static let font = NSToolbarItem.Identifier("focusedit.font")
     static let fullScreen = NSToolbarItem.Identifier("focusedit.fullScreen")
+    static let diagram = NSToolbarItem.Identifier("focusedit.diagram")
 }
 
 /// SF Symbol images for toolbar items; an "on" state is drawn in the accent color.
@@ -113,8 +114,8 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
         window.delegate = self
 
         // v6: the column-width button is gone (1.6.9). v7: a Print button (1.6.11).
-        // A saved layout would keep the old set.
-        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v7")
+        // v8: a Diagram button (1.9). A saved layout would keep the old set.
+        let toolbar = NSToolbar(identifier: "FocusEditToolbar.v8")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -145,7 +146,7 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [.toggleSidebar, .sidebarTrackingSeparator, .newFile, .open, .save, .saveAs, .print, .flexibleSpace,
          .focusMode, .typewriter, .sounds, .vim, .theme, .font, .fullScreen,
-         .space, .preview, .hints, .outline]
+         .space, .diagram, .preview, .hints, .outline]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -167,6 +168,34 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
             for mode in [FocusTextView.FocusMode.off, .sentence, .paragraph] {
                 let mi = NSMenuItem(title: mode.title, action: Selector(("selectFocusMode:")), keyEquivalent: "")
                 mi.tag = mode.rawValue
+                menu.addItem(mi)
+            }
+            item.menu = menu
+            return item
+
+        case .diagram:
+            // Click: the Diagrams list in the sidebar. Arrow: a new diagram or a template at the cursor.
+            let item = NSMenuToolbarItem(itemIdentifier: id)
+            item.image = ToolbarSymbol.image("flowchart") ?? ToolbarSymbol.image("point.3.connected.trianglepath.dotted")
+            item.label = "Diagram"
+            item.paletteLabel = "Diagram"
+            item.toolTip = "Diagrams — click for the list of diagrams, arrow for a new diagram or a template at the cursor"
+            item.action = #selector(MainSplitViewController.showDiagramList(_:))
+            item.showsIndicator = true
+            let menu = NSMenu()
+            menu.addItem(withTitle: "Show Diagram List", action: #selector(MainSplitViewController.showDiagramList(_:)),
+                         keyEquivalent: "")
+            menu.addItem(withTitle: "New Diagram", action: #selector(AppDelegate.newMermaidTemplate(_:)), keyEquivalent: "")
+            menu.addItem(withTitle: "New File…", action: #selector(AppDelegate.newFileWizard(_:)), keyEquivalent: "")
+            menu.addItem(.separator())
+            let header = NSMenuItem(title: "Insert at the Cursor", action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            menu.addItem(header)
+            for (i, t) in MermaidEdit.templates.enumerated() {
+                let mi = NSMenuItem(title: t.title, action: #selector(EditorViewController.insertDiagramTemplate(_:)),
+                                    keyEquivalent: "")
+                mi.tag = i
+                mi.indentationLevel = 1
                 menu.addItem(mi)
             }
             item.menu = menu

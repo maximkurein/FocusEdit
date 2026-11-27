@@ -392,6 +392,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         setView(.split)
     }
 
+    /// A diagram template was inserted while only the text was on screen: show it drawn.
+    func showSplitForDiagram() {
+        guard viewMode == .edit else { return }
+        setView(.split)
+    }
+
     /// Write the current look under the file's path. Untitled documents have nothing to key.
     /// The share is the one the panes are held to, never a width measured mid-layout.
     func saveAppearance() {
@@ -667,6 +673,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         switch item.action {
         case #selector(toggleOutline(_:)):
             ToolbarSymbol.update(item, "sidebar.right", on: !outlineItem.isCollapsed)
+        case #selector(showDiagramList(_:)):
+            return editor.diagramsAllowed
         default:
             break
         }

@@ -20,6 +20,7 @@
 - Mac: completion inside a diagram: while you type, the grey suggestion (and the ⌥Esc list) offers the diagram's own block ids (participants in a sequence) and Mermaid's words for its kind (subgraph, style, classDef, participant, loop, section…), the diagram kinds on its first line and config words in its front matter, instead of dictionary words
 - Mac: in Split, the block on the cursor's line is outlined in orange in the picture
 - Mac: Properties on the Diagrams tab (and Edit ▸ Diagram ▸ Block Shape, Block Color, Arrow) for the block on the cursor's line: shape (rectangle, rounded, stadium, subroutine, database, circle, decision, hexagon, parallelogram, flag), fill colour (a `style` line; None removes it) and the kind of its arrow (arrow, dotted, thick, line, both ways)
+- Mac: a Diagram button in the toolbar: a click shows the Diagrams list, its arrow offers New Diagram, New File… and the templates to insert at the cursor. A template chosen in an empty untitled document makes it a diagram file (.mmd); one inserted while only the text is shown opens Split, so the picture is beside it
 
 ## [1.8.0] - 2026-11-27
 

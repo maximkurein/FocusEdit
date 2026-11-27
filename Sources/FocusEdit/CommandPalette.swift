@@ -370,7 +370,7 @@ extension MainSplitViewController {
                 command("Export Preview as PDF…", "exportPreviewAsPDF:", keywords: "diagram mermaid pages"),
             ]
         }
-        if markdown || editor.documentKind == .mermaid {
+        if editor.diagramsAllowed {
             for (i, t) in MermaidEdit.templates.enumerated() {
                 list.append(tagged("Diagram: Insert \(t.title)", "insertDiagramTemplate:", i,
                                    keywords: "mermaid template chart schema"))

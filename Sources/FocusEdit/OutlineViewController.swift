@@ -3,7 +3,7 @@ import AppKit
 /// Trailing sidebar listing the document headings; selecting one jumps the
 /// editor to that line. The heading the cursor is under stays selected.
 ///
-/// In Markdown and diagram files a second tab, Diagrams, lists the Mermaid diagrams
+/// In Markdown, plain text and diagram files a second tab, Diagrams, lists the Mermaid diagrams
 /// instead (`MermaidEdit.diagrams`), with buttons below that add a block, an arrow or a
 /// group to the diagram under the cursor, and a menu of templates.
 final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
