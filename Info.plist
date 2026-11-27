@@ -102,6 +102,20 @@
             <key>NSDocumentClass</key>
             <string>FocusEdit.FocusDocument</string>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Excalidraw Board</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>excalidraw</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>NSDocumentClass</key>
+            <string>BoardDocument</string>
+        </dict>
     </array>
 </dict>
 </plist>

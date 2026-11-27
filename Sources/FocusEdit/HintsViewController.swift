@@ -125,6 +125,7 @@ final class HintsViewController: NSViewController {
                 ("Cursor on a block's line", "In Split, that block is outlined in orange in the picture"),
                 ("Outline ▸ Diagrams", "Block · Arrow · Group add to the diagram after the cursor's line; Template ▾"),
                 ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout, diagram theme"),
+                ("Open in Excalidraw", "Edit ▸ Diagram: the diagram as a hand-drawn board to move by mouse; .excalidraw, PNG, SVG"),
             ]))
         case .plain:
             break

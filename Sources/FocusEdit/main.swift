@@ -123,6 +123,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newMermaidTemplate(_ sender: Any?) {
         openTemplate(ext: "mmd", text: Templates.mermaid)
     }
+    /// File ▸ New Board: an empty Excalidraw board.
+    @objc func newBoard(_ sender: Any?) {
+        Board.open()
+    }
     /// File ▸ New File…: the three-step dialog, then the file on disk, opened in a window.
     @objc func newFileWizard(_ sender: Any?) {
         guard let choice = NewFileWizard().run() else { return }
@@ -268,6 +272,7 @@ enum MenuBuilder {
         tmplMenu.addItem(item("Markdown", #selector(AppDelegate.newMarkdownTemplate(_:)), ""))
         tmplMenu.addItem(item("Fountain", #selector(AppDelegate.newFountainTemplate(_:)), ""))
         tmplMenu.addItem(item("Mermaid Diagram", #selector(AppDelegate.newMermaidTemplate(_:)), ""))
+        tmplMenu.addItem(item("Excalidraw Board", #selector(AppDelegate.newBoard(_:)), ""))
         fileMenu.addItem(tmplParent)
         fileMenu.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
 
@@ -291,6 +296,9 @@ enum MenuBuilder {
         fileMenu.addItem(item("Export as HTML…", Selector(("exportAsHTML:")), ""))
         fileMenu.addItem(item("Export as PDF…", Selector(("exportAsPDF:")), ""))
         fileMenu.addItem(item("Export Preview as PDF…", Selector(("exportPreviewAsPDF:")), ""))
+        fileMenu.addItem(item("Export Board as PNG…", #selector(BoardWindowController.exportBoardAsPNG(_:)), ""))
+        fileMenu.addItem(item("Export Board as SVG…", #selector(BoardWindowController.exportBoardAsSVG(_:)), ""))
+        fileMenu.addItem(item("Copy Board as PNG", #selector(BoardWindowController.copyBoardAsPNG(_:)), ""))
 
         // Edit menu
         let editItem = NSMenuItem()
@@ -377,6 +385,7 @@ enum MenuBuilder {
               MermaidEdit.templates.map(\.title))
         dgSub("Insert", #selector(EditorViewController.insertDiagramElement(_:)), ["Block", "Arrow", "Group"])
         dgMenu.addItem(item("Show Diagram List", #selector(MainSplitViewController.showDiagramList(_:)), ""))
+        dgMenu.addItem(item("Open in Excalidraw", #selector(EditorViewController.openDiagramInExcalidraw(_:)), ""))
         dgMenu.addItem(.separator())
         dgSub("Block Shape", #selector(EditorViewController.setDiagramBlockShape(_:)),
               MermaidEdit.Shape.allCases.map(\.title))

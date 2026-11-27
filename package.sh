@@ -59,6 +59,12 @@ cp Info.plist "$app/Contents/Info.plist"
 for f in mermaid.min.js mermaid-LICENSE.txt mermaid-layout-elk.min.js mermaid-layout-elk-LICENSE.txt diagrams.js; do
   cp "Resources/$f" "$app/Contents/Resources/$f" || fail "Resources/$f is missing"
 done
+# Excalidraw boards (Board.swift): the page, its script, styles and fonts.
+mkdir -p "$app/Contents/Resources/excalidraw"
+for f in index.html board.js board.css THIRD-PARTY-LICENSES.txt; do
+  cp "Resources/excalidraw/$f" "$app/Contents/Resources/excalidraw/$f" || fail "Resources/excalidraw/$f is missing"
+done
+cp -R Resources/excalidraw/fonts "$app/Contents/Resources/excalidraw/fonts" || fail "Resources/excalidraw/fonts is missing"
 printf 'APPL????' >"$app/Contents/PkgInfo"
 
 # Two integers that only grow: macOS compares CFBundleVersion component by component.

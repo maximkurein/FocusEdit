@@ -137,6 +137,8 @@ extension EditorViewController {
         switch item.action {
         case #selector(insertDiagramTemplate(_:)):
             return diagramsAllowed
+        case #selector(openDiagramInExcalidraw(_:)):
+            return Board.isAvailable && currentDiagramRange != nil
         case #selector(insertDiagramElement(_:)):
             return currentDiagramSource.map(MermaidEdit.canInsertElements) ?? false
         case #selector(setDiagramDirection(_:)):
@@ -201,6 +203,17 @@ extension EditorViewController {
         if let line = MermaidEdit.lineRange(in: renamed, nodeID: id, label: text) {
             textView.setSelectedRange(NSRange(location: diagram.location + NSMaxRange(line), length: 0))
         }
+    }
+
+    // MARK: Excalidraw
+
+    /// Edit ▸ Diagram ▸ Open in Excalidraw: the diagram under the cursor as a drawing on a new board.
+    @objc func openDiagramInExcalidraw(_ sender: Any?) {
+        guard let source = currentDiagramSource, !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            NSSound.beep()
+            return
+        }
+        Board.open(mermaid: source)
     }
 
     // MARK: Mouse editing in the picture

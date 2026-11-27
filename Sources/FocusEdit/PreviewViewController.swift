@@ -30,6 +30,9 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
                 guard let m = message.body as? [String: Any], let source = m["source"] as? String,
                       let id = m["id"] as? String, let action = m["action"] as? String else { return }
                 owner?.onDiagramNodeAction?(source, id, action)
+            } else if message.name == "openBoard" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String else { return }
+                Board.open(mermaid: source)
             } else if message.name == "diagramRename" {
                 guard let m = message.body as? [String: Any], let source = m["source"] as? String,
                       let id = m["id"] as? String, let text = m["text"] as? String else { return }
@@ -135,6 +138,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         config.userContentController.add(copyBridge, name: "diagramNode")
         config.userContentController.add(copyBridge, name: "diagramError")
         config.userContentController.add(copyBridge, name: "diagramRename")
+        config.userContentController.add(copyBridge, name: "openBoard")
         config.userContentController.add(copyBridge, name: "diagramConnect")
         config.userContentController.add(copyBridge, name: "diagramNodeAction")
         // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).

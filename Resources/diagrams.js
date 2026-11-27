@@ -761,7 +761,13 @@
       var d = fig ? fig.__drawing : (overlay && overlay.el.contains(e.target) ? overlay.d : null);
       if (!d) return;
       e.preventDefault();
-      var extra = null;
+      var extra = [];
+      var boardSource = fig ? fig.__source : overlay.source;
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openBoard) {
+        extra.push(['Open in Excalidraw', function () {
+          window.webkit.messageHandlers.openBoard.postMessage({ source: boardSource });
+        }]);
+      }
       var node = fig && isFlowchart(fig.__source) ? nodeAt(e.target, fig) : null;
       if (node && node.id) {
         var target = e.target, source = fig.__source;
@@ -778,8 +784,9 @@
           ['Duplicate', send('duplicate')],
           ['Delete', send('delete')],
           null
-        ];
+        ].concat(extra);
       }
+      if (extra.length && extra[extra.length - 1]) extra.push(null);
       openCopyMenu(d, fig ? fig.__source : overlay.source, { x: e.clientX, y: e.clientY }, fig, extra);
     });
     document.addEventListener('mousedown', function (e) {

@@ -978,6 +978,22 @@ enum SelfTest {
         check("new diagram starts from its template", NewFile.startingDiagram(2), MermaidEdit.templates[2].source + "\n")
         check("unknown template falls back to the first", NewFile.startingDiagram(99), MermaidEdit.templates[0].source + "\n")
 
+        // Excalidraw boards.
+        check("board folder is found", Board.isAvailable ? "yes" : "no", "yes")
+        if let root = Board.folderURL {
+            let script = (try? String(contentsOf: root.appendingPathComponent("board.js"), encoding: .utf8)) ?? ""
+            check("board script has its API", script.contains("__feBoard") ? "yes" : "no", "yes")
+            check("board page file is served",
+                  BoardScheme.file(for: URL(string: "fe-board://app/index.html"), in: root)?.lastPathComponent, "index.html")
+            check("board font path is served",
+                  BoardScheme.file(for: URL(string: "fe-board://app/fonts/Excalifont/a.woff2"), in: root)?.lastPathComponent,
+                  "a.woff2")
+            check("board scheme refuses ..",
+                  BoardScheme.file(for: URL(string: "fe-board://app/../Info.plist"), in: root)?.path, nil)
+            check("board scheme refuses other schemes",
+                  BoardScheme.file(for: URL(string: "file:///etc/passwd"), in: root)?.path, nil)
+        }
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

@@ -187,6 +187,9 @@ final class DocumentWindowController: NSWindowController, NSToolbarDelegate,
                          keyEquivalent: "")
             menu.addItem(withTitle: "New Diagram", action: #selector(AppDelegate.newMermaidTemplate(_:)), keyEquivalent: "")
             menu.addItem(withTitle: "New File…", action: #selector(AppDelegate.newFileWizard(_:)), keyEquivalent: "")
+            menu.addItem(withTitle: "Open in Excalidraw",
+                         action: #selector(EditorViewController.openDiagramInExcalidraw(_:)), keyEquivalent: "")
+            menu.addItem(withTitle: "New Excalidraw Board", action: #selector(AppDelegate.newBoard(_:)), keyEquivalent: "")
             menu.addItem(.separator())
             let header = NSMenuItem(title: "Insert at the Cursor", action: nil, keyEquivalent: "")
             header.isEnabled = false

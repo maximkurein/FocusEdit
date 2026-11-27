@@ -362,6 +362,7 @@ extension MainSplitViewController {
             command("Save", "saveDocument:"),
             command("Save As…", "saveDocumentAs:"),
             command("Close file", "closeFile:", keywords: "close window start screen"),
+            command("New Excalidraw Board", "newBoard:", keywords: "draw sketch whiteboard excalidraw"),
         ]
         if html {
             list += [
@@ -376,6 +377,10 @@ extension MainSplitViewController {
                                    keywords: "mermaid template chart schema"))
             }
             list.append(command("Diagram: Show Diagram List", "showDiagramList:", keywords: "mermaid outline sidebar"))
+            if editor.currentDiagramRange != nil {
+                list.append(command("Diagram: Open in Excalidraw", "openDiagramInExcalidraw:",
+                                    keywords: "mermaid draw board sketch hand drawn"))
+            }
             if editor.currentDiagramRange != nil {
                 for (i, t) in ["Block", "Arrow", "Group"].enumerated() {
                     list.append(tagged("Diagram: Add \(t)", "insertDiagramElement:", i,
