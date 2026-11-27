@@ -86,7 +86,9 @@ final class HintsViewController: NSViewController {
                 ("Preview theme", "Palette: same as the editor, or its own"),
             ] + (kind == .markdown
                 ? [("Click a code block", "In the preview, copies the command"),
-                   ("```mermaid", "Drawn as a diagram: ⌥-scroll zooms, double-click opens it full size, right-click copies PNG / SVG / code")]
+                   ("```mermaid", "Drawn as a diagram: ⌥-scroll zooms, double-click opens it full size, right-click copies PNG / SVG / code"),
+                   ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout and theme of the diagram under the cursor"),
+                   ("Outline ▸ Diagrams", "Every diagram of the document; Block · Arrow · Group add to the one under the cursor; double-click a block in the picture to rename it")]
                 : [])))
         }
         switch kind {
@@ -115,6 +117,15 @@ final class HintsViewController: NSViewController {
                 ("subgraph x[\"…\"] … end", "A group of nodes"),
                 ("%% note", "A comment, not drawn"),
                 ("Split", "The picture updates as you type; double-click it for full size"),
+                ("Click a block", "In Split, puts the cursor on its line · a mistake is underlined in red"),
+                ("Double-click a block", "Rename it right in the picture: Enter keeps it, Esc cancels"),
+                ("Drag block → block", "Adds an arrow between them · right-click a block: rename, add next, duplicate, delete"),
+                ("Properties", "Outline ▸ Diagrams: shape and color of the block on the cursor's line, kind of its arrow"),
+                ("Typing", "Suggests the diagram's block ids and Mermaid words; Tab takes the grey suggestion"),
+                ("Cursor on a block's line", "In Split, that block is outlined in orange in the picture"),
+                ("Outline ▸ Diagrams", "Block · Arrow · Group add to the diagram after the cursor's line; Template ▾"),
+                ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout, diagram theme"),
+                ("Open in Excalidraw", "Edit ▸ Diagram: the diagram as a hand-drawn board to move by mouse; .excalidraw, PNG, SVG"),
             ]))
         case .plain:
             break

@@ -1,16 +1,17 @@
 import AppKit
 
 /// File ▸ New File…: a three-step dialog (format, what to start from, name and folder) that makes
-/// a .txt, .md or .rtf file on disk and opens it. The rules here match windows/src/newfile.ts.
+/// a .txt, .md, .rtf or .mmd (Mermaid diagram) file on disk and opens it. The rules here match windows/src/newfile.ts.
 
 enum NewFileFormat: CaseIterable {
-    case txt, md, rtf
+    case txt, md, rtf, mmd
 
     var fileExtension: String {
         switch self {
         case .txt: "txt"
         case .md:  "md"
         case .rtf: "rtf"
+        case .mmd: "mmd"
         }
     }
 
@@ -19,6 +20,7 @@ enum NewFileFormat: CaseIterable {
         case .txt: "Plain text  .txt"
         case .md:  "Markdown  .md"
         case .rtf: "Rich text  .rtf"
+        case .mmd: "Mermaid diagram  .mmd"
         }
     }
 
@@ -27,6 +29,7 @@ enum NewFileFormat: CaseIterable {
         case .txt: "Just words, no formatting. Opens in any program."
         case .md:  "Headings, lists and links written with simple marks. Has a live preview."
         case .rtf: "Bold, italic and headings that TextEdit, Pages and Word show formatted."
+        case .mmd: "A diagram written as text: flowchart, sequence, Gantt… The picture is drawn beside it."
         }
     }
 }
@@ -72,7 +75,7 @@ enum NewFile {
     }
 
     private static let forbidden = CharacterSet(charactersIn: "<>:\"/\\|?*").union(.controlCharacters)
-    private static let knownExtensions = ["txt", "md", "markdown", "rtf"]
+    private static let knownExtensions = ["txt", "md", "markdown", "rtf", "mmd", "mermaid"]
 
     /// A name typed by the user, cleaned up for a file name (without the extension).
     static func cleanName(_ input: String) -> String {
@@ -155,6 +158,12 @@ enum NewFile {
         return text.isEmpty ? "" : text + "\n"
     }
 
+    /// A new diagram file: template `index` of `MermaidEdit.templates`.
+    static func startingDiagram(_ index: Int) -> String {
+        let templates = MermaidEdit.templates
+        return templates[templates.indices.contains(index) ? index : 0].source + "\n"
+    }
+
     /// What goes into the file on disk: the text itself, or RTF made from the Markdown.
     static func data(format: NewFileFormat, text: String) throws -> Data {
         format == .rtf ? try RTFMarkdown.rtf(fromMarkdown: text) : Data(text.utf8)
@@ -167,6 +176,8 @@ final class NewFileWizard: NSObject {
     struct Result {
         let format: NewFileFormat
         let template: NewFileTemplate
+        /// For a diagram file: which of `MermaidEdit.templates`.
+        let diagram: Int
         let name: String
         let folder: URL
     }
@@ -184,6 +195,7 @@ final class NewFileWizard: NSObject {
     private var step = 1
     private var format = NewFileFormat.md
     private var template = NewFileTemplate.blank
+    private var diagram = 0
     private var nameEdited = false
     private var folder: URL
     private let date = NewFile.isoDate()
@@ -264,6 +276,8 @@ final class NewFileWizard: NSObject {
         case 1:
             let formats = NewFileFormat.allCases
             page = choicePage(formats.map { ($0.title, $0.details) }, selected: formats.firstIndex(of: format) ?? 0)
+        case 2 where format == .mmd:
+            page = choicePage(MermaidEdit.templates.map { ($0.title, "") }, selected: diagram)
         case 2:
             let templates = NewFileTemplate.allCases
             page = choicePage(templates.map { ($0.title, $0.details) }, selected: templates.firstIndex(of: template) ?? 0)
@@ -288,6 +302,10 @@ final class NewFileWizard: NSObject {
             radio.state = index == selected ? .on : .off
             radio.font = .boldSystemFont(ofSize: 13)
             radios.append(radio)
+            if item.1.isEmpty {
+                rows.append(radio)
+                continue
+            }
             let detail = NSTextField(wrappingLabelWithString: item.1)
             detail.textColor = .secondaryLabelColor
             detail.font = .systemFont(ofSize: 12)
@@ -301,12 +319,14 @@ final class NewFileWizard: NSObject {
         let stack = NSStackView(views: rows)
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 12
+        stack.spacing = items.allSatisfy({ $0.1.isEmpty }) ? 3 : 12
         return stack
     }
 
     private func namePage() -> NSView {
-        if !nameEdited { nameField.stringValue = NewFile.defaultName(template, date: date) }
+        if !nameEdited {
+            nameField.stringValue = format == .mmd ? "Diagram" : NewFile.defaultName(template, date: date)
+        }
         nameField.target = self
         nameField.action = #selector(nameChanged(_:))
         nameField.delegate = self
@@ -342,7 +362,13 @@ final class NewFileWizard: NSObject {
 
     @objc private func picked(_ sender: NSButton) {
         for radio in radios { radio.state = radio === sender ? .on : .off }
-        if step == 1 { format = NewFileFormat.allCases[sender.tag] } else { template = NewFileTemplate.allCases[sender.tag] }
+        if step == 1 {
+            format = NewFileFormat.allCases[sender.tag]
+        } else if format == .mmd {
+            diagram = sender.tag
+        } else {
+            template = NewFileTemplate.allCases[sender.tag]
+        }
     }
 
     @objc private func nameChanged(_ sender: Any?) {
@@ -373,7 +399,8 @@ final class NewFileWizard: NSObject {
             step += 1
             render()
         } else {
-            result = Result(format: format, template: template, name: nameField.stringValue, folder: folder)
+            result = Result(format: format, template: template, diagram: diagram,
+                            name: nameField.stringValue, folder: folder)
             NSApp.stopModal()
         }
     }

@@ -795,6 +795,205 @@ enum SelfTest {
               .contains { $0.title == "Mermaid" } ? "yes" : "no", "yes")
         editor.updateKind(fileExtension: "md")
 
+        // Diagram menu (MermaidEdit): settings in the diagram's front matter.
+        let flow = "flowchart LR\n  A --> B"
+        let hand = MermaidEdit.settingConfig(flow, key: "look", value: "handDrawn")
+        check("diagram look adds front matter", hand, "---\nconfig:\n  look: handDrawn\n---\nflowchart LR\n  A --> B")
+        check("diagram look is read back", MermaidEdit.configValue(hand, key: "look"), "handDrawn")
+        check("diagram without config", MermaidEdit.configValue(flow, key: "look"), nil)
+        check("diagram second setting joins config",
+              MermaidEdit.settingConfig(hand, key: "layout", value: "elk"),
+              "---\nconfig:\n  look: handDrawn\n  layout: elk\n---\nflowchart LR\n  A --> B")
+        check("diagram setting is replaced", MermaidEdit.settingConfig(hand, key: "look", value: "classic"),
+              "---\nconfig:\n  look: classic\n---\nflowchart LR\n  A --> B")
+        check("diagram last setting removes front matter", MermaidEdit.settingConfig(hand, key: "look", value: nil), flow)
+        check("diagram removing a missing setting", MermaidEdit.settingConfig(flow, key: "look", value: nil), flow)
+        let titled = "---\ntitle: Net\n---\ngraph TD\n  A --> B"
+        let themed = MermaidEdit.settingConfig(titled, key: "theme", value: "forest")
+        check("diagram title is kept", themed, "---\ntitle: Net\nconfig:\n  theme: forest\n---\ngraph TD\n  A --> B")
+        check("diagram title stays after removal", MermaidEdit.settingConfig(themed, key: "theme", value: nil), titled)
+
+        // Direction of a flowchart.
+        check("diagram direction TD", MermaidEdit.direction("graph TD\n  A --> B"), "TB")
+        check("diagram direction LR", MermaidEdit.direction(hand), "LR")
+        check("diagram direction default", MermaidEdit.direction("flowchart\n  A --> B"), "TB")
+        check("no direction for a sequence", MermaidEdit.direction("sequenceDiagram\n  A->>B: hi"), nil)
+        check("diagram turned LR", MermaidEdit.settingDirection("graph TD\n  A --> B", "LR"), "graph LR\n  A --> B")
+        check("diagram given a direction", MermaidEdit.settingDirection("flowchart\n  A", "RL"), "flowchart RL\n  A")
+        check("diagram turned under front matter", MermaidEdit.settingDirection(hand, "BT"),
+              "---\nconfig:\n  look: handDrawn\n---\nflowchart BT\n  A --> B")
+        check("sequence has no direction", MermaidEdit.settingDirection("sequenceDiagram", "LR"), nil)
+
+        // Which diagram the cursor is in.
+        let doc = "intro\n```mermaid\ngraph LR\n  A --> B\n```\nafter" as NSString
+        func inDiagram(_ cursor: Int, _ kind: DocumentKind = .markdown) -> String? {
+            MermaidEdit.diagramRange(in: doc, cursor: cursor, kind: kind).map { doc.substring(with: $0) }
+        }
+        check("cursor in a mermaid block", inDiagram(20), "graph LR\n  A --> B")
+        check("cursor on the fence", inDiagram(8), "graph LR\n  A --> B")
+        check("cursor outside the block", inDiagram(2), nil)
+        check("cursor after the block", inDiagram(doc.length), nil)
+        check("a diagram file is one diagram", inDiagram(0, .mermaid), doc as String)
+        let unclosed = "x\n```mermaid\ngraph LR" as NSString
+        check("unclosed block runs to the end",
+              MermaidEdit.diagramRange(in: unclosed, cursor: unclosed.length, kind: .markdown).map { unclosed.substring(with: $0) },
+              "graph LR")
+        let other = "```python\nx = 1\n```" as NSString
+        check("other code is not a diagram",
+              MermaidEdit.diagramRange(in: other, cursor: 12, kind: .markdown).map { _ in "found" }, nil)
+
+        // From the picture back to the text.
+        func line(_ source: String, _ range: NSRange?) -> String? {
+            range.map { (source as NSString).substring(with: $0) }
+        }
+        check("clicked block finds its line", line(flow, MermaidEdit.lineRange(in: flow, nodeID: "B", label: "")), "  A --> B")
+        let seq = "sequenceDiagram\n  participant A as Alice\n  A->>B: hi"
+        check("clicked label finds its line",
+              line(seq, MermaidEdit.lineRange(in: seq, nodeID: "", label: "Alice")), "  participant A as Alice")
+        check("block id skips front matter",
+              line(hand, MermaidEdit.lineRange(in: hand, nodeID: "look", label: "")), nil)
+        check("error line", line(flow, MermaidEdit.lineRange(in: flow, line: 2)), "  A --> B")
+        check("error line out of range", line(flow, MermaidEdit.lineRange(in: flow, line: 3)), nil)
+
+        // Templates.
+        check("diagram templates", "\(MermaidEdit.templates.count)", "10")
+        check("template in Markdown is a block",
+              MermaidEdit.insertion(MermaidEdit.templates[0], kind: .markdown).hasPrefix("```mermaid\nflowchart LR\n") ? "yes" : "no", "yes")
+        check("template in a diagram file is bare",
+              MermaidEdit.insertion(MermaidEdit.templates[0], kind: .mermaid).hasPrefix("flowchart LR\n") ? "yes" : "no", "yes")
+        check("ELK layout script is found", Diagrams.elkSource?.contains("registerLayoutLoaders") == true ? "yes" : "no", "yes")
+
+        // The Diagrams tab of the outline.
+        let several = "# A\n```mermaid\n---\ntitle: Net\n---\nflowchart LR\n  A --> B\n```\ntext\n```mermaid\nsequenceDiagram\n  A->>B: hi\n```\n" as NSString
+        let listed = MermaidEdit.diagrams(in: several, kind: .markdown)
+        check("diagram list titles", listed.map(\.title).joined(separator: "|"), "Net · flowchart LR|sequenceDiagram")
+        check("diagram list lines", listed.map { "\($0.line)" }.joined(separator: ","), "3,11")
+        check("diagram list range", listed.count == 2 ? several.substring(with: listed[1].range) : nil, "sequenceDiagram\n  A->>B: hi")
+        check("diagram file lists itself", MermaidEdit.diagrams(in: "graph TD\n  A" as NSString, kind: .mermaid).map(\.title).first, "graph TD")
+        check("empty diagram file lists nothing", "\(MermaidEdit.diagrams(in: "\n" as NSString, kind: .mermaid).count)", "0")
+        check("gantt title in the list", MermaidEdit.summary(MermaidEdit.templates[6].source), "Plan · gantt")
+
+        // Block / Arrow / Group.
+        check("diagram kind word", MermaidEdit.diagramType(hand), "flowchart")
+        check("flowchart ids", MermaidEdit.nodeIDs(MermaidEdit.templates[0].source).joined(separator: ","), "start,step,check,done")
+        check("flowchart ids with groups", MermaidEdit.nodeIDs(MermaidEdit.templates[1].source).joined(separator: ","),
+              "client,app,server,api,db")
+        func added(_ element: MermaidEdit.Element, _ source: String, _ line: Int) -> String? {
+            guard let r = MermaidEdit.inserting(element, in: source, afterLine: line) else { return nil }
+            return r.source + " <" + (r.source as NSString).substring(with: r.select) + ">"
+        }
+        check("add a block", added(.block, flow, 1), "flowchart LR\n  A --> B\n  n1[\"Block\"] <Block>")
+        check("add an arrow from the line's block", added(.arrow, flow, 1), "flowchart LR\n  A --> B\n  A --> n1[\"Next\"] <Next>")
+        check("add an arrow after the kind line", added(.arrow, flow, 0), "flowchart LR\n    B --> n1[\"Next\"]\n  A --> B <Next>")
+        check("add a group", added(.group, flow, 1), "flowchart LR\n  A --> B\n  subgraph g1[\"Group\"]\n      \n  end <Group>")
+        check("first arrow of an empty flowchart", added(.arrow, "flowchart LR", 0),
+              "flowchart LR\n    n1[\"Start\"] --> n2[\"Next\"] <Next>")
+        check("sequence participants", MermaidEdit.participants(seq).joined(separator: ","), "A,B")
+        check("add a message", added(.arrow, seq, 2), seq + "\n  A->>B: Message <Message>")
+        check("add a participant", added(.block, seq, 0),
+              "sequenceDiagram\n    participant P1 as Name\n  participant A as Alice\n  A->>B: hi <Name>")
+        check("add a loop", added(.group, seq, 2), seq + "\n  loop Every minute\n      \n  end <Every minute>")
+        check("class diagrams have no buttons", added(.block, "classDiagram\n  class A", 1), nil)
+        check("buttons know flowcharts", MermaidEdit.canInsertElements(flow) ? "yes" : "no", "yes")
+
+        // Renaming a block from the picture.
+        check("rename a quoted label", MermaidEdit.renaming("flowchart LR\n  A[\"Old\"] --> B", id: "A", to: "New"),
+              "flowchart LR\n  A[\"New\"] --> B")
+        check("rename a plain label", MermaidEdit.renaming("graph TD\n  A(Hi) --> B", id: "A", to: "New"),
+              "graph TD\n  A(\"New\") --> B")
+        check("rename a block without a label", MermaidEdit.renaming(flow, id: "B", to: "New"),
+              "flowchart LR\n  A --> B[\"New\"]")
+        check("rename where the label is", MermaidEdit.renaming("flowchart LR\n  A --> B\n  B{Ask}", id: "B", to: "New"),
+              "flowchart LR\n  A --> B\n  B{\"New\"}")
+        check("rename a group", MermaidEdit.renaming("flowchart TB\n  subgraph s1 [Old]\n  end", id: "s1", to: "New"),
+              "flowchart TB\n  subgraph s1 [\"New\"]\n  end")
+        check("rename with quotes", MermaidEdit.renaming("flowchart LR\n  A[x]", id: "A", to: "Say \"hi\""),
+              "flowchart LR\n  A[\"Say #quot;hi#quot;\"]")
+        check("rename skips labels", MermaidEdit.renaming("flowchart LR\n  X[\"A note\"] --> A", id: "A", to: "New"),
+              "flowchart LR\n  X[\"A note\"] --> A[\"New\"]")
+        check("rename an unknown block", MermaidEdit.renaming(flow, id: "Z", to: "New"), nil)
+
+        // Mouse editing and Properties.
+        let blocks = "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> C"
+        check("shape of a labelled block", MermaidEdit.shape(blocks, id: "A")?.title, "Rectangle")
+        check("shape of a round block", MermaidEdit.shape(blocks, id: "B")?.title, "Rounded")
+        check("shape of a bare block", MermaidEdit.shape(blocks, id: "C")?.title, "Rectangle")
+        check("shape of an unknown block", MermaidEdit.shape(blocks, id: "Z")?.title, nil)
+        check("block becomes a decision", MermaidEdit.settingShape(blocks, id: "A", .decision),
+              "flowchart LR\n  A{\"Start\"} --> B(Go)\n  B --> C")
+        check("block becomes a database", MermaidEdit.settingShape(blocks, id: "B", .database),
+              "flowchart LR\n  A[\"Start\"] --> B[(Go)]\n  B --> C")
+        check("bare block gets a shape", MermaidEdit.settingShape(blocks, id: "C", .circle),
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> C((\"C\"))")
+        let blue = MermaidEdit.settingColor(blocks, id: "A", .blue)
+        check("block colour adds a style line", blue, blocks + "\n  style A fill:#dbeafe,stroke:#2563eb,color:#1e3a8a")
+        check("block colour is read back", MermaidEdit.color(blue, id: "A")?.title, "Blue")
+        check("block colour is replaced", MermaidEdit.settingColor(blue, id: "A", .red),
+              blocks + "\n  style A fill:#fee2e2,stroke:#dc2626,color:#7f1d1d")
+        check("block colour is removed", MermaidEdit.settingColor(blue, id: "A", nil), blocks)
+        check("other style is not ours", MermaidEdit.color(blocks + "\n  style A fill:#fff", id: "A")?.title, nil)
+        check("drag connects blocks", MermaidEdit.connecting(blocks, from: "C", to: "A"), blocks + "\n  C --> A")
+        check("no arrow to itself", MermaidEdit.connecting(blocks, from: "A", to: "A"), nil)
+        check("add next block",
+              MermaidEdit.addingNext(blocks, id: "B").map { $0.source + " <" + ($0.source as NSString).substring(with: $0.select) + ">" },
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> n1[\"Next\"]\n  B --> C <Next>")
+        check("duplicate a block", MermaidEdit.duplicating(blocks, id: "A").map { $0.source + " " + $0.id },
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  n1[\"Start\"]\n  B --> C n1")
+        check("duplicate a bare block", MermaidEdit.duplicating(blocks, id: "C").map(\.source),
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> C\n  n1[\"C\"]")
+        check("delete a block keeps its neighbours", MermaidEdit.deleting(blocks + "\n  style B fill:#fff", id: "B"),
+              "flowchart LR\n  A[\"Start\"]")
+        check("delete a group is refused",
+              MermaidEdit.deleting("flowchart TB\n  subgraph s1[\"G\"]\n    A\n  end", id: "s1"), nil)
+        check("delete an unknown block", MermaidEdit.deleting(blocks, id: "Z"), nil)
+        check("arrow kind", MermaidEdit.arrow(blocks, line: 1)?.title, "Arrow  -->")
+        check("no arrow on the kind line", MermaidEdit.arrow(blocks, line: 0)?.title, nil)
+        check("arrow made dotted", MermaidEdit.settingArrow(blocks, line: 1, .dotted),
+              "flowchart LR\n  A[\"Start\"] -.-> B(Go)\n  B --> C")
+        let worded = "flowchart LR\n  A -- yes --> B"
+        check("labelled arrow kind", MermaidEdit.arrow(worded, line: 1)?.title, "Arrow  -->")
+        check("labelled arrow made thick", MermaidEdit.settingArrow(worded, line: 1, .thick), "flowchart LR\n  A ==>|yes| B")
+        check("dotted arrow read", MermaidEdit.arrow("graph TD\n  A -.-> B", line: 1)?.title, "Dotted  -.->")
+        check("plain line read", MermaidEdit.arrow("graph TD\n  A --- B", line: 1)?.title, "Line  ---")
+        check("two-way arrow read", MermaidEdit.arrow("graph TD\n  A <--> B", line: 1)?.title, "Both Ways  <-->")
+        check("block on a line", MermaidEdit.block(blocks, line: 2), "B")
+        check("block on its style line", MermaidEdit.block(blue, line: 3), "A")
+
+        // Completion inside a diagram.
+        check("diagram kinds on the first line",
+              MermaidEdit.completions(prefix: "fl", linePrefix: "fl", source: "fl", line: 0).joined(separator: ","), "flowchart")
+        check("block ids then words",
+              MermaidEdit.completions(prefix: "st", linePrefix: "  st", source: "flowchart LR\n  start --> stop\n  st", line: 2)
+                .joined(separator: ","), "start,stop,style")
+        check("sequence words",
+              MermaidEdit.completions(prefix: "pa", linePrefix: "  pa", source: seq + "\n  pa", line: 3).joined(separator: ","),
+              "participant,par")
+        check("config words in front matter",
+              MermaidEdit.completions(prefix: "lo", linePrefix: "  lo", source: "---\nconfig:\n  lo\n---\nflowchart LR", line: 2)
+                .joined(separator: ","), "look")
+
+        // New File ▸ Mermaid diagram.
+        check("diagram file name", NewFile.fileName("Diagram", format: .mmd), "Diagram.mmd")
+        check("typed .mmd is not doubled", NewFile.fileName("net.mmd", format: .mmd), "net.mmd")
+        check("new diagram starts from its template", NewFile.startingDiagram(2), MermaidEdit.templates[2].source + "\n")
+        check("unknown template falls back to the first", NewFile.startingDiagram(99), MermaidEdit.templates[0].source + "\n")
+
+        // Excalidraw boards.
+        check("board folder is found", Board.isAvailable ? "yes" : "no", "yes")
+        if let root = Board.folderURL {
+            let script = (try? String(contentsOf: root.appendingPathComponent("board.js"), encoding: .utf8)) ?? ""
+            check("board script has its API", script.contains("__feBoard") ? "yes" : "no", "yes")
+            check("board page file is served",
+                  BoardScheme.file(for: URL(string: "fe-board://app/index.html"), in: root)?.lastPathComponent, "index.html")
+            check("board font path is served",
+                  BoardScheme.file(for: URL(string: "fe-board://app/fonts/Excalifont/a.woff2"), in: root)?.lastPathComponent,
+                  "a.woff2")
+            check("board scheme refuses ..",
+                  BoardScheme.file(for: URL(string: "fe-board://app/../Info.plist"), in: root)?.path, nil)
+            check("board scheme refuses other schemes",
+                  BoardScheme.file(for: URL(string: "file:///etc/passwd"), in: root)?.path, nil)
+        }
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

@@ -29,7 +29,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     let vimCoach = VimCoachView()
     private(set) var vimEnabled = Preferences.vimMode
 
-    private weak var document: FocusDocument?
+    private(set) weak var document: FocusDocument?
     /// The file this window is editing, used to remember how it was last shown.
     var filePath: String? { document?.fileURL?.standardizedFileURL.path }
     /// Save As gives the document a path; the split view stores the current look under it.
@@ -89,7 +89,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         textView.autoPairingEnabled = Preferences.autoPairing
         textView.autocompleteEnabled = Preferences.autocomplete
         textView.completionProvider = { [weak self] prefix, linePrefix in
-            self?.completion.suffix(forPrefix: prefix, linePrefix: linePrefix)
+            guard let self else { return nil }
+            // In a Mermaid diagram: its ids and Mermaid words, not the dictionary.
+            if let words = self.diagramCompletions(prefix: prefix, linePrefix: linePrefix) {
+                guard let best = words.first, best.count > prefix.count else { return nil }
+                return String(best.dropFirst(prefix.count))
+            }
+            return self.completion.suffix(forPrefix: prefix, linePrefix: linePrefix)
         }
         syncSystemPredictions()
 
@@ -472,7 +478,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         let lineStart = ns.lineRange(for: charRange).location
         let linePrefix = ns.substring(with: NSRange(location: lineStart,
                                                     length: NSMaxRange(charRange) - lineStart))
-        var result = completion.completions(forPrefix: prefix, linePrefix: linePrefix)
+        var result = diagramCompletions(prefix: prefix, linePrefix: linePrefix)
+            ?? completion.completions(forPrefix: prefix, linePrefix: linePrefix)
         for w in words where !result.contains(w) { result.append(w) }
         index?.pointee = 0
         return result
@@ -624,6 +631,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     // MARK: Menu validation
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let diagram = validateDiagramItem(item) { return diagram }
         switch item.action {
         case #selector(toggleTypewriterScrolling(_:)):
             item.state = textView.typewriterScrollingEnabled ? .on : .off

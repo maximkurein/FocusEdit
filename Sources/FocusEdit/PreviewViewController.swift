@@ -6,15 +6,41 @@ import WebKit
 /// scroll position stays where it is.
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
-    /// Forwards `copyCode` and `diagramView` so the web view does not retain this controller.
+    /// Forwards `copyCode`, `diagramView`, `copyDiagram`, `diagramNode`, `diagramError` and `diagramRename` so the web view does not retain this controller.
     private final class CopyBridge: NSObject, WKScriptMessageHandler {
         weak var owner: PreviewViewController?
         func userContentController(_ userContentController: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
             if message.name == "diagramView" {
-                owner?.showsDiagram = (message.body as? Bool) ?? false
+                let open = (message.body as? Bool) ?? false
+                owner?.showsDiagram = open
+                // Full size view or a block being renamed: keys go to the page (a click on
+                // the block a moment before put the editor first).
+                if open, let web = owner?.webView { web.window?.makeFirstResponder(web) }
             } else if message.name == "copyDiagram" {
                 Diagrams.copy(message.body)
+            } else if message.name == "diagramNode" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String else { return }
+                owner?.onDiagramNode?(source, m["id"] as? String ?? "", m["label"] as? String ?? "")
+            } else if message.name == "diagramConnect" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let from = m["from"] as? String, let to = m["to"] as? String else { return }
+                owner?.onDiagramConnect?(source, from, to)
+            } else if message.name == "diagramNodeAction" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let id = m["id"] as? String, let action = m["action"] as? String else { return }
+                owner?.onDiagramNodeAction?(source, id, action)
+            } else if message.name == "openBoard" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String else { return }
+                Board.open(mermaid: source)
+            } else if message.name == "diagramRename" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let id = m["id"] as? String, let text = m["text"] as? String else { return }
+                owner?.onDiagramRename?(source, id, text)
+            } else if message.name == "diagramError" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let line = (m["line"] as? NSNumber)?.intValue else { return }
+                owner?.onDiagramError?(source, line)
             } else {
                 owner?.copyCode(message.body)
             }
@@ -28,6 +54,20 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     func closeDiagram() {
         showsDiagram = false
         webView?.evaluateJavaScript(Diagrams.closeScript, completionHandler: nil)
+    }
+
+    private var highlighted: [String]?
+
+    /// Outline the block on the editor's cursor line in its picture (nil, nil clears it).
+    func highlightDiagramBlock(source: String?, id: String?) {
+        let key = [source ?? "", id ?? ""]
+        guard key != highlighted else { return }
+        highlighted = key
+        guard let data = try? JSONSerialization.data(withJSONObject: key),
+              let json = String(data: data, encoding: .utf8) else { return }
+        webView?.evaluateJavaScript(
+            "try { window.__feDiagrams && window.__feDiagrams.highlight.apply(null, \(json)); } catch (e) {}",
+            completionHandler: nil)
     }
 
     private let copyBridge = CopyBridge()
@@ -64,6 +104,16 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     /// Called when the reader scrolls the page: 0 is the top, 1 the bottom.
     var onScroll: ((Double) -> Void)?
+    /// A block clicked in a diagram: its diagram's source, the block's id and label.
+    var onDiagramNode: ((String, String, String) -> Void)?
+    /// A diagram Mermaid could not read: its source and the 1-based line of the error.
+    var onDiagramError: ((String, Int) -> Void)?
+    /// A block renamed in the picture: its diagram's source, the block's id, the new label.
+    var onDiagramRename: ((String, String, String) -> Void)?
+    /// Dragged from one block to another: source, from id, to id.
+    var onDiagramConnect: ((String, String, String) -> Void)?
+    /// The block menu in the picture: source, id, `next` / `duplicate` / `delete`.
+    var onDiagramNodeAction: ((String, String, String) -> Void)?
     private var lastRatio = 0.0
     /// Where the reader is (0 top, 1 bottom), as last read or set.
     var currentRatio: Double { lastRatio }
@@ -85,6 +135,12 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         config.userContentController.add(copyBridge, name: "copyCode")
         config.userContentController.add(copyBridge, name: "diagramView")
         config.userContentController.add(copyBridge, name: "copyDiagram")
+        config.userContentController.add(copyBridge, name: "diagramNode")
+        config.userContentController.add(copyBridge, name: "diagramError")
+        config.userContentController.add(copyBridge, name: "diagramRename")
+        config.userContentController.add(copyBridge, name: "openBoard")
+        config.userContentController.add(copyBridge, name: "diagramConnect")
+        config.userContentController.add(copyBridge, name: "diagramNodeAction")
         // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).
         Diagrams.install(in: config.userContentController)
         let web = WKWebView(frame: .zero, configuration: config)

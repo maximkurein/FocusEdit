@@ -9,10 +9,19 @@
 //   whole window width when the text column is narrower (Preview alone).
 // - Zoom per figure: the − / + / Fit buttons, ⌥-scroll or a pinch over it; zoomed, it
 //   scrolls inside its own frame and can be dragged.
-// - Double-click (or ⤢) opens it over the whole page, fitted to width and height;
+// - Double-click outside the blocks (or ⤢) opens it over the whole page, fitted to width and height;
 //   scroll or pinch zooms there, drag pans, Esc or × closes.
 // - Copy (the ⧉ button or a right-click): the picture as PNG or SVG, or its Mermaid
 //   code. The app puts it on the clipboard (message `copyDiagram`).
+// - A click on a block (no drag) tells the app which node it was (`diagramNode`), so the
+//   editor can put the cursor on its line; a syntax error reports its line
+//   (`diagramError`) so the editor can mark it. A double-click on a flowchart block
+//   opens a text field over it; Enter sends the new label (`diagramRename`) and the app
+//   changes it in the text. A double-click elsewhere opens the full size view.
+// - Drag from a flowchart block to another to connect them (`diagramConnect`); the
+//   right-click menu of a block also renames, adds a next block, duplicates or deletes
+//   it (`diagramNodeAction`). The app makes each change in the text.
+// - `highlight(source, id)` outlines the block on the editor's cursor line (in Split).
 // - `freeze()` swaps every figure for a plain SVG picture, for HTML export and printing.
 // - Drawings are cached by source and colours, so typing elsewhere does not redraw
 //   them and the page does not flicker. A diagram being edited keeps its last good
@@ -184,7 +193,103 @@
         fig.classList.add('fe-empty');
       }
       setError(fig, text);
+      reportError(fig.__source, text);
     });
+  }
+
+  /// "Parse error on line 3" counts lines after the --- front matter --- block; the app
+  /// gets the line within the whole diagram source (1-based, at most its last line).
+  function errorLine(source, text) {
+    var m = /line (\d+)/i.exec(text || '');
+    if (!m) return 0;
+    var lines = source.split('\n');
+    var skip = 0;
+    if (/^---\s*$/.test(lines[0] || '')) {
+      for (var i = 1; i < lines.length; i++) {
+        if (/^---\s*$/.test(lines[i])) { skip = i + 1; break; }
+      }
+    }
+    return Math.max(1, Math.min(lines.length, skip + parseInt(m[1], 10)));
+  }
+
+  function reportError(source, text) {
+    var line = errorLine(source || '', text);
+    if (!line) return;
+    try { window.webkit.messageHandlers.diagramError.postMessage({ source: source, line: line, message: text }); }
+    catch (e) { window.__feLastError = { source: source, line: line }; }
+  }
+
+  /// The Mermaid id and label of the block under `target`, if it is one.
+  function nodeAt(target, fig) {
+    var el = target && target.closest ? target.closest('g.node, g.cluster, [data-id], g[id]') : null;
+    var svg = fig.querySelector('svg');
+    while (el && svg && svg.contains(el) && el !== svg) {
+      var id = el.getAttribute('id') || '';
+      var m = /-flowchart-(.+)-\d+$/.exec(id);
+      var nodeId = m ? m[1] : (el.getAttribute('data-id') || (el.classList.contains('cluster') ? id.replace(/^fe-mermaid-\d+-/, '') : ''));
+      if (nodeId && !/^L_/.test(nodeId) && !/^i\d+$/.test(nodeId)) {
+        return { id: nodeId, label: (el.textContent || '').replace(/\s+/g, ' ').trim() };
+      }
+      el = el.parentElement ? el.parentElement.closest('g.node, g.cluster, [data-id], g[id]') : null;
+    }
+    // Other diagram kinds: the text that was clicked is enough to find its line.
+    var text = target && target.closest ? target.closest('text') : null;
+    var label = text ? (text.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    return label ? { id: '', label: label } : null;
+  }
+
+  function isFlowchart(source) {
+    var lines = (source || '').split('\n'), i = 0;
+    if (/^---\s*$/.test(lines[0] || '')) {
+      for (i = 1; i < lines.length && !/^---\s*$/.test(lines[i]); i++) {}
+      i++;
+    }
+    for (; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (!t || t.indexOf('%%') === 0) continue;
+      return /^(flowchart|graph)\b/.test(t);
+    }
+    return false;
+  }
+
+  /// A text field over the block; Enter (or clicking away) sends the new label to the
+  /// app as `diagramRename`, Esc cancels.
+  var renaming = null;
+  function startRename(fig, node, target) {
+    finishRename(false);
+    var el = target.closest('g.node, g.cluster, [data-id]') || target;
+    var r = el.getBoundingClientRect();
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'fe-rename';
+    input.value = node.label;
+    var width = Math.max(120, r.width + 24);
+    input.style.left = Math.max(4, r.left + r.width / 2 - width / 2) + 'px';
+    input.style.top = Math.max(4, r.top + r.height / 2 - 15) + 'px';
+    input.style.width = width + 'px';
+    document.body.appendChild(input);
+    renaming = { input: input, source: fig.__source, id: node.id, label: node.label };
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); finishRename(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishRename(false); }
+    });
+    input.addEventListener('blur', function () { finishRename(true); });
+    input.focus();
+    input.select();
+    tellApp(true); // Esc cancels the rename instead of leaving Preview
+  }
+
+  function finishRename(save) {
+    if (!renaming) return;
+    var r = renaming;
+    renaming = null;
+    var text = r.input.value.trim();
+    r.input.remove();
+    if (!overlay) tellApp(false);
+    if (!save || !text || text === r.label) return;
+    var msg = { source: r.source, id: r.id, text: text };
+    try { window.webkit.messageHandlers.diagramRename.postMessage(msg); }
+    catch (err) { window.__feLastRename = msg; }
   }
 
   function setError(fig, text) {
@@ -217,6 +322,27 @@
     }
     fig.classList.toggle('fe-stale', !!stale);
     layout(fig);
+    markCurrent(fig);
+  }
+
+  /// The block on the editor's cursor line, outlined in its picture (`highlight`).
+  var current = null;
+  function sameSource(a, b) { return (a || '').replace(/\s+$/, '') === (b || '').replace(/\s+$/, ''); }
+  function blockId(el) {
+    var id = el.getAttribute('id') || '';
+    var m = /-flowchart-(.+)-\d+$/.exec(id);
+    return m ? m[1] : (el.getAttribute('data-id') || '');
+  }
+  function markCurrent(fig) {
+    Array.prototype.forEach.call(fig.querySelectorAll('.fe-current'), function (el) { el.classList.remove('fe-current'); });
+    if (!current || !current.id || !sameSource(fig.__source, current.source)) return;
+    Array.prototype.forEach.call(fig.querySelectorAll('g.node'), function (el) {
+      if (blockId(el) === current.id) el.classList.add('fe-current');
+    });
+  }
+  function highlight(source, id) {
+    current = source && id ? { source: source, id: id } : null;
+    Array.prototype.forEach.call(document.querySelectorAll('.fe-diagram'), markCurrent);
   }
 
   // MARK: Figures in the page
@@ -476,10 +602,21 @@
   var menu = null;
   function closeCopyMenu() { if (menu) { menu.remove(); menu = null; } }
 
-  function openCopyMenu(d, source, at, fig) {
+  function openCopyMenu(d, source, at, fig, extra) {
     closeCopyMenu();
     var m = document.createElement('div');
     m.className = 'fe-menu';
+    (extra || []).forEach(function (item) {
+      if (!item) { var hr = document.createElement('hr'); m.appendChild(hr); return; }
+      var b = document.createElement('button');
+      b.textContent = item[0];
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        closeCopyMenu();
+        item[1]();
+      });
+      m.appendChild(b);
+    });
     [['png', 'Copy as PNG'], ['svg', 'Copy as SVG'], ['code', 'Copy Mermaid code']].forEach(function (item) {
       var b = document.createElement('button');
       b.textContent = item[1];
@@ -582,7 +719,16 @@
       '.fe-copied{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:3;padding:4px 10px;',
       '  border-radius:6px;font:12px/1.2 -apple-system,system-ui,sans-serif;background:rgba(127,127,127,.35);pointer-events:none}',
       '.fe-static{margin:1em 0;text-align:center}',
-      '.fe-static svg{max-width:100%;height:auto}'
+      '.fe-static svg{max-width:100%;height:auto}',
+      '.fe-diagram g.node, .fe-diagram g.cluster > rect{cursor:pointer}',
+      '.fe-link{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:4;overflow:visible}',
+      '.fe-link line{stroke:#3399d9;stroke-width:2;stroke-dasharray:6 4}',
+      '.fe-diagram g.node.fe-link-target > :is(rect,polygon,circle,ellipse,path){stroke:#3399d9!important;stroke-width:3px!important}',
+      '.fe-menu hr{border:0;border-top:1px solid rgba(127,127,127,.3);margin:4px 0}',
+      '.fe-diagram g.node.fe-current > :is(rect,polygon,circle,ellipse,path){stroke:#f59e0b!important;stroke-width:3px!important}',
+      '.fe-rename{position:fixed;z-index:5;height:30px;box-sizing:border-box;padding:4px 8px;border-radius:6px;',
+      '  border:2px solid #3399d9;font:14px -apple-system,system-ui,sans-serif;text-align:center;',
+      '  background:Canvas;color:CanvasText;outline:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}'
     ].join('\n');
     document.documentElement.appendChild(style);
 
@@ -594,18 +740,60 @@
       act(b.getAttribute('data-act'), figureOf(b), b);
     }, true);
 
+    // A click (not a drag) on a block: the app moves the cursor to its line.
+    var press = null;
+    document.addEventListener('mousedown', function (e) { press = { x: e.clientX, y: e.clientY }; }, true);
+    document.addEventListener('click', function (e) {
+      if (e.detail > 1 || overlay || (e.target.closest && e.target.closest('.fe-tools, .fe-menu'))) return;
+      if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 4) return;
+      var fig = figureOf(e.target);
+      if (!fig || !fig.__drawing) return;
+      var node = nodeAt(e.target, fig);
+      if (!node) return;
+      var msg = { source: fig.__source, id: node.id, label: node.label };
+      try { window.webkit.messageHandlers.diagramNode.postMessage(msg); }
+      catch (err) { window.__feLastNode = msg; }
+    });
+
     // Right-click a diagram: the copy menu instead of the web view's own.
     document.addEventListener('contextmenu', function (e) {
       var fig = figureOf(e.target);
       var d = fig ? fig.__drawing : (overlay && overlay.el.contains(e.target) ? overlay.d : null);
       if (!d) return;
       e.preventDefault();
-      openCopyMenu(d, fig ? fig.__source : overlay.source, { x: e.clientX, y: e.clientY }, fig);
+      var extra = [];
+      var boardSource = fig ? fig.__source : overlay.source;
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openBoard) {
+        extra.push(['Open in Excalidraw', function () {
+          window.webkit.messageHandlers.openBoard.postMessage({ source: boardSource });
+        }]);
+      }
+      var node = fig && isFlowchart(fig.__source) ? nodeAt(e.target, fig) : null;
+      if (node && node.id) {
+        var target = e.target, source = fig.__source;
+        var send = function (action) {
+          return function () {
+            var msg = { source: source, id: node.id, action: action };
+            try { window.webkit.messageHandlers.diagramNodeAction.postMessage(msg); }
+            catch (err) { window.__feLastAction = msg; }
+          };
+        };
+        extra = [
+          ['Rename…', function () { startRename(fig, node, target); }],
+          ['Add Next Block', send('next')],
+          ['Duplicate', send('duplicate')],
+          ['Delete', send('delete')],
+          null
+        ].concat(extra);
+      }
+      if (extra.length && extra[extra.length - 1]) extra.push(null);
+      openCopyMenu(d, fig ? fig.__source : overlay.source, { x: e.clientX, y: e.clientY }, fig, extra);
     });
     document.addEventListener('mousedown', function (e) {
       if (menu && !menu.contains(e.target)) closeCopyMenu();
     }, true);
     window.addEventListener('scroll', closeCopyMenu, true);
+    window.addEventListener('scroll', function (e) { if (renaming && e.target !== renaming.input) finishRename(false); }, true);
 
     document.addEventListener('dblclick', function (e) {
       if (overlay) {
@@ -613,10 +801,13 @@
         return;
       }
       var fig = figureOf(e.target);
-      if (!fig || (e.target.closest && e.target.closest('.fe-tools'))) return;
+      if (!fig || (e.target.closest && e.target.closest('.fe-tools, .fe-rename'))) return;
       e.preventDefault();
       var sel = window.getSelection();
       if (sel) sel.removeAllRanges();
+      // A block of a flowchart: rename it in place. Elsewhere: full size.
+      var node = fig.__drawing && isFlowchart(fig.__source) ? nodeAt(e.target, fig) : null;
+      if (node && node.id) { startRename(fig, node, e.target); return; }
       openFull(fig);
     });
 
@@ -653,6 +844,59 @@
       else if (pinch.fig) zoomFigure(pinch.fig, f, e.clientX, e.clientY);
     });
     document.addEventListener('gestureend', function () { pinch = null; });
+
+    // Drag from a flowchart block to another: the app adds an arrow between them
+    // (`diagramConnect`). A drag that starts outside the blocks pans as before.
+    var link = null;
+    document.addEventListener('mousedown', function (e) {
+      if (e.button !== 0 || overlay || renaming || (e.target.closest && e.target.closest('.fe-tools, .fe-menu'))) return;
+      var fig = figureOf(e.target);
+      if (!fig || !fig.__drawing || !isFlowchart(fig.__source)) return;
+      var el = e.target.closest && e.target.closest('g.node');
+      var node = el ? nodeAt(e.target, fig) : null;
+      if (!node || !node.id) return;
+      link = { fig: fig, from: node.id, el: el, x: e.clientX, y: e.clientY, line: null, over: null };
+      e.preventDefault();
+      e.stopPropagation(); // not a pan
+    }, true);
+    document.addEventListener('mousemove', function (e) {
+      if (!link) return;
+      if (!link.line) {
+        if (Math.abs(e.clientX - link.x) + Math.abs(e.clientY - link.y) < 6) return;
+        var r = link.el.getBoundingClientRect();
+        link.x = r.left + r.width / 2; link.y = r.top + r.height / 2;
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('class', 'fe-link');
+        var line = document.createElementNS(ns, 'line');
+        svg.appendChild(line);
+        document.documentElement.appendChild(svg);
+        link.svg = svg; link.line = line;
+      }
+      link.line.setAttribute('x1', link.x); link.line.setAttribute('y1', link.y);
+      link.line.setAttribute('x2', e.clientX); link.line.setAttribute('y2', e.clientY);
+      var under = document.elementFromPoint(e.clientX, e.clientY);
+      var el = under && under.closest ? under.closest('g.node') : null;
+      if (el && (figureOf(el) !== link.fig || el === link.el)) el = null;
+      if (link.over !== el) {
+        if (link.over) link.over.classList.remove('fe-link-target');
+        if (el) el.classList.add('fe-link-target');
+        link.over = el;
+      }
+    }, true);
+    document.addEventListener('mouseup', function (e) {
+      if (!link) return;
+      var l = link;
+      link = null;
+      if (l.svg) l.svg.remove();
+      if (l.over) l.over.classList.remove('fe-link-target');
+      if (!l.line || !l.over) return;
+      var to = nodeAt(l.over, l.fig);
+      if (!to || !to.id || to.id === l.from) return;
+      var msg = { source: l.fig.__source, from: l.from, to: to.id };
+      try { window.webkit.messageHandlers.diagramConnect.postMessage(msg); }
+      catch (err) { window.__feLastConnect = msg; }
+    }, true);
 
     // Drag to pan: the full size view, or a zoomed figure inside its frame.
     var drag = null;
@@ -745,10 +989,14 @@
 
     /// For tests: how many figures are drawn, waiting, broken.
     /// Close the full size view (the app's Esc).
-    close: function () { closeFull(); closeCopyMenu(); },
+    close: function () { finishRename(false); closeFull(); closeCopyMenu(); },
 
     /// Plain pictures instead of figures; returns the body's HTML (export, print).
     freeze: freeze,
+
+    /// For tests: the error line for a source and Mermaid's message.
+    errorLine: errorLine,
+    highlight: highlight,
 
     /// Drawings still to make (0 when every figure is ready).
     pending: function () { return queue.length + (busy ? 1 : 0); },

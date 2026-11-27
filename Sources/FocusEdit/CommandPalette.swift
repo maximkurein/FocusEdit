@@ -362,6 +362,7 @@ extension MainSplitViewController {
             command("Save", "saveDocument:"),
             command("Save As…", "saveDocumentAs:"),
             command("Close file", "closeFile:", keywords: "close window start screen"),
+            command("New Excalidraw Board", "newBoard:", keywords: "draw sketch whiteboard excalidraw"),
         ]
         if html {
             list += [
@@ -369,6 +370,37 @@ extension MainSplitViewController {
                 command("Copy as HTML", "copyAsHTML:"),
                 command("Export Preview as PDF…", "exportPreviewAsPDF:", keywords: "diagram mermaid pages"),
             ]
+        }
+        if editor.diagramsAllowed {
+            for (i, t) in MermaidEdit.templates.enumerated() {
+                list.append(tagged("Diagram: Insert \(t.title)", "insertDiagramTemplate:", i,
+                                   keywords: "mermaid template chart schema"))
+            }
+            list.append(command("Diagram: Show Diagram List", "showDiagramList:", keywords: "mermaid outline sidebar"))
+            if editor.currentDiagramRange != nil {
+                list.append(command("Diagram: Open in Excalidraw", "openDiagramInExcalidraw:",
+                                    keywords: "mermaid draw board sketch hand drawn"))
+            }
+            if editor.currentDiagramRange != nil {
+                for (i, t) in ["Block", "Arrow", "Group"].enumerated() {
+                    list.append(tagged("Diagram: Add \(t)", "insertDiagramElement:", i,
+                                       keywords: "mermaid node edge link subgraph participant message loop"))
+                }
+                let dirs = ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"]
+                for (i, t) in dirs.enumerated() {
+                    list.append(tagged("Diagram Direction: \(t)", "setDiagramDirection:", i,
+                                       keywords: "mermaid flowchart TB LR BT RL"))
+                }
+                for (i, o) in EditorViewController.diagramLooks.enumerated() {
+                    list.append(tagged("Diagram Look: \(o.title)", "setDiagramLook:", i, keywords: "mermaid sketch hand drawn"))
+                }
+                for (i, o) in EditorViewController.diagramLayouts.enumerated() {
+                    list.append(tagged("Diagram Layout: \(o.title)", "setDiagramLayout:", i, keywords: "mermaid elk dagre"))
+                }
+                for (i, o) in EditorViewController.diagramThemes.enumerated() {
+                    list.append(tagged("Diagram Theme: \(o.title)", "setDiagramTheme:", i, keywords: "mermaid colors"))
+                }
+            }
         }
         list += [
             command("Export as PDF…", "exportAsPDF:"),

@@ -74,7 +74,21 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
         editor.onTextChanged = { [weak self] in self?.contentChanged() }
         outline.onSelect = { [weak self] range in self?.editor.scrollTo(range: range) }
-        editor.onCursorMoved = { [weak self] location in self?.outline.setCursor(location) }
+        outline.onInsertElement = { [weak self] tag in
+            let item = NSMenuItem()
+            item.tag = tag
+            self?.editor.insertDiagramElement(item)
+        }
+        outline.onInsertTemplate = { [weak self] tag in
+            let item = NSMenuItem()
+            item.tag = tag
+            self?.editor.insertDiagramTemplate(item)
+            self?.view.window?.makeFirstResponder(self?.editor.textView)
+        }
+        editor.onCursorMoved = { [weak self] location in
+            self?.outline.setCursor(location)
+            self?.updateDiagramProperties()
+        }
         editor.onThemeChanged = { [weak self] in
             guard let self, !self.previewItem.isCollapsed else { return }
             self.preview.update(markdown: self.editor.previewMarkdown, colors: self.editor.previewColors)
@@ -89,6 +103,31 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
         editor.onFileURLChanged = { [weak self] in self?.saveAppearance() }
+        // From the picture back to the text (Split): a clicked block puts the cursor on
+        // its line; a diagram Mermaid can't read underlines the line it stopped at.
+        preview.onDiagramNode = { [weak self] source, id, label in
+            guard let self, self.viewMode == .split else { return }
+            self.editor.revealDiagramNode(source: source, id: id, label: label)
+        }
+        preview.onDiagramError = { [weak self] source, line in
+            self?.editor.markDiagramError(source: source, line: line)
+        }
+        preview.onDiagramRename = { [weak self] source, id, text in
+            self?.editor.renameDiagramNode(source: source, id: id, text: text)
+        }
+        preview.onDiagramConnect = { [weak self] source, from, to in
+            self?.editor.connectDiagramNodes(source: source, from: from, to: to)
+        }
+        preview.onDiagramNodeAction = { [weak self] source, id, action in
+            self?.editor.diagramNodeAction(source: source, id: id, action: action)
+        }
+        outline.onShowProperties = { [weak self] in self?.updateDiagramProperties() }
+        outline.onProperty = { [weak self] action, tag in
+            let item = NSMenuItem()
+            item.tag = tag
+            _ = NSApp.sendAction(action, to: self?.editor, from: item)
+            self?.updateDiagramProperties()
+        }
         NotificationCenter.default.addObserver(
             self, selector: #selector(splitResized(_:)),
             name: NSSplitView.didResizeSubviewsNotification, object: splitView)
@@ -108,6 +147,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         if !editor.documentKind.supportsHTML, viewMode != .edit { setView(.edit) }
         updateViewSwitcher() // Save As can change the kind: Fountain has no preview
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
+        editor.clearDiagramError() // the preview marks it again if it is still there
+        updateDiagramProperties()
         if !previewItem.isCollapsed {
             preview.update(markdown: editor.previewMarkdown, colors: editor.previewColors)
         }
@@ -184,9 +225,27 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         Preferences.showLibrary = !libraryItem.isCollapsed
     }
 
+    /// The Properties of the Diagrams tab follow the cursor (only while they are shown).
+    func updateDiagramProperties() {
+        if viewMode == .split, !previewItem.isCollapsed {
+            let block = editor.cursorDiagramBlock
+            preview.highlightDiagramBlock(source: block?.source, id: block?.id)
+        }
+        guard !outlineItem.isCollapsed, outline.showsProperties else { return }
+        outline.setProperties(editor.diagramProperties)
+    }
+
+    /// Edit ▸ Diagram ▸ Show Diagram List: the outline sidebar on its Diagrams tab.
+    @objc func showDiagramList(_ sender: Any?) {
+        guard editor.diagramsAllowed else { NSSound.beep(); return }
+        if outlineItem.isCollapsed { toggleOutline(nil) }
+        outline.showDiagrams()
+    }
+
     @objc func toggleOutline(_ sender: Any?) {
         toggle(outlineItem)
         Preferences.showOutline = !outlineItem.isCollapsed
+        updateDiagramProperties()
     }
 
     /// The held width is let go while a sidebar folds or unfolds, then put back.
@@ -330,6 +389,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     /// picture beside the text, like a live editor.
     func showDiagramIfNeeded() {
         guard editor.documentKind == .mermaid, viewMode == .edit else { return }
+        setView(.split)
+    }
+
+    /// A diagram template was inserted while only the text was on screen: show it drawn.
+    func showSplitForDiagram() {
+        guard viewMode == .edit else { return }
         setView(.split)
     }
 
@@ -608,6 +673,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         switch item.action {
         case #selector(toggleOutline(_:)):
             ToolbarSymbol.update(item, "sidebar.right", on: !outlineItem.isCollapsed)
+        case #selector(showDiagramList(_:)):
+            return editor.diagramsAllowed
         default:
             break
         }
@@ -625,6 +692,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             return editor.documentKind.supportsHTML
         case #selector(exportAsHTML(_:)), #selector(copyAsHTML(_:)), #selector(exportPreviewAsPDF(_:)):
             return editor.documentKind.supportsHTML
+        case #selector(showDiagramList(_:)):
+            return editor.diagramsAllowed
         default:
             break
         }

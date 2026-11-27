@@ -123,13 +123,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newMermaidTemplate(_ sender: Any?) {
         openTemplate(ext: "mmd", text: Templates.mermaid)
     }
+    /// File ▸ New Board: an empty Excalidraw board.
+    @objc func newBoard(_ sender: Any?) {
+        Board.open()
+    }
     /// File ▸ New File…: the three-step dialog, then the file on disk, opened in a window.
     @objc func newFileWizard(_ sender: Any?) {
         guard let choice = NewFileWizard().run() else { return }
         let url = NewFile.freeURL(
             folder: choice.folder, name: NewFile.fileName(choice.name, format: choice.format))
-        let text = NewFile.startingText(
-            choice.template, format: choice.format, title: choice.name, date: NewFile.isoDate())
+        let text = choice.format == .mmd
+            ? NewFile.startingDiagram(choice.diagram)
+            : NewFile.startingText(choice.template, format: choice.format, title: choice.name, date: NewFile.isoDate())
         do {
             try NewFile.data(format: choice.format, text: text).write(to: url, options: .atomic)
         } catch {
@@ -267,6 +272,7 @@ enum MenuBuilder {
         tmplMenu.addItem(item("Markdown", #selector(AppDelegate.newMarkdownTemplate(_:)), ""))
         tmplMenu.addItem(item("Fountain", #selector(AppDelegate.newFountainTemplate(_:)), ""))
         tmplMenu.addItem(item("Mermaid Diagram", #selector(AppDelegate.newMermaidTemplate(_:)), ""))
+        tmplMenu.addItem(item("Excalidraw Board", #selector(AppDelegate.newBoard(_:)), ""))
         fileMenu.addItem(tmplParent)
         fileMenu.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
 
@@ -290,6 +296,9 @@ enum MenuBuilder {
         fileMenu.addItem(item("Export as HTML…", Selector(("exportAsHTML:")), ""))
         fileMenu.addItem(item("Export as PDF…", Selector(("exportAsPDF:")), ""))
         fileMenu.addItem(item("Export Preview as PDF…", Selector(("exportPreviewAsPDF:")), ""))
+        fileMenu.addItem(item("Export Board as PNG…", #selector(BoardWindowController.exportBoardAsPNG(_:)), ""))
+        fileMenu.addItem(item("Export Board as SVG…", #selector(BoardWindowController.exportBoardAsSVG(_:)), ""))
+        fileMenu.addItem(item("Copy Board as PNG", #selector(BoardWindowController.copyBoardAsPNG(_:)), ""))
 
         // Edit menu
         let editItem = NSMenuItem()
@@ -356,6 +365,44 @@ enum MenuBuilder {
         cmMenu.addItem(item("Accept Change", Selector(("cmAccept:")), ""))
         cmMenu.addItem(item("Reject Change", Selector(("cmReject:")), ""))
         editMenu.addItem(cmParent)
+
+        // Diagram (Mermaid, DiagramCommands.swift): the diagram under the cursor.
+        let dgParent = NSMenuItem(title: "Diagram", action: nil, keyEquivalent: "")
+        let dgMenu = NSMenu(title: "Diagram")
+        dgParent.submenu = dgMenu
+        func dgSub(_ title: String, _ action: Selector, _ titles: [String]) {
+            let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: title)
+            for (i, t) in titles.enumerated() {
+                let it = item(t, action, "")
+                it.tag = i
+                menu.addItem(it)
+            }
+            parent.submenu = menu
+            dgMenu.addItem(parent)
+        }
+        dgSub("Insert Template", #selector(EditorViewController.insertDiagramTemplate(_:)),
+              MermaidEdit.templates.map(\.title))
+        dgSub("Insert", #selector(EditorViewController.insertDiagramElement(_:)), ["Block", "Arrow", "Group"])
+        dgMenu.addItem(item("Show Diagram List", #selector(MainSplitViewController.showDiagramList(_:)), ""))
+        dgMenu.addItem(item("Open in Excalidraw", #selector(EditorViewController.openDiagramInExcalidraw(_:)), ""))
+        dgMenu.addItem(.separator())
+        dgSub("Block Shape", #selector(EditorViewController.setDiagramBlockShape(_:)),
+              MermaidEdit.Shape.allCases.map(\.title))
+        dgSub("Block Color", #selector(EditorViewController.setDiagramBlockColor(_:)),
+              ["None"] + MermaidEdit.Color.allCases.map(\.title))
+        dgSub("Arrow", #selector(EditorViewController.setDiagramArrow(_:)),
+              MermaidEdit.Arrow.allCases.map(\.title))
+        dgMenu.addItem(.separator())
+        dgSub("Direction", #selector(EditorViewController.setDiagramDirection(_:)),
+              ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"])
+        dgSub("Look", #selector(EditorViewController.setDiagramLook(_:)),
+              EditorViewController.diagramLooks.map(\.title))
+        dgSub("Layout", #selector(EditorViewController.setDiagramLayout(_:)),
+              EditorViewController.diagramLayouts.map(\.title))
+        dgSub("Diagram Theme", #selector(EditorViewController.setDiagramTheme(_:)),
+              EditorViewController.diagramThemes.map(\.title))
+        editMenu.addItem(dgParent)
 
         // Writing aids
         editMenu.addItem(.separator())
