@@ -119,6 +119,8 @@ final class HintsViewController: NSViewController {
                 ("Split", "The picture updates as you type; double-click it for full size"),
                 ("Click a block", "In Split, puts the cursor on its line · a mistake is underlined in red"),
                 ("Double-click a block", "Rename it right in the picture: Enter keeps it, Esc cancels"),
+                ("Drag block → block", "Adds an arrow between them · right-click a block: rename, add next, duplicate, delete"),
+                ("Properties", "Outline ▸ Diagrams: shape and color of the block on the cursor's line, kind of its arrow"),
                 ("Outline ▸ Diagrams", "Block · Arrow · Group add to the diagram after the cursor's line; Template ▾"),
                 ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout, diagram theme"),
             ]))

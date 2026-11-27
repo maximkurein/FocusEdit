@@ -140,6 +140,19 @@ extension EditorViewController {
             item.state = Self.diagramDirections.indices.contains(item.tag)
                 && Self.diagramDirections[item.tag] == dir ? .on : .off
             return true
+        case #selector(setDiagramBlockShape(_:)):
+            let p = diagramProperties
+            item.state = p?.shape?.rawValue == item.tag && p?.block != nil ? .on : .off
+            return p?.block != nil
+        case #selector(setDiagramBlockColor(_:)):
+            let p = diagramProperties
+            let current = p?.color.map { $0.rawValue + 1 } ?? (p?.styled == true ? -1 : 0)
+            item.state = current == item.tag && p?.block != nil ? .on : .off
+            return p?.block != nil
+        case #selector(setDiagramArrow(_:)):
+            let p = diagramProperties
+            item.state = p?.arrow?.rawValue == item.tag ? .on : .off
+            return p?.arrow != nil
         case #selector(setDiagramLook(_:)): return mark("look", Self.diagramLooks)
         case #selector(setDiagramLayout(_:)): return mark("layout", Self.diagramLayouts)
         case #selector(setDiagramTheme(_:)): return mark("theme", Self.diagramThemes)
@@ -181,6 +194,105 @@ extension EditorViewController {
         if let line = MermaidEdit.lineRange(in: renamed, nodeID: id, label: text) {
             textView.setSelectedRange(NSRange(location: diagram.location + NSMaxRange(line), length: 0))
         }
+    }
+
+    // MARK: Mouse editing in the picture
+
+    /// The document's own text of the diagram the preview drew from `source`, and where it is.
+    private func diagramText(_ source: String) -> (range: NSRange, text: String)? {
+        guard let range = range(ofDiagram: source) else { return nil }
+        return (range, (textView.string as NSString).substring(with: range))
+    }
+
+    /// Dragged from one block to another: an arrow between them.
+    func connectDiagramNodes(source: String, from: String, to: String) {
+        guard let d = diagramText(source),
+              let changed = MermaidEdit.connecting(d.text, from: from, to: to) else { NSSound.beep(); return }
+        replaceText(in: d.range, with: changed)
+    }
+
+    /// The block menu in the picture: `next`, `duplicate` or `delete`.
+    func diagramNodeAction(source: String, id: String, action: String) {
+        guard let d = diagramText(source) else { NSSound.beep(); return }
+        let range = d.range, text = d.text
+        switch action {
+        case "next":
+            guard let r = MermaidEdit.addingNext(text, id: id) else { NSSound.beep(); return }
+            replaceText(in: range, with: r.source,
+                        select: NSRange(location: range.location + r.select.location, length: r.select.length))
+            textView.scrollRangeToVisible(textView.selectedRange())
+        case "duplicate":
+            guard let r = MermaidEdit.duplicating(text, id: id) else { NSSound.beep(); return }
+            replaceText(in: range, with: r.source)
+        case "delete":
+            guard let changed = MermaidEdit.deleting(text, id: id) else { NSSound.beep(); return }
+            replaceText(in: range, with: changed)
+        default:
+            break
+        }
+    }
+
+    // MARK: Properties of the block / arrow on the cursor's line
+
+    struct DiagramProperties: Equatable {
+        var block: String?
+        var shape: MermaidEdit.Shape?
+        var color: MermaidEdit.Color?
+        var styled = false
+        var arrow: MermaidEdit.Arrow?
+    }
+
+    /// The diagram under the cursor, its text and the cursor's line in it (0-based).
+    private var cursorInDiagram: (range: NSRange, text: String, line: Int)? {
+        guard let range = currentDiagramRange else { return nil }
+        let text = (textView.string as NSString).substring(with: range)
+        let caret = min(max(textView.selectedRange().location - range.location, 0), (text as NSString).length)
+        let line = (text as NSString).substring(to: caret).components(separatedBy: "\n").count - 1
+        return (range, text, line)
+    }
+
+    /// What the Properties of the Diagrams tab show; nil outside a flowchart.
+    var diagramProperties: DiagramProperties? {
+        guard let c = cursorInDiagram, ["flowchart", "graph"].contains(MermaidEdit.diagramType(c.text) ?? "") else { return nil }
+        var p = DiagramProperties()
+        p.arrow = MermaidEdit.arrow(c.text, line: c.line)
+        if let id = MermaidEdit.block(c.text, line: c.line) {
+            p.block = id
+            p.shape = MermaidEdit.shape(c.text, id: id)
+            p.color = MermaidEdit.color(c.text, id: id)
+            p.styled = MermaidEdit.hasStyle(c.text, id: id)
+        }
+        return p
+    }
+
+    private func editCursorBlock(_ change: (String, String, Int) -> String?) {
+        guard let c = cursorInDiagram, let id = MermaidEdit.block(c.text, line: c.line),
+              let changed = change(c.text, id, c.line), changed != c.text else { NSSound.beep(); return }
+        let caret = textView.selectedRange()
+        replaceText(in: c.range, with: changed)
+        textView.setSelectedRange(NSRange(location: min(caret.location, (textView.string as NSString).length), length: 0))
+    }
+
+    /// Edit ▸ Diagram ▸ Block Shape (tag = `MermaidEdit.Shape`).
+    @objc func setDiagramBlockShape(_ sender: Any?) {
+        guard let shape = MermaidEdit.Shape(rawValue: (sender as? NSMenuItem)?.tag ?? -1) else { return }
+        editCursorBlock { text, id, _ in MermaidEdit.settingShape(text, id: id, shape) }
+    }
+
+    /// Edit ▸ Diagram ▸ Block Colour (tag 0 = none, then `MermaidEdit.Color` + 1).
+    @objc func setDiagramBlockColor(_ sender: Any?) {
+        let tag = (sender as? NSMenuItem)?.tag ?? 0
+        editCursorBlock { text, id, _ in MermaidEdit.settingColor(text, id: id, MermaidEdit.Color(rawValue: tag - 1)) }
+    }
+
+    /// Edit ▸ Diagram ▸ Arrow (tag = `MermaidEdit.Arrow`): the arrow on the cursor's line.
+    @objc func setDiagramArrow(_ sender: Any?) {
+        guard let kind = MermaidEdit.Arrow(rawValue: (sender as? NSMenuItem)?.tag ?? -1),
+              let c = cursorInDiagram, let changed = MermaidEdit.settingArrow(c.text, line: c.line, kind),
+              changed != c.text else { NSSound.beep(); return }
+        let caret = textView.selectedRange()
+        replaceText(in: c.range, with: changed)
+        textView.setSelectedRange(NSRange(location: min(caret.location, (textView.string as NSString).length), length: 0))
     }
 
     /// The line Mermaid could not read gets a red dotted underline until the next edit.

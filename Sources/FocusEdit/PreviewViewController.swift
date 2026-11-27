@@ -22,6 +22,14 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
             } else if message.name == "diagramNode" {
                 guard let m = message.body as? [String: Any], let source = m["source"] as? String else { return }
                 owner?.onDiagramNode?(source, m["id"] as? String ?? "", m["label"] as? String ?? "")
+            } else if message.name == "diagramConnect" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let from = m["from"] as? String, let to = m["to"] as? String else { return }
+                owner?.onDiagramConnect?(source, from, to)
+            } else if message.name == "diagramNodeAction" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let id = m["id"] as? String, let action = m["action"] as? String else { return }
+                owner?.onDiagramNodeAction?(source, id, action)
             } else if message.name == "diagramRename" {
                 guard let m = message.body as? [String: Any], let source = m["source"] as? String,
                       let id = m["id"] as? String, let text = m["text"] as? String else { return }
@@ -85,6 +93,10 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     var onDiagramError: ((String, Int) -> Void)?
     /// A block renamed in the picture: its diagram's source, the block's id, the new label.
     var onDiagramRename: ((String, String, String) -> Void)?
+    /// Dragged from one block to another: source, from id, to id.
+    var onDiagramConnect: ((String, String, String) -> Void)?
+    /// The block menu in the picture: source, id, `next` / `duplicate` / `delete`.
+    var onDiagramNodeAction: ((String, String, String) -> Void)?
     private var lastRatio = 0.0
     /// Where the reader is (0 top, 1 bottom), as last read or set.
     var currentRatio: Double { lastRatio }
@@ -109,6 +121,8 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         config.userContentController.add(copyBridge, name: "diagramNode")
         config.userContentController.add(copyBridge, name: "diagramError")
         config.userContentController.add(copyBridge, name: "diagramRename")
+        config.userContentController.add(copyBridge, name: "diagramConnect")
+        config.userContentController.add(copyBridge, name: "diagramNodeAction")
         // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).
         Diagrams.install(in: config.userContentController)
         let web = WKWebView(frame: .zero, configuration: config)

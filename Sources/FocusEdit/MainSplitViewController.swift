@@ -85,7 +85,10 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             self?.editor.insertDiagramTemplate(item)
             self?.view.window?.makeFirstResponder(self?.editor.textView)
         }
-        editor.onCursorMoved = { [weak self] location in self?.outline.setCursor(location) }
+        editor.onCursorMoved = { [weak self] location in
+            self?.outline.setCursor(location)
+            self?.updateDiagramProperties()
+        }
         editor.onThemeChanged = { [weak self] in
             guard let self, !self.previewItem.isCollapsed else { return }
             self.preview.update(markdown: self.editor.previewMarkdown, colors: self.editor.previewColors)
@@ -112,6 +115,19 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         preview.onDiagramRename = { [weak self] source, id, text in
             self?.editor.renameDiagramNode(source: source, id: id, text: text)
         }
+        preview.onDiagramConnect = { [weak self] source, from, to in
+            self?.editor.connectDiagramNodes(source: source, from: from, to: to)
+        }
+        preview.onDiagramNodeAction = { [weak self] source, id, action in
+            self?.editor.diagramNodeAction(source: source, id: id, action: action)
+        }
+        outline.onShowProperties = { [weak self] in self?.updateDiagramProperties() }
+        outline.onProperty = { [weak self] action, tag in
+            let item = NSMenuItem()
+            item.tag = tag
+            _ = NSApp.sendAction(action, to: self?.editor, from: item)
+            self?.updateDiagramProperties()
+        }
         NotificationCenter.default.addObserver(
             self, selector: #selector(splitResized(_:)),
             name: NSSplitView.didResizeSubviewsNotification, object: splitView)
@@ -132,6 +148,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         updateViewSwitcher() // Save As can change the kind: Fountain has no preview
         outline.update(text: editor.plainText as NSString, kind: editor.documentKind)
         editor.clearDiagramError() // the preview marks it again if it is still there
+        updateDiagramProperties()
         if !previewItem.isCollapsed {
             preview.update(markdown: editor.previewMarkdown, colors: editor.previewColors)
         }
@@ -208,6 +225,12 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         Preferences.showLibrary = !libraryItem.isCollapsed
     }
 
+    /// The Properties of the Diagrams tab follow the cursor (only while they are shown).
+    func updateDiagramProperties() {
+        guard !outlineItem.isCollapsed, outline.showsProperties else { return }
+        outline.setProperties(editor.diagramProperties)
+    }
+
     /// Edit ▸ Diagram ▸ Show Diagram List: the outline sidebar on its Diagrams tab.
     @objc func showDiagramList(_ sender: Any?) {
         guard editor.diagramsAllowed else { NSSound.beep(); return }
@@ -218,6 +241,7 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     @objc func toggleOutline(_ sender: Any?) {
         toggle(outlineItem)
         Preferences.showOutline = !outlineItem.isCollapsed
+        updateDiagramProperties()
     }
 
     /// The held width is let go while a sidebar folds or unfolds, then put back.

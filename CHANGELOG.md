@@ -14,6 +14,8 @@
 - Mac: a diagram Mermaid cannot read gets the line with the mistake underlined in red in the text, until the next edit
 - Mac: the outline sidebar has a Diagrams tab in Markdown (a diagram file shows it on its own): every Mermaid diagram of the document by its title and kind, the one under the cursor selected, a click goes to it. Below the list, Block, Arrow and Group add to the diagram under the cursor after its line, with the placeholder text selected: in a flowchart a block with a new id, an arrow from the block on that line to a new one, a subgraph; in a sequence diagram a participant, a message, a loop. Template ▾ inserts a ready diagram. The same commands are in Edit ▸ Diagram (Insert, Show Diagram List) and in the palette
 - Mac: double-click a block of a flowchart in the preview to rename it right in the picture: Enter changes its label in the text (⌘Z undoes it), Esc cancels. A double-click outside the blocks still opens the full size view
+- Mac: edit a flowchart with the mouse in the preview: drag from one block to another to add an arrow between them; right-click a block for Rename…, Add Next Block, Duplicate and Delete (the copy commands stay in the same menu). Each change is made in the text and ⌘Z undoes it
+- Mac: Properties on the Diagrams tab (and Edit ▸ Diagram ▸ Block Shape, Block Color, Arrow) for the block on the cursor's line: shape (rectangle, rounded, stadium, subroutine, database, circle, decision, hexagon, parallelogram, flag), fill colour (a `style` line; None removes it) and the kind of its arrow (arrow, dotted, thick, line, both ways)
 
 ## [1.8.0] - 2026-11-27
 

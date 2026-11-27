@@ -15,6 +15,16 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
     var onInsertElement: ((Int) -> Void)?
     /// A template (index in `MermaidEdit.templates`) at the cursor.
     var onInsertTemplate: ((Int) -> Void)?
+    /// A Properties menu was used: the editor action and the item's tag.
+    var onProperty: ((Selector, Int) -> Void)?
+    /// The Properties became visible and want the cursor's block.
+    var onShowProperties: (() -> Void)?
+
+    private let propertiesTitle = NSTextField(labelWithString: "")
+    private let shapePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let colorPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let arrowPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private var properties: EditorViewController.DiagramProperties?
 
     private let tabs = NSSegmentedControl(labels: ["Headings", "Diagrams"], trackingMode: .selectOne,
                                           target: nil, action: nil)
@@ -94,11 +104,49 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         row.orientation = .horizontal
         row.distribution = .fillEqually
         row.spacing = 4
+        // Properties of the block / arrow on the cursor's line (flowcharts).
+        func fill(_ popup: NSPopUpButton, _ titles: [String], _ tags: [Int], _ action: Selector) {
+            popup.controlSize = .small
+            popup.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            for (t, tag) in zip(titles, tags) {
+                popup.addItem(withTitle: t)
+                popup.lastItem?.tag = tag
+            }
+            popup.target = self
+            popup.action = action
+        }
+        fill(shapePopup, MermaidEdit.Shape.allCases.map(\.title), MermaidEdit.Shape.allCases.map(\.rawValue),
+             #selector(shapeChosen(_:)))
+        fill(colorPopup, ["None"] + MermaidEdit.Color.allCases.map(\.title) + ["Custom"],
+             Array(0...MermaidEdit.Color.allCases.count) + [-1], #selector(colorChosen(_:)))
+        colorPopup.lastItem?.isEnabled = false
+        colorPopup.autoenablesItems = false
+        fill(arrowPopup, MermaidEdit.Arrow.allCases.map(\.title), MermaidEdit.Arrow.allCases.map(\.rawValue),
+             #selector(arrowChosen(_:)))
+        propertiesTitle.font = .systemFont(ofSize: 11, weight: .semibold)
+        propertiesTitle.textColor = .secondaryLabelColor
+        propertiesTitle.lineBreakMode = .byTruncatingTail
+        func label(_ text: String) -> NSTextField {
+            let l = NSTextField(labelWithString: text)
+            l.font = .systemFont(ofSize: 11)
+            l.textColor = .secondaryLabelColor
+            return l
+        }
+        let grid = NSGridView(views: [
+            [label("Shape"), shapePopup],
+            [label("Color"), colorPopup],
+            [label("Arrow"), arrowPopup],
+        ])
+        grid.rowSpacing = 4
+        grid.columnSpacing = 6
+        grid.column(at: 0).xPlacement = .trailing
+        grid.rowAlignment = .firstBaseline
         toolbar.orientation = .vertical
         toolbar.alignment = .width
         toolbar.spacing = 4
         toolbar.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 8, right: 6)
-        toolbar.setViews([row, templates], in: .top)
+        toolbar.setViews([propertiesTitle, grid, row, templates], in: .top)
+        toolbar.setCustomSpacing(8, after: grid)
         toolbar.translatesAutoresizingMaskIntoConstraints = false
 
         let container = NSView()
@@ -148,6 +196,41 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         reload()
     }
 
+    @objc private func shapeChosen(_ sender: NSPopUpButton) {
+        onProperty?(#selector(EditorViewController.setDiagramBlockShape(_:)), sender.selectedTag())
+    }
+
+    @objc private func colorChosen(_ sender: NSPopUpButton) {
+        onProperty?(#selector(EditorViewController.setDiagramBlockColor(_:)), sender.selectedTag())
+    }
+
+    @objc private func arrowChosen(_ sender: NSPopUpButton) {
+        onProperty?(#selector(EditorViewController.setDiagramArrow(_:)), sender.selectedTag())
+    }
+
+    /// Properties are worth computing only while the Diagrams tab is on screen.
+    var showsProperties: Bool { isViewLoaded && tab == .diagrams }
+
+    /// The block / arrow on the cursor's line, or nil outside a flowchart.
+    func setProperties(_ p: EditorViewController.DiagramProperties?) {
+        guard p != properties || propertiesTitle.stringValue.isEmpty else { return }
+        properties = p
+        let block = p?.block
+        if let block {
+            propertiesTitle.stringValue = "Block " + block + (p?.arrow != nil ? " · arrow" : "")
+        } else if p?.arrow != nil {
+            propertiesTitle.stringValue = "Arrow"
+        } else {
+            propertiesTitle.stringValue = p == nil ? "Properties: in a flowchart" : "Properties: put the cursor on a block"
+        }
+        shapePopup.isEnabled = block != nil
+        colorPopup.isEnabled = block != nil
+        arrowPopup.isEnabled = p?.arrow != nil
+        shapePopup.selectItem(withTag: p?.shape?.rawValue ?? 0)
+        colorPopup.selectItem(withTag: p?.color.map { $0.rawValue + 1 } ?? (p?.styled == true ? -1 : 0))
+        arrowPopup.selectItem(withTag: p?.arrow?.rawValue ?? 0)
+    }
+
     @objc private func elementClicked(_ sender: NSButton) {
         onInsertElement?(sender.tag)
     }
@@ -187,6 +270,7 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         if isViewLoaded { showChrome() }
         tableView.reloadData()
         showActive(force: true)
+        if tab == .diagrams { onShowProperties?() }
     }
 
     /// The cursor moved: select the heading it belongs to (cheap; runs on every move).

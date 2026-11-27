@@ -913,6 +913,52 @@ enum SelfTest {
               "flowchart LR\n  X[\"A note\"] --> A[\"New\"]")
         check("rename an unknown block", MermaidEdit.renaming(flow, id: "Z", to: "New"), nil)
 
+        // Mouse editing and Properties.
+        let blocks = "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> C"
+        check("shape of a labelled block", MermaidEdit.shape(blocks, id: "A")?.title, "Rectangle")
+        check("shape of a round block", MermaidEdit.shape(blocks, id: "B")?.title, "Rounded")
+        check("shape of a bare block", MermaidEdit.shape(blocks, id: "C")?.title, "Rectangle")
+        check("shape of an unknown block", MermaidEdit.shape(blocks, id: "Z")?.title, nil)
+        check("block becomes a decision", MermaidEdit.settingShape(blocks, id: "A", .decision),
+              "flowchart LR\n  A{\"Start\"} --> B(Go)\n  B --> C")
+        check("block becomes a database", MermaidEdit.settingShape(blocks, id: "B", .database),
+              "flowchart LR\n  A[\"Start\"] --> B[(Go)]\n  B --> C")
+        check("bare block gets a shape", MermaidEdit.settingShape(blocks, id: "C", .circle),
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> C((\"C\"))")
+        let blue = MermaidEdit.settingColor(blocks, id: "A", .blue)
+        check("block colour adds a style line", blue, blocks + "\n  style A fill:#dbeafe,stroke:#2563eb,color:#1e3a8a")
+        check("block colour is read back", MermaidEdit.color(blue, id: "A")?.title, "Blue")
+        check("block colour is replaced", MermaidEdit.settingColor(blue, id: "A", .red),
+              blocks + "\n  style A fill:#fee2e2,stroke:#dc2626,color:#7f1d1d")
+        check("block colour is removed", MermaidEdit.settingColor(blue, id: "A", nil), blocks)
+        check("other style is not ours", MermaidEdit.color(blocks + "\n  style A fill:#fff", id: "A")?.title, nil)
+        check("drag connects blocks", MermaidEdit.connecting(blocks, from: "C", to: "A"), blocks + "\n  C --> A")
+        check("no arrow to itself", MermaidEdit.connecting(blocks, from: "A", to: "A"), nil)
+        check("add next block",
+              MermaidEdit.addingNext(blocks, id: "B").map { $0.source + " <" + ($0.source as NSString).substring(with: $0.select) + ">" },
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> n1[\"Next\"]\n  B --> C <Next>")
+        check("duplicate a block", MermaidEdit.duplicating(blocks, id: "A").map { $0.source + " " + $0.id },
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  n1[\"Start\"]\n  B --> C n1")
+        check("duplicate a bare block", MermaidEdit.duplicating(blocks, id: "C").map(\.source),
+              "flowchart LR\n  A[\"Start\"] --> B(Go)\n  B --> C\n  n1[\"C\"]")
+        check("delete a block keeps its neighbours", MermaidEdit.deleting(blocks + "\n  style B fill:#fff", id: "B"),
+              "flowchart LR\n  A[\"Start\"]")
+        check("delete a group is refused",
+              MermaidEdit.deleting("flowchart TB\n  subgraph s1[\"G\"]\n    A\n  end", id: "s1"), nil)
+        check("delete an unknown block", MermaidEdit.deleting(blocks, id: "Z"), nil)
+        check("arrow kind", MermaidEdit.arrow(blocks, line: 1)?.title, "Arrow  -->")
+        check("no arrow on the kind line", MermaidEdit.arrow(blocks, line: 0)?.title, nil)
+        check("arrow made dotted", MermaidEdit.settingArrow(blocks, line: 1, .dotted),
+              "flowchart LR\n  A[\"Start\"] -.-> B(Go)\n  B --> C")
+        let worded = "flowchart LR\n  A -- yes --> B"
+        check("labelled arrow kind", MermaidEdit.arrow(worded, line: 1)?.title, "Arrow  -->")
+        check("labelled arrow made thick", MermaidEdit.settingArrow(worded, line: 1, .thick), "flowchart LR\n  A ==>|yes| B")
+        check("dotted arrow read", MermaidEdit.arrow("graph TD\n  A -.-> B", line: 1)?.title, "Dotted  -.->")
+        check("plain line read", MermaidEdit.arrow("graph TD\n  A --- B", line: 1)?.title, "Line  ---")
+        check("two-way arrow read", MermaidEdit.arrow("graph TD\n  A <--> B", line: 1)?.title, "Both Ways  <-->")
+        check("block on a line", MermaidEdit.block(blocks, line: 2), "B")
+        check("block on its style line", MermaidEdit.block(blue, line: 3), "A")
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

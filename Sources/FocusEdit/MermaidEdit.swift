@@ -598,4 +598,347 @@ enum MermaidEdit {
         lines[first.line] = ns.replacingCharacters(in: NSRange(location: first.end, length: 0), with: "[" + label + "]")
         return lines.joined(separator: "\n")
     }
+
+    // MARK: Blocks: definition, shape, colour, arrows (mouse editing and Properties)
+
+    /// A block's shape and how Mermaid writes it.
+    enum Shape: Int, CaseIterable {
+        case rectangle, rounded, stadium, subroutine, database, circle, decision, hexagon, parallelogram, flag
+
+        var title: String {
+            ["Rectangle", "Rounded", "Stadium", "Subroutine", "Database", "Circle", "Decision", "Hexagon",
+             "Parallelogram", "Flag"][rawValue]
+        }
+        var open: String { ["[", "(", "([", "[[", "[(", "((", "{", "{{", "[/", ">"][rawValue] }
+        var close: String { ["]", ")", "])", "]]", ")]", "))", "}", "}}", "/]", "]"][rawValue] }
+
+        /// The shape an opener starts (the longest that fits).
+        static func starting(_ rest: String) -> Shape? {
+            if rest.hasPrefix("(((") { return .circle }
+            return allCases.sorted { $0.open.count > $1.open.count }.first { rest.hasPrefix($0.open) }
+        }
+    }
+
+    /// Where a block is given its shape and label: the line, the id and the span from the
+    /// id through the closing bracket, the label inside (with its quotes) and the shape.
+    struct Definition {
+        let line: Int
+        let id: NSRange
+        let span: NSRange
+        let label: NSRange
+        let shape: Shape
+    }
+
+    private static func idPattern(_ id: String) -> NSRegularExpression? {
+        try? NSRegularExpression(pattern: "(?<![\\w-])" + NSRegularExpression.escapedPattern(for: id) + "(?![\\w-])")
+    }
+
+    private static func outsideQuotes(_ line: NSString, _ at: Int) -> Bool {
+        var quotes = 0
+        for i in 0..<at where line.character(at: i) == 34 { quotes += 1 }
+        return quotes % 2 == 0
+    }
+
+    /// Lines of a flowchart that may hold blocks (after the kind line, not styles or comments).
+    private static func blockLines(_ lines: [String]) -> Range<Int>? {
+        guard let header = headerLine(lines), header + 1 <= lines.count else { return nil }
+        return (header + 1)..<lines.count
+    }
+
+    private static func isSkipped(_ line: String) -> Bool {
+        guard let skip = flowSkipLines else { return false }
+        return skip.firstMatch(in: line, range: NSRange(location: 0, length: (line as NSString).length)) != nil
+    }
+
+    /// The shape and label of `id` right after `idEnd` in `line`, if it has them there.
+    private static func shapeAfter(_ ns: NSString, _ idEnd: Int) -> (shape: Shape, label: NSRange, end: Int)? {
+        let rest = ns.substring(from: idEnd)
+        guard let shape = Shape.starting(rest) else { return nil }
+        let triple = shape == .circle && rest.hasPrefix("(((")
+        let open = triple ? "(((" : shape.open
+        let close = triple ? ")))" : shape.close
+        let start = idEnd + (open as NSString).length
+        guard start <= ns.length else { return nil }
+        var closeAt: Int
+        if start < ns.length, ns.character(at: start) == 34 {
+            let q = ns.range(of: "\"", range: NSRange(location: start + 1, length: ns.length - start - 1))
+            guard q.location != NSNotFound else { return nil }
+            let c = ns.range(of: close, range: NSRange(location: q.location + 1, length: ns.length - q.location - 1))
+            guard c.location != NSNotFound else { return nil }
+            closeAt = c.location
+            // The label is the quoted part; anything between it and the bracket stays.
+            return (shape, NSRange(location: start, length: q.location + 1 - start), closeAt + (close as NSString).length)
+        }
+        var c = ns.range(of: close, range: NSRange(location: start, length: ns.length - start))
+        if shape == .parallelogram, c.location == NSNotFound {
+            c = ns.range(of: "\\]", range: NSRange(location: start, length: ns.length - start))
+        }
+        guard c.location != NSNotFound else { return nil }
+        closeAt = c.location
+        return (shape, NSRange(location: start, length: closeAt - start), closeAt + (close as NSString).length)
+    }
+
+    /// Where block `id` gets its shape and label; nil if it never does (a bare `A --> B`).
+    static func definition(_ source: String, id: String) -> Definition? {
+        let lines = source.components(separatedBy: "\n")
+        guard let range = blockLines(lines), let re = idPattern(id) else { return nil }
+        for i in range where !isSkipped(lines[i]) {
+            let ns = lines[i] as NSString
+            for m in re.matches(in: lines[i], range: NSRange(location: 0, length: ns.length))
+            where outsideQuotes(ns, m.range.location) {
+                var at = NSMaxRange(m.range)
+                if ns.substring(to: m.range.location).trimmingCharacters(in: .whitespaces) == "subgraph" {
+                    while at < ns.length, ns.character(at: at) == 32 { at += 1 }
+                }
+                guard let found = shapeAfter(ns, at) else { continue }
+                return Definition(line: i, id: m.range,
+                                  span: NSRange(location: m.range.location, length: found.end - m.range.location),
+                                  label: found.label, shape: found.shape)
+            }
+        }
+        return nil
+    }
+
+    /// The first line that mentions block `id` (outside labels), and where.
+    private static func firstMention(_ lines: [String], id: String) -> (line: Int, id: NSRange)? {
+        guard let range = blockLines(lines), let re = idPattern(id) else { return nil }
+        for i in range where !isSkipped(lines[i]) {
+            let ns = lines[i] as NSString
+            if let m = re.matches(in: lines[i], range: NSRange(location: 0, length: ns.length))
+                .first(where: { outsideQuotes(ns, $0.range.location) }) {
+                return (i, m.range)
+            }
+        }
+        return nil
+    }
+
+    /// The shape of block `id` (a bare id is a rectangle); nil if it is not in the diagram.
+    static func shape(_ source: String, id: String) -> Shape? {
+        if let d = definition(source, id: id) { return d.shape }
+        return firstMention(source.components(separatedBy: "\n"), id: id) == nil ? nil : .rectangle
+    }
+
+    /// Block `id` drawn as `shape`, its label kept (a bare id gets itself as the label).
+    static func settingShape(_ source: String, id: String, _ shape: Shape) -> String? {
+        var lines = source.components(separatedBy: "\n")
+        if let d = definition(source, id: id) {
+            let ns = lines[d.line] as NSString
+            let label = ns.substring(with: d.label)
+            let text = ns.substring(with: d.id) + shape.open + label + shape.close
+            lines[d.line] = ns.replacingCharacters(in: d.span, with: text)
+            return lines.joined(separator: "\n")
+        }
+        guard let m = firstMention(lines, id: id) else { return nil }
+        let ns = lines[m.line] as NSString
+        lines[m.line] = ns.replacingCharacters(in: NSRange(location: NSMaxRange(m.id), length: 0),
+                                               with: shape.open + "\"" + id + "\"" + shape.close)
+        return lines.joined(separator: "\n")
+    }
+
+    /// Fill colours for the Properties colour menu (light fills, readable text).
+    enum Color: Int, CaseIterable {
+        case blue, green, yellow, red, purple, gray
+
+        var title: String { ["Blue", "Green", "Yellow", "Red", "Purple", "Gray"][rawValue] }
+        var style: String {
+            [
+                "fill:#dbeafe,stroke:#2563eb,color:#1e3a8a",
+                "fill:#dcfce7,stroke:#16a34a,color:#14532d",
+                "fill:#fef9c3,stroke:#ca8a04,color:#713f12",
+                "fill:#fee2e2,stroke:#dc2626,color:#7f1d1d",
+                "fill:#f3e8ff,stroke:#9333ea,color:#581c87",
+                "fill:#f3f4f6,stroke:#6b7280,color:#111827",
+            ][rawValue]
+        }
+    }
+
+    private static func styleLines(_ lines: [String], id: String) -> [Int] {
+        lines.indices.filter {
+            let parts = lines[$0].trimmingCharacters(in: .whitespaces).split(separator: " ", maxSplits: 2)
+            return parts.count >= 2 && parts[0] == "style" && parts[1] == Substring(id)
+        }
+    }
+
+    /// The colour of block `id` from its `style` line: one of ours, or nil (none or another).
+    static func color(_ source: String, id: String) -> Color? {
+        let lines = source.components(separatedBy: "\n")
+        guard let i = styleLines(lines, id: id).last else { return nil }
+        let parts = lines[i].trimmingCharacters(in: .whitespaces).split(separator: " ", maxSplits: 2)
+        guard parts.count == 3 else { return nil }
+        return Color.allCases.first { $0.style == String(parts[2]) }
+    }
+
+    /// Does block `id` have a `style` line of any colour?
+    static func hasStyle(_ source: String, id: String) -> Bool {
+        !styleLines(source.components(separatedBy: "\n"), id: id).isEmpty
+    }
+
+    /// Block `id` filled with `color` (nil removes its `style` lines).
+    static func settingColor(_ source: String, id: String, _ color: Color?) -> String {
+        var lines = source.components(separatedBy: "\n")
+        let existing = styleLines(lines, id: id)
+        if let color, let last = existing.last {
+            let lead = String(lines[last].prefix { $0 == " " || $0 == "\t" })
+            lines[last] = lead + "style \(id) " + color.style
+            for i in existing.dropLast().reversed() { lines.remove(at: i) }
+            return lines.joined(separator: "\n")
+        }
+        for i in existing.reversed() { lines.remove(at: i) }
+        guard let color else { return lines.joined(separator: "\n") }
+        return appendingLine("style \(id) " + color.style, to: lines)
+    }
+
+    /// `text` as a new last line of the diagram, indented like its first statement.
+    private static func appendingLine(_ text: String, to lines: [String]) -> String {
+        var lines = lines
+        var end = lines.count
+        while end > 0, lines[end - 1].trimmingCharacters(in: .whitespaces).isEmpty { end -= 1 }
+        let header = headerLine(lines) ?? 0
+        let first = lines.indices.first { $0 > header && !lines[$0].trimmingCharacters(in: .whitespaces).isEmpty }
+        var lead = first.map { String(lines[$0].prefix { $0 == " " || $0 == "\t" }) } ?? "    "
+        if lead.isEmpty { lead = "    " }
+        lines.insert(lead + text, at: end)
+        return lines.joined(separator: "\n")
+    }
+
+    /// Arrow A → B as a new last line.
+    static func connecting(_ source: String, from: String, to: String) -> String? {
+        guard !from.isEmpty, !to.isEmpty, from != to else { return nil }
+        return appendingLine("\(from) --> \(to)", to: source.components(separatedBy: "\n"))
+    }
+
+    /// A new block after block `id`, joined to it by an arrow; with the placeholder to select.
+    static func addingNext(_ source: String, id: String) -> (source: String, select: NSRange)? {
+        var lines = source.components(separatedBy: "\n")
+        let at = definition(source, id: id)?.line ?? firstMention(lines, id: id)?.line
+        guard let at else { return nil }
+        let new = unique("n", avoiding: nodeIDs(source), in: source)
+        var lead = String(lines[at].prefix { $0 == " " || $0 == "\t" })
+        if lead.isEmpty { lead = "    " }
+        let line = lead + "\(id) --> \(new)[\"Next\"]"
+        lines.insert(line, at: at + 1)
+        let start = lines[...at].reduce(0) { $0 + ($1 as NSString).length + 1 }
+        return (lines.joined(separator: "\n"),
+                NSRange(location: start + (line as NSString).range(of: "Next").location, length: 4))
+    }
+
+    /// A copy of block `id` (same shape and label) on the line after its definition.
+    static func duplicating(_ source: String, id: String) -> (source: String, id: String)? {
+        var lines = source.components(separatedBy: "\n")
+        let new = unique("n", avoiding: nodeIDs(source), in: source)
+        if let d = definition(source, id: id) {
+            let ns = lines[d.line] as NSString
+            let lead = String(lines[d.line].prefix { $0 == " " || $0 == "\t" })
+            lines.insert((lead.isEmpty ? "    " : lead) + new + ns.substring(with: NSRange(
+                location: NSMaxRange(d.id), length: NSMaxRange(d.span) - NSMaxRange(d.id))), at: d.line + 1)
+            return (lines.joined(separator: "\n"), new)
+        }
+        guard let m = firstMention(lines, id: id) else { return nil }
+        var lead = String(lines[m.line].prefix { $0 == " " || $0 == "\t" })
+        if lead.isEmpty { lead = "    " }
+        lines.insert(lead + new + "[\"\(id)\"]", at: m.line + 1)
+        return (lines.joined(separator: "\n"), new)
+    }
+
+    /// The diagram without block `id`: lines that only define or link it go; another block
+    /// defined on such a line keeps its definition on a line of its own; its `style`,
+    /// `class` and `click` lines go too. nil for a group (subgraph) or an unknown id.
+    static func deleting(_ source: String, id: String) -> String? {
+        var lines = source.components(separatedBy: "\n")
+        guard let range = blockLines(lines), let re = idPattern(id), firstMention(lines, id: id) != nil else { return nil }
+        var out: [String] = Array(lines[..<range.lowerBound])
+        for i in range {
+            let line = lines[i]
+            let body = line.trimmingCharacters(in: .whitespaces)
+            let words = body.split(separator: " ")
+            if words.count >= 2, ["style", "class", "click"].contains(String(words[0])),
+               words[1].split(separator: ",").contains(Substring(id)) {
+                continue
+            }
+            if words.first == "subgraph", words.count >= 2, words[1].hasPrefix(id) {
+                if flowIDs(inLine: line).first == id { return nil }
+            }
+            if isSkipped(line) { out.append(line); continue }
+            let ns = line as NSString
+            let hits = re.matches(in: line, range: NSRange(location: 0, length: ns.length))
+                .filter { outsideQuotes(ns, $0.range.location) }
+            guard !hits.isEmpty else { out.append(line); continue }
+            // Keep the other blocks this line gives a shape to.
+            let lead = String(line.prefix { $0 == " " || $0 == "\t" })
+            for other in flowIDs(inLine: line) where other != id {
+                guard let r = idPattern(other) else { continue }
+                for m in r.matches(in: line, range: NSRange(location: 0, length: ns.length))
+                where outsideQuotes(ns, m.range.location) {
+                    if let found = shapeAfter(ns, NSMaxRange(m.range)) {
+                        out.append(lead + ns.substring(with: NSRange(location: m.range.location,
+                                                                       length: found.end - m.range.location)))
+                        break
+                    }
+                }
+            }
+        }
+        lines = out
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: Arrow kinds
+
+    enum Arrow: Int, CaseIterable {
+        case arrow, dotted, thick, line, both
+
+        var title: String { ["Arrow  -->", "Dotted  -.->", "Thick  ==>", "Line  ---", "Both Ways  <-->"][rawValue] }
+        var text: String { ["-->", "-.->", "==>", "---", "<-->"][rawValue] }
+    }
+
+    private static let labelledLink = try? NSRegularExpression(
+        pattern: #"(?<![<\-=.])(--|==|-\.)\s+([^>\n|]*?)\s+(-->|==>|\.->|---)"#)
+    private static let plainLink = try? NSRegularExpression(pattern: #"<?(?:-\.+->|-\.+-|={2,}>|-{2,}>|-{3,}|={3,})"#)
+
+    /// The kind of the first arrow on `line` outside labels, and where it is.
+    private static func firstArrow(_ line: String) -> (arrow: Arrow, range: NSRange, label: String?)? {
+        let ns = line as NSString
+        let all = NSRange(location: 0, length: ns.length)
+        var best: (Arrow, NSRange, String?)?
+        if let re = labelledLink, let m = re.matches(in: line, range: all).first(where: { outsideQuotes(ns, $0.range.location) }) {
+            let start = ns.substring(with: m.range(at: 1))
+            let kind: Arrow = start == "==" ? .thick : start == "-." ? .dotted : .arrow
+            best = (kind, m.range, ns.substring(with: m.range(at: 2)))
+        }
+        if let re = plainLink, let m = re.matches(in: line, range: all).first(where: { outsideQuotes(ns, $0.range.location) }),
+           best == nil || m.range.location < best!.1.location {
+            let t = ns.substring(with: m.range)
+            let kind: Arrow = t.hasPrefix("<") ? .both : t.contains(".") ? .dotted : t.hasPrefix("=") ? .thick
+                : t.hasSuffix(">") ? .arrow : .line
+            best = (kind, m.range, nil)
+        }
+        return best.map { ($0.0, $0.1, $0.2) }
+    }
+
+    /// The arrow on line `line` (0-based) of a flowchart, if there is one.
+    static func arrow(_ source: String, line: Int) -> Arrow? {
+        let lines = source.components(separatedBy: "\n")
+        guard let range = blockLines(lines), range.contains(line), !isSkipped(lines[line]) else { return nil }
+        return firstArrow(lines[line])?.arrow
+    }
+
+    /// The first arrow on line `line` turned into `kind` (a `-- text -->` label moves to `|text|`).
+    static func settingArrow(_ source: String, line: Int, _ kind: Arrow) -> String? {
+        var lines = source.components(separatedBy: "\n")
+        guard let range = blockLines(lines), range.contains(line), !isSkipped(lines[line]),
+              let found = firstArrow(lines[line]) else { return nil }
+        let text = found.label.map { kind.text + "|" + $0 + "|" } ?? kind.text
+        lines[line] = (lines[line] as NSString).replacingCharacters(in: found.range, with: text)
+        return lines.joined(separator: "\n")
+    }
+
+    /// The block a line is about: the first id on it (for Properties).
+    static func block(_ source: String, line: Int) -> String? {
+        let lines = source.components(separatedBy: "\n")
+        guard let range = blockLines(lines), range.contains(line) else { return nil }
+        let body = lines[line].trimmingCharacters(in: .whitespaces)
+        if body.hasPrefix("style ") || body.hasPrefix("class ") {
+            return body.split(separator: " ").dropFirst().first.map(String.init)
+        }
+        return flowIDs(inLine: lines[line]).first
+    }
 }

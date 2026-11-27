@@ -377,6 +377,13 @@ enum MenuBuilder {
         dgSub("Insert", #selector(EditorViewController.insertDiagramElement(_:)), ["Block", "Arrow", "Group"])
         dgMenu.addItem(item("Show Diagram List", #selector(MainSplitViewController.showDiagramList(_:)), ""))
         dgMenu.addItem(.separator())
+        dgSub("Block Shape", #selector(EditorViewController.setDiagramBlockShape(_:)),
+              MermaidEdit.Shape.allCases.map(\.title))
+        dgSub("Block Color", #selector(EditorViewController.setDiagramBlockColor(_:)),
+              ["None"] + MermaidEdit.Color.allCases.map(\.title))
+        dgSub("Arrow", #selector(EditorViewController.setDiagramArrow(_:)),
+              MermaidEdit.Arrow.allCases.map(\.title))
+        dgMenu.addItem(.separator())
         dgSub("Direction", #selector(EditorViewController.setDiagramDirection(_:)),
               ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"])
         dgSub("Look", #selector(EditorViewController.setDiagramLook(_:)),

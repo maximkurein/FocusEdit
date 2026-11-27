@@ -18,6 +18,9 @@
 //   (`diagramError`) so the editor can mark it. A double-click on a flowchart block
 //   opens a text field over it; Enter sends the new label (`diagramRename`) and the app
 //   changes it in the text. A double-click elsewhere opens the full size view.
+// - Drag from a flowchart block to another to connect them (`diagramConnect`); the
+//   right-click menu of a block also renames, adds a next block, duplicates or deletes
+//   it (`diagramNodeAction`). The app makes each change in the text.
 // - `freeze()` swaps every figure for a plain SVG picture, for HTML export and printing.
 // - Drawings are cached by source and colours, so typing elsewhere does not redraw
 //   them and the page does not flicker. A diagram being edited keeps its last good
@@ -577,10 +580,21 @@
   var menu = null;
   function closeCopyMenu() { if (menu) { menu.remove(); menu = null; } }
 
-  function openCopyMenu(d, source, at, fig) {
+  function openCopyMenu(d, source, at, fig, extra) {
     closeCopyMenu();
     var m = document.createElement('div');
     m.className = 'fe-menu';
+    (extra || []).forEach(function (item) {
+      if (!item) { var hr = document.createElement('hr'); m.appendChild(hr); return; }
+      var b = document.createElement('button');
+      b.textContent = item[0];
+      b.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        closeCopyMenu();
+        item[1]();
+      });
+      m.appendChild(b);
+    });
     [['png', 'Copy as PNG'], ['svg', 'Copy as SVG'], ['code', 'Copy Mermaid code']].forEach(function (item) {
       var b = document.createElement('button');
       b.textContent = item[1];
@@ -685,6 +699,10 @@
       '.fe-static{margin:1em 0;text-align:center}',
       '.fe-static svg{max-width:100%;height:auto}',
       '.fe-diagram g.node, .fe-diagram g.cluster > rect{cursor:pointer}',
+      '.fe-link{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:4;overflow:visible}',
+      '.fe-link line{stroke:#3399d9;stroke-width:2;stroke-dasharray:6 4}',
+      '.fe-diagram g.node.fe-link-target > :is(rect,polygon,circle,ellipse,path){stroke:#3399d9!important;stroke-width:3px!important}',
+      '.fe-menu hr{border:0;border-top:1px solid rgba(127,127,127,.3);margin:4px 0}',
       '.fe-rename{position:fixed;z-index:5;height:30px;box-sizing:border-box;padding:4px 8px;border-radius:6px;',
       '  border:2px solid #3399d9;font:14px -apple-system,system-ui,sans-serif;text-align:center;',
       '  background:Canvas;color:CanvasText;outline:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}'
@@ -720,7 +738,26 @@
       var d = fig ? fig.__drawing : (overlay && overlay.el.contains(e.target) ? overlay.d : null);
       if (!d) return;
       e.preventDefault();
-      openCopyMenu(d, fig ? fig.__source : overlay.source, { x: e.clientX, y: e.clientY }, fig);
+      var extra = null;
+      var node = fig && isFlowchart(fig.__source) ? nodeAt(e.target, fig) : null;
+      if (node && node.id) {
+        var target = e.target, source = fig.__source;
+        var send = function (action) {
+          return function () {
+            var msg = { source: source, id: node.id, action: action };
+            try { window.webkit.messageHandlers.diagramNodeAction.postMessage(msg); }
+            catch (err) { window.__feLastAction = msg; }
+          };
+        };
+        extra = [
+          ['Rename…', function () { startRename(fig, node, target); }],
+          ['Add Next Block', send('next')],
+          ['Duplicate', send('duplicate')],
+          ['Delete', send('delete')],
+          null
+        ];
+      }
+      openCopyMenu(d, fig ? fig.__source : overlay.source, { x: e.clientX, y: e.clientY }, fig, extra);
     });
     document.addEventListener('mousedown', function (e) {
       if (menu && !menu.contains(e.target)) closeCopyMenu();
@@ -777,6 +814,59 @@
       else if (pinch.fig) zoomFigure(pinch.fig, f, e.clientX, e.clientY);
     });
     document.addEventListener('gestureend', function () { pinch = null; });
+
+    // Drag from a flowchart block to another: the app adds an arrow between them
+    // (`diagramConnect`). A drag that starts outside the blocks pans as before.
+    var link = null;
+    document.addEventListener('mousedown', function (e) {
+      if (e.button !== 0 || overlay || renaming || (e.target.closest && e.target.closest('.fe-tools, .fe-menu'))) return;
+      var fig = figureOf(e.target);
+      if (!fig || !fig.__drawing || !isFlowchart(fig.__source)) return;
+      var el = e.target.closest && e.target.closest('g.node');
+      var node = el ? nodeAt(e.target, fig) : null;
+      if (!node || !node.id) return;
+      link = { fig: fig, from: node.id, el: el, x: e.clientX, y: e.clientY, line: null, over: null };
+      e.preventDefault();
+      e.stopPropagation(); // not a pan
+    }, true);
+    document.addEventListener('mousemove', function (e) {
+      if (!link) return;
+      if (!link.line) {
+        if (Math.abs(e.clientX - link.x) + Math.abs(e.clientY - link.y) < 6) return;
+        var r = link.el.getBoundingClientRect();
+        link.x = r.left + r.width / 2; link.y = r.top + r.height / 2;
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('class', 'fe-link');
+        var line = document.createElementNS(ns, 'line');
+        svg.appendChild(line);
+        document.documentElement.appendChild(svg);
+        link.svg = svg; link.line = line;
+      }
+      link.line.setAttribute('x1', link.x); link.line.setAttribute('y1', link.y);
+      link.line.setAttribute('x2', e.clientX); link.line.setAttribute('y2', e.clientY);
+      var under = document.elementFromPoint(e.clientX, e.clientY);
+      var el = under && under.closest ? under.closest('g.node') : null;
+      if (el && (figureOf(el) !== link.fig || el === link.el)) el = null;
+      if (link.over !== el) {
+        if (link.over) link.over.classList.remove('fe-link-target');
+        if (el) el.classList.add('fe-link-target');
+        link.over = el;
+      }
+    }, true);
+    document.addEventListener('mouseup', function (e) {
+      if (!link) return;
+      var l = link;
+      link = null;
+      if (l.svg) l.svg.remove();
+      if (l.over) l.over.classList.remove('fe-link-target');
+      if (!l.line || !l.over) return;
+      var to = nodeAt(l.over, l.fig);
+      if (!to || !to.id || to.id === l.from) return;
+      var msg = { source: l.fig.__source, from: l.from, to: to.id };
+      try { window.webkit.messageHandlers.diagramConnect.postMessage(msg); }
+      catch (err) { window.__feLastConnect = msg; }
+    }, true);
 
     // Drag to pan: the full size view, or a zoomed figure inside its frame.
     var drag = null;
