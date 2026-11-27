@@ -160,7 +160,7 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         listAboveToolbar = scrollView.bottomAnchor.constraint(equalTo: toolbar.topAnchor)
         listAtBottom = scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         NSLayoutConstraint.activate([
-            tabs.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            tabs.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor, constant: 6),
             tabs.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
             tabs.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),

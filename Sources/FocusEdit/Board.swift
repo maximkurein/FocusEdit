@@ -118,7 +118,7 @@ final class BoardDocument: NSDocument {
             return
         }
         board.sceneJSON { [weak self] text in
-            guard let self else { return }
+            guard let self else { return completionHandler(CocoaError(.userCancelled)) }
             if let text { self.json = text }
             self.superSave(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
         }

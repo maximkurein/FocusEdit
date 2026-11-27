@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-11-27
+
+### Added
+- Mac: Excalidraw boards for free drawing with a hand-drawn look (Excalidraw 0.18.1, MIT, built in, works offline): File ▸ New From Template ▸ Excalidraw Board or the palette opens a board; shapes and arrows are moved with the mouse; boards are saved as `.excalidraw` files (⌘S, opened like any document); File ▸ Export Board as PNG… / SVG… and Copy Board as PNG
+- Mac: Open in Excalidraw (Edit ▸ Diagram, the Diagram toolbar menu, the palette and the picture's right-click menu) turns the Mermaid diagram into an editable drawing on a new board, its blocks, arrows and groups as shapes
+
+### Fixed
+- Mac: the Headings / Diagrams tabs of the outline sidebar no longer slide under the toolbar
+
 ## [1.9.0] - 2026-11-27
 
 ### Added
@@ -19,8 +28,6 @@
 - Mac: the Diagram menu, the Diagrams tab and the completions work in plain text too (an untitled document is plain text), not only in Markdown and diagram files
 - Mac: completion inside a diagram: while you type, the grey suggestion (and the ⌥Esc list) offers the diagram's own block ids (participants in a sequence) and Mermaid's words for its kind (subgraph, style, classDef, participant, loop, section…), the diagram kinds on its first line and config words in its front matter, instead of dictionary words
 - Mac: in Split, the block on the cursor's line is outlined in orange in the picture
-- Mac: Excalidraw boards for free drawing with a hand-drawn look (Excalidraw 0.18.1, MIT, built in, works offline): File ▸ New From Template ▸ Excalidraw Board or the palette opens a board; shapes and arrows are moved with the mouse; boards are saved as `.excalidraw` files (⌘S, opened like any document); File ▸ Export Board as PNG… / SVG… and Copy Board as PNG
-- Mac: Open in Excalidraw (Edit ▸ Diagram, the Diagram toolbar menu, the palette and the picture's right-click menu) turns the Mermaid diagram into an editable drawing on a new board, its blocks, arrows and groups as shapes
 - Mac: Properties on the Diagrams tab (and Edit ▸ Diagram ▸ Block Shape, Block Color, Arrow) for the block on the cursor's line: shape (rectangle, rounded, stadium, subroutine, database, circle, decision, hexagon, parallelogram, flag), fill colour (a `style` line; None removes it) and the kind of its arrow (arrow, dotted, thick, line, both ways)
 - Mac: a Diagram button in the toolbar: a click shows the Diagrams list, its arrow offers New Diagram, New File… and the templates to insert at the cursor. A template chosen in an empty untitled document makes it a diagram file (.mmd); one inserted while only the text is shown opens Split, so the picture is beside it
 
