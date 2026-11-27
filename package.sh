@@ -55,6 +55,10 @@ rm -rf "$app" .build/FocusEdit.app
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/FocusEdit" "$app/Contents/MacOS/FocusEdit"
 cp Info.plist "$app/Contents/Info.plist"
+# Mermaid diagrams in the preview (Diagrams.swift): the library and the figure script.
+for f in mermaid.min.js mermaid-LICENSE.txt diagrams.js; do
+  cp "Resources/$f" "$app/Contents/Resources/$f" || fail "Resources/$f is missing"
+done
 printf 'APPL????' >"$app/Contents/PkgInfo"
 
 # Two integers that only grow: macOS compares CFBundleVersion component by component.

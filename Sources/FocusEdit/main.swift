@@ -120,6 +120,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newFountainTemplate(_ sender: Any?) {
         openTemplate(ext: "fountain", text: Templates.fountain)
     }
+    @objc func newMermaidTemplate(_ sender: Any?) {
+        openTemplate(ext: "mmd", text: Templates.mermaid)
+    }
     /// File ▸ New File…: the three-step dialog, then the file on disk, opened in a window.
     @objc func newFileWizard(_ sender: Any?) {
         guard let choice = NewFileWizard().run() else { return }
@@ -205,6 +208,15 @@ enum Templates {
     - point two
     """
 
+    static let mermaid = """
+    %% A Mermaid diagram: the picture is drawn beside the text as you type.
+    flowchart LR
+        idea(["Idea"]) --> draft["Draft"]
+        draft --> review{"Good?"}
+        review -- "yes" --> publish[("Publish")]
+        review -. "not yet" .-> draft
+    """
+
     static let fountain = """
     Title: Untitled
     Credit: written by
@@ -254,6 +266,7 @@ enum MenuBuilder {
         tmplParent.submenu = tmplMenu
         tmplMenu.addItem(item("Markdown", #selector(AppDelegate.newMarkdownTemplate(_:)), ""))
         tmplMenu.addItem(item("Fountain", #selector(AppDelegate.newFountainTemplate(_:)), ""))
+        tmplMenu.addItem(item("Mermaid Diagram", #selector(AppDelegate.newMermaidTemplate(_:)), ""))
         fileMenu.addItem(tmplParent)
         fileMenu.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
 
@@ -276,6 +289,7 @@ enum MenuBuilder {
         fileMenu.addItem(item("Print…", Selector(("printEditor:")), "p"))
         fileMenu.addItem(item("Export as HTML…", Selector(("exportAsHTML:")), ""))
         fileMenu.addItem(item("Export as PDF…", Selector(("exportAsPDF:")), ""))
+        fileMenu.addItem(item("Export Preview as PDF…", Selector(("exportPreviewAsPDF:")), ""))
 
         // Edit menu
         let editItem = NSMenuItem()

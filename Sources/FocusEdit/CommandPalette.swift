@@ -367,6 +367,7 @@ extension MainSplitViewController {
             list += [
                 command("Export as HTML…", "exportAsHTML:"),
                 command("Copy as HTML", "copyAsHTML:"),
+                command("Export Preview as PDF…", "exportPreviewAsPDF:", keywords: "diagram mermaid pages"),
             ]
         }
         list += [

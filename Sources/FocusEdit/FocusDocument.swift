@@ -1,6 +1,6 @@
 import AppKit
 
-/// Document for .txt / .md / .fountain (UTF-8 plain text) and .rtf (edited as
+/// Document for .txt / .md / .fountain / .mmd (UTF-8 plain text) and .rtf (edited as
 /// Markdown, converted on read and write); display styling lives only in the text view.
 final class FocusDocument: NSDocument {
 
@@ -109,9 +109,11 @@ final class FocusDocument: NSDocument {
         switch DocumentKind(fileExtension: ext) {
         case .markdown: fileType = "Markdown"
         case .fountain: fileType = "Fountain Script"
+        case .mermaid:  fileType = "Mermaid Diagram"
         case .plain:    break
         }
         editor?.loadContent(text, fileExtension: ext)
         updateChangeCount(.changeDone)
+        (windowControllers.first?.contentViewController as? MainSplitViewController)?.showDiagramIfNeeded()
     }
 }

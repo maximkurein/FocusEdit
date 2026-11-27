@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-27
+
+### Added
+- Mac: Mermaid diagrams in the preview. A ```mermaid block is drawn as a picture in the preview's colours (Mermaid 12.3.0 ships inside the app, no internet needed). The picture fits the page width and is never cut off; a wide diagram may use the whole window width in Preview
+- Mac: zoom a diagram with the − / Fit / + buttons that appear over it, with ⌥-scroll or a pinch; zoomed, it scrolls in its own frame and can be dragged
+- Mac: double-click a diagram (or ⤢) to open it over the whole page, fitted to the window: scroll or pinch to zoom, drag to move, Esc or × to close
+- Mac: a diagram with a syntax error shows Mermaid's message under the last good picture while you type
+- Mac: copy a diagram from the preview: the ⧉ button over it or a right-click gives Copy as PNG (twice the size, on the page's background), Copy as SVG and Copy Mermaid code
+- Mac: Export as HTML and Copy as HTML put the diagrams in as pictures (SVG inside the page). File ▸ Export Preview as PDF… saves the page as the preview shows it, diagrams included, in pages. A .mmd file prints and exports to PDF as its picture
+- Mac: Mermaid diagram files (.mmd, .mermaid). They open in Split with the picture beside the text, updated as you type and fitted to the pane; the text gets light highlighting (diagram kind, keywords, arrows, labels, %% comments). File ▸ New From Template ▸ Mermaid Diagram; the Library and drag-and-drop take them too; the ? hints sheet has a Mermaid section
+
 ## [1.7.2] - 2026-10-30
 
 ### Added

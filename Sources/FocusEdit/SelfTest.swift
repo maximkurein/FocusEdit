@@ -288,6 +288,21 @@ enum SelfTest {
         check("sepia paper is not white", Theme.sepia.pageColors.background == "#ffffff" ? "yes" : "no", "no")
         check("powershell paper is the console blue", Theme.powerShell.pageColors.background, "#012456")
         check("powershell text is light gray", Theme.powerShell.pageColors.foreground, "#cccccc")
+        // Mermaid: the block keeps its language class, which the diagram script looks for.
+        has("mermaid block is marked for drawing", "```mermaid\nflowchart LR\n  A --> B\n```",
+            "<pre><code class=\"language-mermaid\">flowchart LR\n  A --&gt; B</code></pre>")
+        check("mermaid script is found", Diagrams.mermaidSource?.contains("mermaid") == true ? "yes" : "no", "yes")
+        check("diagram script is found", Diagrams.scriptSource?.contains("__feDiagrams") == true ? "yes" : "no", "yes")
+        check("export page takes the drawn body",
+              MarkdownToHTML.document("```mermaid\nx\n```", dark: false, body: "<figure class=\"fe-static\"></figure>")
+                .contains("<figure class=\"fe-static\"></figure>") ? "yes" : "no", "yes")
+        check("export page styles the pictures",
+              MarkdownToHTML.document("x", dark: false).contains("figure.fe-static svg") ? "yes" : "no", "yes")
+        check("a document with a diagram is drawn for export",
+              DiagramPage.hasDiagrams("text\n\n```mermaid\ngraph LR\n  A --> B\n```") ? "yes" : "no", "yes")
+        check("a document without one is exported as before", DiagramPage.hasDiagrams("# Title\n\n```js\nx\n```") ? "yes" : "no", "no")
+        check("diagram colours are passed as JSON",
+              Diagrams.configureScript(Theme.sepia.pageColors).contains("\"background\":\"\(Theme.sepia.pageColors.background)\"") ? "yes" : "no", "yes")
         check("zoom in by 2", "\(EditorViewController.zoomedFontSize(16, by: 2))", "18.0")
         check("zoom stops at 40", "\(EditorViewController.zoomedFontSize(39, by: 2))", "40.0")
         check("zoom stops at 10", "\(EditorViewController.zoomedFontSize(11, by: -2))", "10.0")
@@ -321,6 +336,7 @@ enum SelfTest {
         check("hints use Mac keys", hintKeys.contains("⇧⌘P") && hintKeys.contains("⌥⌘P")
               && hintKeys.contains("⌘?") && !hintKeys.contains("Ctrl+") ? "yes" : "no", "yes")
         check("hints mention copy", hintKeys.contains("Click a code block") ? "yes" : "no", "yes")
+        check("hints mention diagrams", hintKeys.contains("```mermaid") ? "yes" : "no", "yes")
         let fountainHints = HintsViewController.catalog(kind: .fountain, vim: false)
             .map(\.title).joined(separator: " ")
         check("fountain hints have no preview", fountainHints.contains("View") ? "yes" : "no", "no")
@@ -747,6 +763,37 @@ enum SelfTest {
         check("list continuation follows the type",
               "\(editor.textView.listContinuationEnabled)", "true")
         check("text kept after type switch", editor.plainText, "# Title\n- item")
+
+        // Mermaid diagram files (.mmd / .mermaid).
+        check(".mmd is a diagram", "\(DocumentKind(fileExtension: "mmd"))", "mermaid")
+        check(".mermaid is a diagram", "\(DocumentKind(fileExtension: "MERMAID"))", "mermaid")
+        check("a diagram can be previewed", DocumentKind.mermaid.supportsHTML ? "yes" : "no", "yes")
+        check("diagram preview is one mermaid block", DocumentKind.mermaid.previewMarkdown("graph LR\n  A --> B"),
+              "```mermaid\ngraph LR\n  A --> B\n```\n")
+        check("diagram fence outgrows backticks in it",
+              DocumentKind.mermaid.previewMarkdown("graph LR\n  A[\"````\"]").hasPrefix("`````mermaid\n") ? "yes" : "no", "yes")
+        check("empty diagram previews nothing", DocumentKind.mermaid.previewMarkdown(" \n"), "")
+        check("markdown preview is the text", DocumentKind.markdown.previewMarkdown("# A"), "# A")
+        check("diagram is drawn as one figure",
+              MarkdownToHTML.render(DocumentKind.mermaid.previewMarkdown("graph LR\n  A --> B")),
+              "<pre><code class=\"language-mermaid\">graph LR\n  A --&gt; B</code></pre>\n")
+        let mermaid = MermaidHighlighter()
+        func roles(_ line: String) -> String {
+            mermaid.tokens(forLine: line).map { "\($0.role):\((line as NSString).substring(with: $0.range))" }
+                .joined(separator: " ")
+        }
+        check("diagram kind line", roles("flowchart TB"), "heading:flowchart TB")
+        check("arrow and label", roles("  A -->|\"go --> on\"| B"), "link:--> emphasis:|\"go --> on\"|")
+        check("keyword", roles("  subgraph mesh[\"Tailnet\"]"), "strong:subgraph emphasis:\"Tailnet\"")
+        check("comment line", roles("%% note"), "quote:%% note")
+        check("comment after a statement", roles("A --> B %% why"), "link:--> quote:%% why")
+        check("dashes in a name are not an arrow", roles("  rust-x --> b"), "link:-->")
+        editor.updateKind(fileExtension: "mmd")
+        check("diagram file: no list continuation", "\(editor.textView.listContinuationEnabled)", "false")
+        check("diagram file: preview text", editor.previewMarkdown.hasPrefix("```mermaid\n") ? "yes" : "no", "yes")
+        check("diagram hints", HintsViewController.catalog(kind: .mermaid, vim: false)
+              .contains { $0.title == "Mermaid" } ? "yes" : "no", "yes")
+        editor.updateKind(fileExtension: "md")
 
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")

@@ -48,6 +48,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
     var onFontSizeChanged: (() -> Void)?
 
     var plainText: String { textView.string }
+    /// The text the preview shows (a diagram file becomes one ```mermaid block).
+    var previewMarkdown: String { documentKind.previewMarkdown(textView.string) }
     var themeIsDark: Bool { theme.isDark }
 
     /// The preview's own theme, or the editor's when it is set to follow.
@@ -278,7 +280,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         documentKind = kind
         textView.syntaxEngine = kind.makeHighlighter().map { SyntaxEngine(highlighter: $0) }
         textView.listContinuationEnabled = kind == .markdown
-        textView.linkPasteEnabled = kind != .fountain
+        textView.linkPasteEnabled = kind == .markdown || kind == .plain
         textView.liveMarkdownEnabled = kind == .markdown && Preferences.liveMarkdown
         textView.placeholder = Self.placeholder(for: kind)
         completion.kind = kind
@@ -289,6 +291,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate,
         case .markdown: return "Start writing — # heading, **bold**, - list   ·   ⌘? hints"
         case .fountain: return "INT. LOCATION - DAY   ·   ⌘? hints"
         case .plain:    return "Start writing…   ·   ⌘? hints"
+        case .mermaid:  return "flowchart LR  ·  A --> B   ·   ⌘? hints"
         }
     }
 

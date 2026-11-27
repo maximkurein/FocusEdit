@@ -37,8 +37,10 @@ enum MarkdownToHTML {
     /// `fitted` fills the pane (Split, same margins as the editor). Otherwise the page
     /// keeps a centred reading measure, for Preview and for export.
     /// `colors` paints the live preview; export and print pass nil and stay black on white.
+    /// `body` replaces the rendered Markdown: export passes the page with its
+    /// diagrams already drawn as pictures (`DiagramPage`).
     static func document(_ markdown: String, dark: Bool, fontSize: Double = 16,
-                         fitted: Bool = false, colors: PageColors? = nil) -> String {
+                         fitted: Bool = false, colors: PageColors? = nil, body: String? = nil) -> String {
         let page = colors ?? PageColors.plain(dark: dark)
         let fg = page.foreground
         let bg = page.background
@@ -70,8 +72,10 @@ enum MarkdownToHTML {
           th { background: rgba(127,127,127,0.10); }
           li.task { list-style: none; margin-left: -1.3em; }
           del { color: \(muted); }
+          figure.fe-static { margin: 1em 0; text-align: center; }
+          figure.fe-static svg { max-width: 100%; height: auto; }
         </style></head><body>
-        \(render(markdown))
+        \(body ?? render(markdown))
         </body></html>
         """
     }
