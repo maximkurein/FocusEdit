@@ -87,7 +87,8 @@ final class HintsViewController: NSViewController {
             ] + (kind == .markdown
                 ? [("Click a code block", "In the preview, copies the command"),
                    ("```mermaid", "Drawn as a diagram: ⌥-scroll zooms, double-click opens it full size, right-click copies PNG / SVG / code"),
-                   ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout and theme of the diagram under the cursor")]
+                   ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout and theme of the diagram under the cursor"),
+                   ("Outline ▸ Diagrams", "Every diagram of the document; Block · Arrow · Group add to the one under the cursor; double-click a block in the picture to rename it")]
                 : [])))
         }
         switch kind {
@@ -117,6 +118,8 @@ final class HintsViewController: NSViewController {
                 ("%% note", "A comment, not drawn"),
                 ("Split", "The picture updates as you type; double-click it for full size"),
                 ("Click a block", "In Split, puts the cursor on its line · a mistake is underlined in red"),
+                ("Double-click a block", "Rename it right in the picture: Enter keeps it, Esc cancels"),
+                ("Outline ▸ Diagrams", "Block · Arrow · Group add to the diagram after the cursor's line; Template ▾"),
                 ("Edit ▸ Diagram", "Templates, direction, hand-drawn look, ELK layout, diagram theme"),
             ]))
         case .plain:

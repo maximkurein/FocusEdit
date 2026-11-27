@@ -74,6 +74,17 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
 
         editor.onTextChanged = { [weak self] in self?.contentChanged() }
         outline.onSelect = { [weak self] range in self?.editor.scrollTo(range: range) }
+        outline.onInsertElement = { [weak self] tag in
+            let item = NSMenuItem()
+            item.tag = tag
+            self?.editor.insertDiagramElement(item)
+        }
+        outline.onInsertTemplate = { [weak self] tag in
+            let item = NSMenuItem()
+            item.tag = tag
+            self?.editor.insertDiagramTemplate(item)
+            self?.view.window?.makeFirstResponder(self?.editor.textView)
+        }
         editor.onCursorMoved = { [weak self] location in self?.outline.setCursor(location) }
         editor.onThemeChanged = { [weak self] in
             guard let self, !self.previewItem.isCollapsed else { return }
@@ -97,6 +108,9 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
         }
         preview.onDiagramError = { [weak self] source, line in
             self?.editor.markDiagramError(source: source, line: line)
+        }
+        preview.onDiagramRename = { [weak self] source, id, text in
+            self?.editor.renameDiagramNode(source: source, id: id, text: text)
         }
         NotificationCenter.default.addObserver(
             self, selector: #selector(splitResized(_:)),
@@ -192,6 +206,13 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
     @objc func toggleLibrary(_ sender: Any?) {
         toggle(libraryItem)
         Preferences.showLibrary = !libraryItem.isCollapsed
+    }
+
+    /// Edit ▸ Diagram ▸ Show Diagram List: the outline sidebar on its Diagrams tab.
+    @objc func showDiagramList(_ sender: Any?) {
+        guard editor.diagramsAllowed else { NSSound.beep(); return }
+        if outlineItem.isCollapsed { toggleOutline(nil) }
+        outline.showDiagrams()
     }
 
     @objc func toggleOutline(_ sender: Any?) {
@@ -635,6 +656,8 @@ final class MainSplitViewController: NSSplitViewController, NSMenuItemValidation
             return editor.documentKind.supportsHTML
         case #selector(exportAsHTML(_:)), #selector(copyAsHTML(_:)), #selector(exportPreviewAsPDF(_:)):
             return editor.documentKind.supportsHTML
+        case #selector(showDiagramList(_:)):
+            return editor.diagramsAllowed
         default:
             break
         }

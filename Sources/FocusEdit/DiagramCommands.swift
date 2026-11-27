@@ -73,6 +73,28 @@ extension EditorViewController {
                     select: NSRange(location: at.location + (before as NSString).length + 11, length: 0))
     }
 
+    /// Block, Arrow or Group (tag = `MermaidEdit.Element`) after the cursor's line, with
+    /// its placeholder text selected so typing replaces it.
+    @objc func insertDiagramElement(_ sender: Any?) {
+        let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSControl)?.tag ?? 0
+        guard let element = MermaidEdit.Element(rawValue: tag), let range = currentDiagramRange else {
+            NSSound.beep()
+            return
+        }
+        let all = textView.string as NSString
+        let source = all.substring(with: range)
+        let caret = min(max(textView.selectedRange().location - range.location, 0), (source as NSString).length)
+        let line = (source as NSString).substring(to: caret).components(separatedBy: "\n").count - 1
+        guard let result = MermaidEdit.inserting(element, in: source, afterLine: line) else {
+            NSSound.beep()
+            return
+        }
+        replaceText(in: range, with: result.source,
+                    select: NSRange(location: range.location + result.select.location, length: result.select.length))
+        textView.scrollRangeToVisible(textView.selectedRange())
+        view.window?.makeFirstResponder(textView)
+    }
+
     @objc func setDiagramDirection(_ sender: Any?) {
         let tag = (sender as? NSMenuItem)?.tag ?? 0
         guard Self.diagramDirections.indices.contains(tag) else { return }
@@ -108,6 +130,8 @@ extension EditorViewController {
         switch item.action {
         case #selector(insertDiagramTemplate(_:)):
             return diagramsAllowed
+        case #selector(insertDiagramElement(_:)):
+            return currentDiagramSource.map(MermaidEdit.canInsertElements) ?? false
         case #selector(setDiagramDirection(_:)):
             guard let source = currentDiagramSource, let dir = MermaidEdit.direction(source) else {
                 item.state = .off
@@ -143,6 +167,20 @@ extension EditorViewController {
         textView.scrollRangeToVisible(target)
         textView.showFindIndicator(for: target)
         view.window?.makeFirstResponder(textView)
+    }
+
+    /// A block renamed in the picture (double-click on it): its label in the text changes.
+    func renameDiagramNode(source: String, id: String, text: String) {
+        guard let diagram = range(ofDiagram: source),
+              let renamed = MermaidEdit.renaming((textView.string as NSString).substring(with: diagram),
+                                                 id: id, to: text) else {
+            NSSound.beep()
+            return
+        }
+        replaceText(in: diagram, with: renamed)
+        if let line = MermaidEdit.lineRange(in: renamed, nodeID: id, label: text) {
+            textView.setSelectedRange(NSRange(location: diagram.location + NSMaxRange(line), length: 0))
+        }
     }
 
     /// The line Mermaid could not read gets a red dotted underline until the next edit.

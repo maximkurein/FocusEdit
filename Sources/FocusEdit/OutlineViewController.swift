@@ -2,9 +2,34 @@ import AppKit
 
 /// Trailing sidebar listing the document headings; selecting one jumps the
 /// editor to that line. The heading the cursor is under stays selected.
+///
+/// In Markdown and diagram files a second tab, Diagrams, lists the Mermaid diagrams
+/// instead (`MermaidEdit.diagrams`), with buttons below that add a block, an arrow or a
+/// group to the diagram under the cursor, and a menu of templates.
 final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
 
+    enum Tab: Int { case headings, diagrams }
+
     var onSelect: ((NSRange) -> Void)?
+    /// Block / Arrow / Group (a `MermaidEdit.Element`) for the diagram under the cursor.
+    var onInsertElement: ((Int) -> Void)?
+    /// A template (index in `MermaidEdit.templates`) at the cursor.
+    var onInsertTemplate: ((Int) -> Void)?
+
+    private let tabs = NSSegmentedControl(labels: ["Headings", "Diagrams"], trackingMode: .selectOne,
+                                          target: nil, action: nil)
+    private let toolbar = NSStackView()
+    private var tab: Tab = .headings
+    /// The tab chosen for Markdown; a diagram file always shows its diagram.
+    private var markdownTab: Tab = .headings
+    private var kind: DocumentKind = .plain
+    private var text: NSString = ""
+    /// The list starts under the tabs and ends above the buttons, or uses that room
+    /// when they are hidden.
+    private var listUnderTabs: NSLayoutConstraint?
+    private var listAtTop: NSLayoutConstraint?
+    private var listAboveToolbar: NSLayoutConstraint?
+    private var listAtBottom: NSLayoutConstraint?
 
     private let scrollView = NSScrollView()
     private let tableView = NSTableView()
@@ -33,26 +58,133 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
         placeholder.alignment = .center
         placeholder.translatesAutoresizingMaskIntoConstraints = false
 
+        tabs.target = self
+        tabs.action = #selector(tabChanged)
+        tabs.controlSize = .small
+        tabs.segmentDistribution = .fillEqually
+        tabs.selectedSegment = 0
+        tabs.translatesAutoresizingMaskIntoConstraints = false
+
+        // Below the diagram list: add to the diagram under the cursor.
+        func button(_ title: String, _ symbol: String, _ element: MermaidEdit.Element, _ tip: String) -> NSButton {
+            let b = NSButton(title: title, target: self, action: #selector(elementClicked(_:)))
+            b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+            b.imagePosition = .imageLeading
+            b.controlSize = .small
+            b.bezelStyle = .rounded
+            b.tag = element.rawValue
+            b.toolTip = tip
+            return b
+        }
+        let templates = NSPopUpButton(frame: .zero, pullsDown: true)
+        templates.controlSize = .small
+        templates.addItem(withTitle: "Template")
+        for (i, t) in MermaidEdit.templates.enumerated() {
+            templates.addItem(withTitle: t.title)
+            templates.lastItem?.tag = i
+            templates.lastItem?.target = self
+            templates.lastItem?.action = #selector(templateChosen(_:))
+        }
+        templates.toolTip = "Insert a ready diagram at the cursor"
+        let row = NSStackView(views: [
+            button("Block", "square", .block, "Add a block (a participant in a sequence) after the cursor's line"),
+            button("Arrow", "arrow.right", .arrow, "Add an arrow from the block on the cursor's line (a message in a sequence)"),
+            button("Group", "square.dashed", .group, "Add a group (subgraph; a loop in a sequence)"),
+        ])
+        row.orientation = .horizontal
+        row.distribution = .fillEqually
+        row.spacing = 4
+        toolbar.orientation = .vertical
+        toolbar.alignment = .width
+        toolbar.spacing = 4
+        toolbar.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 8, right: 6)
+        toolbar.setViews([row, templates], in: .top)
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
+
         let container = NSView()
+        container.addSubview(tabs)
         container.addSubview(scrollView)
         container.addSubview(placeholder)
+        container.addSubview(toolbar)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
+        listUnderTabs = scrollView.topAnchor.constraint(equalTo: tabs.bottomAnchor, constant: 4)
+        listAtTop = scrollView.topAnchor.constraint(equalTo: container.topAnchor)
+        listAboveToolbar = scrollView.bottomAnchor.constraint(equalTo: toolbar.topAnchor)
+        listAtBottom = scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            tabs.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            tabs.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+            tabs.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            toolbar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            toolbar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            toolbar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             placeholder.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             placeholder.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             placeholder.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 8),
         ])
         view = container
+        showChrome()
+    }
+
+    /// The tabs only where there can be diagrams; the buttons only on the Diagrams tab.
+    private func showChrome() {
+        let diagramsPossible = kind == .markdown || kind == .mermaid
+        tabs.isHidden = !diagramsPossible || kind == .mermaid
+        listUnderTabs?.isActive = false
+        listAtTop?.isActive = false
+        (tabs.isHidden ? listAtTop : listUnderTabs)?.isActive = true
+        toolbar.isHidden = tab != .diagrams
+        listAboveToolbar?.isActive = false
+        listAtBottom?.isActive = false
+        (toolbar.isHidden ? listAtBottom : listAboveToolbar)?.isActive = true
+        tabs.selectedSegment = tab.rawValue
+    }
+
+    @objc private func tabChanged() {
+        markdownTab = Tab(rawValue: tabs.selectedSegment) ?? .headings
+        tab = markdownTab
+        reload()
+    }
+
+    @objc private func elementClicked(_ sender: NSButton) {
+        onInsertElement?(sender.tag)
+    }
+
+    @objc private func templateChosen(_ sender: NSMenuItem) {
+        onInsertTemplate?(sender.tag)
+    }
+
+    /// Show the Diagrams tab (Edit ▸ Diagram ▸ Show Diagram List).
+    func showDiagrams() {
+        guard kind == .markdown || kind == .mermaid else { return }
+        if kind == .markdown { markdownTab = .diagrams }
+        tab = .diagrams
+        reload()
     }
 
     func update(text: NSString, kind: DocumentKind) {
-        items = OutlineExtractor.items(from: text, kind: kind)
+        self.text = text
+        self.kind = kind
+        switch kind {
+        case .mermaid: tab = .diagrams
+        case .markdown: tab = markdownTab
+        default: tab = .headings
+        }
+        reload()
+    }
+
+    private func reload() {
+        items = tab == .diagrams
+            ? MermaidEdit.diagrams(in: text, kind: kind)
+            : OutlineExtractor.items(from: text, kind: kind)
+        placeholder.stringValue = tab == .diagrams
+            ? "No diagrams yet."
+            : "No outline available."
         placeholder.isHidden = !items.isEmpty
         scrollView.isHidden = items.isEmpty
+        if isViewLoaded { showChrome() }
         tableView.reloadData()
         showActive(force: true)
     }
@@ -64,7 +196,9 @@ final class OutlineViewController: NSViewController, NSTableViewDataSource, NSTa
     }
 
     private func showActive(force: Bool) {
-        let active = OutlineExtractor.active(items, cursor: cursor) ?? -1
+        let active = (tab == .diagrams
+            ? items.firstIndex { cursor >= $0.range.location && cursor <= NSMaxRange($0.range) }
+            : OutlineExtractor.active(items, cursor: cursor)) ?? -1
         guard force || active != tableView.selectedRow else { return }
         if active >= 0 {
             tableView.selectRowIndexes([active], byExtendingSelection: false)

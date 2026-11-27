@@ -374,6 +374,8 @@ enum MenuBuilder {
         }
         dgSub("Insert Template", #selector(EditorViewController.insertDiagramTemplate(_:)),
               MermaidEdit.templates.map(\.title))
+        dgSub("Insert", #selector(EditorViewController.insertDiagramElement(_:)), ["Block", "Arrow", "Group"])
+        dgMenu.addItem(item("Show Diagram List", #selector(MainSplitViewController.showDiagramList(_:)), ""))
         dgMenu.addItem(.separator())
         dgSub("Direction", #selector(EditorViewController.setDiagramDirection(_:)),
               ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"])

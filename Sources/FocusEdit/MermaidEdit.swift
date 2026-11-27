@@ -312,4 +312,290 @@ enum MermaidEdit {
         let location = lines[..<(number - 1)].reduce(0) { $0 + ($1 as NSString).length + 1 }
         return NSRange(location: location, length: (lines[number - 1] as NSString).length)
     }
+
+    // MARK: The diagrams of a document (the Diagrams tab of the outline sidebar)
+
+    /// Every diagram: the whole text of a diagram file, or each ```mermaid block of a
+    /// Markdown document. The title is the diagram's own title (front matter `title:` or
+    /// a `title` line) and its kind line; `range` is its source.
+    static func diagrams(in text: NSString, kind: DocumentKind) -> [OutlineItem] {
+        if kind == .mermaid {
+            guard text.length > 0, !(text as String).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+            let range = NSRange(location: 0, length: text.length)
+            return [OutlineItem(title: summary(text as String), level: 1, range: range, line: 1)]
+        }
+        guard kind == .markdown || kind == .plain, let fence else { return [] }
+        var found: [OutlineItem] = []
+        var location = 0
+        var lineNumber = 0
+        var open: (marker: String, mermaid: Bool, bodyStart: Int, line: Int)?
+        while location < text.length {
+            let lineRange = text.lineRange(for: NSRange(location: location, length: 0))
+            lineNumber += 1
+            let line = text.substring(with: lineRange).trimmingCharacters(in: .newlines)
+            let ns = line as NSString
+            if let m = fence.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) {
+                let marker = ns.substring(with: m.range(at: 1))
+                if let o = open {
+                    if marker.first == o.marker.first, marker.count >= o.marker.count,
+                       line.trimmingCharacters(in: .whitespaces) == marker {
+                        if o.mermaid {
+                            var end = lineRange.location
+                            if end > o.bodyStart, text.character(at: end - 1) == 10 { end -= 1 }
+                            if end > o.bodyStart, text.character(at: end - 1) == 13 { end -= 1 }
+                            let body = NSRange(location: o.bodyStart, length: max(0, end - o.bodyStart))
+                            found.append(OutlineItem(title: summary(text.substring(with: body)), level: 1,
+                                                     range: body, line: o.line))
+                        }
+                        open = nil
+                    }
+                } else {
+                    let info = ns.substring(with: m.range(at: 2)).lowercased()
+                    open = (marker, info == "mermaid", NSMaxRange(lineRange), lineNumber + 1)
+                }
+            }
+            location = NSMaxRange(lineRange)
+        }
+        if let o = open, o.mermaid {
+            let body = NSRange(location: o.bodyStart, length: text.length - o.bodyStart)
+            found.append(OutlineItem(title: summary(text.substring(with: body)), level: 1, range: body, line: o.line))
+        }
+        return found
+    }
+
+    /// "Network · flowchart LR": the diagram's title, if it has one, and its kind line.
+    static func summary(_ source: String) -> String {
+        let lines = source.components(separatedBy: "\n")
+        var title: String?
+        if let end = frontMatter(lines) {
+            for line in lines[1..<(end - 1)] where line.hasPrefix("title:") {
+                title = line.dropFirst(6).trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\"'")))
+            }
+        }
+        let head = headerLine(lines).map { lines[$0].trimmingCharacters(in: .whitespaces) } ?? ""
+        if title == nil, let i = headerLine(lines) {
+            for line in lines[(i + 1)...] {
+                let body = line.trimmingCharacters(in: .whitespaces)
+                if body.hasPrefix("title ") { title = String(body.dropFirst(6)).trimmingCharacters(in: .whitespaces); break }
+            }
+        }
+        let kind = head.isEmpty ? "empty diagram" : head
+        guard let title, !title.isEmpty else { return kind }
+        return title + " · " + kind
+    }
+
+    // MARK: Inserting a block, an arrow or a group
+
+    enum Element: Int {
+        case block, arrow, group
+    }
+
+    /// The diagram's kind word: `flowchart`, `sequenceDiagram`, `classDiagram`…
+    static func diagramType(_ source: String) -> String? {
+        let lines = source.components(separatedBy: "\n")
+        guard let i = headerLine(lines) else { return nil }
+        return lines[i].trimmingCharacters(in: .whitespaces).split(whereSeparator: { $0 == " " || $0 == "\t" }).first.map(String.init)
+    }
+
+    /// Can the Block / Arrow / Group buttons add to this kind of diagram?
+    static func canInsertElements(_ source: String) -> Bool {
+        ["flowchart", "graph", "sequenceDiagram"].contains(diagramType(source) ?? "")
+    }
+
+    private static let flowKeywords: Set<String> = [
+        "subgraph", "end", "direction", "flowchart", "graph", "TB", "TD", "BT", "RL", "LR",
+    ]
+    private static let flowSkipLines = try? NSRegularExpression(
+        pattern: #"^\s*(?:%%|classDef\b|class\b|style\b|linkStyle\b|click\b|direction\b|accTitle|accDescr)"#)
+    private static let flowStrip: [(NSRegularExpression?, String)] = [
+        (try? NSRegularExpression(pattern: #""[^"]*""#), " "),                 // quoted labels
+        (try? NSRegularExpression(pattern: #"\|[^|]*\|"#), " "),               // |edge labels|
+        (try? NSRegularExpression(pattern: #"(?:--|==|-\.)\s+[^>\n]*?\s+(?:-->|==>|\.->|---)"#), " --> "), // -- text -->
+        (try? NSRegularExpression(pattern: #"\[[^\]]*\]|\([^)]*\)|\{[^}]*\}|(?<=\w)>[^\]\n]*\]"#), " "), // shapes
+        (try? NSRegularExpression(pattern: #":::[\w-]+"#), " "),
+        (try? NSRegularExpression(pattern: #"@\{[^}]*\}"#), " "),
+    ]
+    private static let idWord = try? NSRegularExpression(pattern: #"(?<![\w-])[A-Za-z_]\w*(?:-\w+)*"#)
+
+    /// Node ids of a flowchart in `line`, in order.
+    private static func flowIDs(inLine line: String) -> [String] {
+        if let skip = flowSkipLines, skip.firstMatch(in: line, range: NSRange(location: 0, length: (line as NSString).length)) != nil {
+            return []
+        }
+        var text = line
+        for (re, with) in flowStrip {
+            guard let re else { continue }
+            text = re.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length),
+                                               withTemplate: with)
+        }
+        guard let idWord else { return [] }
+        let ns = text as NSString
+        return idWord.matches(in: text, range: NSRange(location: 0, length: ns.length))
+            .map { ns.substring(with: $0.range) }
+            .filter { !flowKeywords.contains($0) }
+    }
+
+    /// Node ids of a flowchart, in order of first appearance.
+    static func nodeIDs(_ source: String) -> [String] {
+        let lines = source.components(separatedBy: "\n")
+        guard let header = headerLine(lines) else { return [] }
+        var seen = Set<String>()
+        var ids: [String] = []
+        for line in lines[(header + 1)...] {
+            for id in flowIDs(inLine: line) where seen.insert(id).inserted { ids.append(id) }
+        }
+        return ids
+    }
+
+    private static let participantLine = try? NSRegularExpression(
+        pattern: #"^\s*(?:participant|actor)\s+([^\s]+)"#)
+    private static let messageLine = try? NSRegularExpression(
+        pattern: #"^\s*([^\s:+-][^:]*?)\s*(?:->>|-->>|->|-->|-x|--x|-\)|--\))\s*[+-]?\s*([^:]+?)\s*:"#)
+
+    /// Participants of a sequence diagram in `line`.
+    private static func participants(inLine line: String) -> [String] {
+        let ns = line as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        if let re = participantLine, let m = re.firstMatch(in: line, range: range) {
+            return [ns.substring(with: m.range(at: 1))]
+        }
+        if let re = messageLine, let m = re.firstMatch(in: line, range: range) {
+            return [ns.substring(with: m.range(at: 1)), ns.substring(with: m.range(at: 2))]
+        }
+        return []
+    }
+
+    static func participants(_ source: String) -> [String] {
+        var seen = Set<String>()
+        var list: [String] = []
+        for line in source.components(separatedBy: "\n") {
+            for p in participants(inLine: line) where seen.insert(p).inserted { list.append(p) }
+        }
+        return list
+    }
+
+    private static func unique(_ prefix: String, avoiding taken: [String], in source: String) -> String {
+        var n = 1
+        while taken.contains(prefix + String(n)) || source.contains(prefix + String(n)) { n += 1 }
+        return prefix + String(n)
+    }
+
+    /// The diagram with a new line after line `line` (0-based) and what to select in it
+    /// (the placeholder text). nil for diagram kinds the buttons don't know.
+    static func inserting(_ element: Element, in source: String, afterLine line: Int) -> (source: String, select: NSRange)? {
+        var lines = source.components(separatedBy: "\n")
+        guard let header = headerLine(lines), let type = diagramType(source) else { return nil }
+        let at = min(max(line, header), lines.count - 1)
+        let current = lines[at]
+        let lead = String(current.prefix { $0 == " " || $0 == "\t" })
+        let body = current.trimmingCharacters(in: .whitespaces)
+        // Inside a group the new line goes one step in; after `end` or the kind line, at that level.
+        var indent = at == header ? lead + "    " : (lead.isEmpty ? "    " : lead)
+        if body.hasPrefix("subgraph ") || ["loop", "alt", "opt", "par", "rect", "critical", "box"].contains(where: { body.hasPrefix($0 + " ") }) {
+            indent = lead + "    "
+        }
+        var newLines: [String]
+        var placeholder: String
+        switch (type, element) {
+        case ("flowchart", _), ("graph", _):
+            let ids = nodeIDs(source)
+            switch element {
+            case .block:
+                let id = unique("n", avoiding: ids, in: source)
+                placeholder = "Block"
+                newLines = ["\(indent)\(id)[\"\(placeholder)\"]"]
+            case .arrow:
+                let from = (at == header ? nil : flowIDs(inLine: current).first) ?? ids.last
+                let to = unique("n", avoiding: ids, in: source)
+                placeholder = "Next"
+                if let from {
+                    newLines = ["\(indent)\(from) --> \(to)[\"\(placeholder)\"]"]
+                } else {
+                    let start = unique("n", avoiding: ids + [to], in: source + to)
+                    newLines = ["\(indent)\(to)[\"Start\"] --> \(start)[\"\(placeholder)\"]"]
+                }
+            case .group:
+                let id = unique("g", avoiding: ids, in: source)
+                placeholder = "Group"
+                newLines = ["\(indent)subgraph \(id)[\"\(placeholder)\"]", "\(indent)    ", "\(indent)end"]
+            }
+        case ("sequenceDiagram", _):
+            let people = participants(source)
+            switch element {
+            case .block:
+                let id = unique("P", avoiding: people, in: source)
+                placeholder = "Name"
+                newLines = ["\(indent)participant \(id) as \(placeholder)"]
+            case .arrow:
+                let here = at == header ? [] : participants(inLine: current)
+                let from = here.first ?? people.first ?? "A"
+                let to = people.first { $0 != from } ?? (from == "B" ? "A" : "B")
+                placeholder = "Message"
+                newLines = ["\(indent)\(from)->>\(to): \(placeholder)"]
+            case .group:
+                placeholder = "Every minute"
+                newLines = ["\(indent)loop \(placeholder)", "\(indent)    ", "\(indent)end"]
+            }
+        default:
+            return nil
+        }
+        lines.insert(contentsOf: newLines, at: at + 1)
+        let start = lines[..<(at + 1)].reduce(0) { $0 + ($1 as NSString).length + 1 }
+        let offset = (newLines[0] as NSString).range(of: placeholder).location
+        return (lines.joined(separator: "\n"),
+                NSRange(location: start + offset, length: (placeholder as NSString).length))
+    }
+
+    // MARK: Renaming a block from the picture
+
+    private static let openers = ["(((", "[[", "[(", "[/", "[\\", "((", "([", "{{", "[", "(", "{", ">"]
+
+    /// The flowchart with block `id` labelled `text`: the label where the block is first
+    /// given one is replaced, or one is added to its first mention. nil if `id` is not there.
+    static func renaming(_ source: String, id: String, to text: String) -> String? {
+        let label = "\"" + text.replacingOccurrences(of: "\"", with: "#quot;") + "\""
+        guard !id.isEmpty, let re = try? NSRegularExpression(
+            pattern: "(?<![\\w-])" + NSRegularExpression.escapedPattern(for: id) + "(?![\\w-])") else { return nil }
+        var lines = source.components(separatedBy: "\n")
+        guard let header = headerLine(lines) else { return nil }
+        func outsideQuotes(_ line: NSString, _ at: Int) -> Bool {
+            var quotes = 0
+            for i in 0..<at where line.character(at: i) == 34 { quotes += 1 }
+            return quotes % 2 == 0
+        }
+        var firstMention: (line: Int, end: Int)?
+        for i in (header + 1)..<lines.count {
+            let ns = lines[i] as NSString
+            if let skip = flowSkipLines, skip.firstMatch(in: lines[i], range: NSRange(location: 0, length: ns.length)) != nil { continue }
+            for m in re.matches(in: lines[i], range: NSRange(location: 0, length: ns.length)) where outsideQuotes(ns, m.range.location) {
+                let end = NSMaxRange(m.range)
+                if firstMention == nil { firstMention = (i, end) }
+                // `subgraph id [label]` may have a space before the label.
+                var at = end
+                if ns.substring(to: m.range.location).trimmingCharacters(in: .whitespaces) == "subgraph" {
+                    while at < ns.length, ns.character(at: at) == 32 { at += 1 }
+                }
+                let rest = ns.substring(from: at)
+                guard let opener = openers.first(where: { rest.hasPrefix($0) }) else { continue }
+                let contentStart = at + (opener as NSString).length
+                var contentEnd: Int?
+                if contentStart < ns.length, ns.character(at: contentStart) == 34 {
+                    let close = ns.range(of: "\"", range: NSRange(location: contentStart + 1, length: ns.length - contentStart - 1))
+                    if close.location != NSNotFound { contentEnd = close.location + 1 }
+                } else {
+                    let closers = CharacterSet(charactersIn: "])}")
+                    let close = ns.rangeOfCharacter(from: closers, options: [],
+                                                    range: NSRange(location: contentStart, length: ns.length - contentStart))
+                    if close.location != NSNotFound { contentEnd = close.location }
+                }
+                guard let contentEnd else { continue }
+                lines[i] = ns.replacingCharacters(in: NSRange(location: contentStart, length: contentEnd - contentStart), with: label)
+                return lines.joined(separator: "\n")
+            }
+        }
+        guard let first = firstMention else { return nil }
+        let ns = lines[first.line] as NSString
+        lines[first.line] = ns.replacingCharacters(in: NSRange(location: first.end, length: 0), with: "[" + label + "]")
+        return lines.joined(separator: "\n")
+    }
 }

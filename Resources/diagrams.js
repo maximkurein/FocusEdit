@@ -9,13 +9,15 @@
 //   whole window width when the text column is narrower (Preview alone).
 // - Zoom per figure: the − / + / Fit buttons, ⌥-scroll or a pinch over it; zoomed, it
 //   scrolls inside its own frame and can be dragged.
-// - Double-click (or ⤢) opens it over the whole page, fitted to width and height;
+// - Double-click outside the blocks (or ⤢) opens it over the whole page, fitted to width and height;
 //   scroll or pinch zooms there, drag pans, Esc or × closes.
 // - Copy (the ⧉ button or a right-click): the picture as PNG or SVG, or its Mermaid
 //   code. The app puts it on the clipboard (message `copyDiagram`).
 // - A click on a block (no drag) tells the app which node it was (`diagramNode`), so the
 //   editor can put the cursor on its line; a syntax error reports its line
-//   (`diagramError`) so the editor can mark it.
+//   (`diagramError`) so the editor can mark it. A double-click on a flowchart block
+//   opens a text field over it; Enter sends the new label (`diagramRename`) and the app
+//   changes it in the text. A double-click elsewhere opens the full size view.
 // - `freeze()` swaps every figure for a plain SVG picture, for HTML export and printing.
 // - Drawings are cached by source and colours, so typing elsewhere does not redraw
 //   them and the page does not flicker. A diagram being edited keeps its last good
@@ -230,6 +232,60 @@
     var text = target && target.closest ? target.closest('text') : null;
     var label = text ? (text.textContent || '').replace(/\s+/g, ' ').trim() : '';
     return label ? { id: '', label: label } : null;
+  }
+
+  function isFlowchart(source) {
+    var lines = (source || '').split('\n'), i = 0;
+    if (/^---\s*$/.test(lines[0] || '')) {
+      for (i = 1; i < lines.length && !/^---\s*$/.test(lines[i]); i++) {}
+      i++;
+    }
+    for (; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (!t || t.indexOf('%%') === 0) continue;
+      return /^(flowchart|graph)\b/.test(t);
+    }
+    return false;
+  }
+
+  /// A text field over the block; Enter (or clicking away) sends the new label to the
+  /// app as `diagramRename`, Esc cancels.
+  var renaming = null;
+  function startRename(fig, node, target) {
+    finishRename(false);
+    var el = target.closest('g.node, g.cluster, [data-id]') || target;
+    var r = el.getBoundingClientRect();
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'fe-rename';
+    input.value = node.label;
+    var width = Math.max(120, r.width + 24);
+    input.style.left = Math.max(4, r.left + r.width / 2 - width / 2) + 'px';
+    input.style.top = Math.max(4, r.top + r.height / 2 - 15) + 'px';
+    input.style.width = width + 'px';
+    document.body.appendChild(input);
+    renaming = { input: input, source: fig.__source, id: node.id, label: node.label };
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); finishRename(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishRename(false); }
+    });
+    input.addEventListener('blur', function () { finishRename(true); });
+    input.focus();
+    input.select();
+    tellApp(true); // Esc cancels the rename instead of leaving Preview
+  }
+
+  function finishRename(save) {
+    if (!renaming) return;
+    var r = renaming;
+    renaming = null;
+    var text = r.input.value.trim();
+    r.input.remove();
+    if (!overlay) tellApp(false);
+    if (!save || !text || text === r.label) return;
+    var msg = { source: r.source, id: r.id, text: text };
+    try { window.webkit.messageHandlers.diagramRename.postMessage(msg); }
+    catch (err) { window.__feLastRename = msg; }
   }
 
   function setError(fig, text) {
@@ -628,7 +684,10 @@
       '  border-radius:6px;font:12px/1.2 -apple-system,system-ui,sans-serif;background:rgba(127,127,127,.35);pointer-events:none}',
       '.fe-static{margin:1em 0;text-align:center}',
       '.fe-static svg{max-width:100%;height:auto}',
-      '.fe-diagram g.node, .fe-diagram g.cluster > rect{cursor:pointer}'
+      '.fe-diagram g.node, .fe-diagram g.cluster > rect{cursor:pointer}',
+      '.fe-rename{position:fixed;z-index:5;height:30px;box-sizing:border-box;padding:4px 8px;border-radius:6px;',
+      '  border:2px solid #3399d9;font:14px -apple-system,system-ui,sans-serif;text-align:center;',
+      '  background:Canvas;color:CanvasText;outline:none;box-shadow:0 4px 16px rgba(0,0,0,.25)}'
     ].join('\n');
     document.documentElement.appendChild(style);
 
@@ -667,6 +726,7 @@
       if (menu && !menu.contains(e.target)) closeCopyMenu();
     }, true);
     window.addEventListener('scroll', closeCopyMenu, true);
+    window.addEventListener('scroll', function (e) { if (renaming && e.target !== renaming.input) finishRename(false); }, true);
 
     document.addEventListener('dblclick', function (e) {
       if (overlay) {
@@ -674,10 +734,13 @@
         return;
       }
       var fig = figureOf(e.target);
-      if (!fig || (e.target.closest && e.target.closest('.fe-tools'))) return;
+      if (!fig || (e.target.closest && e.target.closest('.fe-tools, .fe-rename'))) return;
       e.preventDefault();
       var sel = window.getSelection();
       if (sel) sel.removeAllRanges();
+      // A block of a flowchart: rename it in place. Elsewhere: full size.
+      var node = fig.__drawing && isFlowchart(fig.__source) ? nodeAt(e.target, fig) : null;
+      if (node && node.id) { startRename(fig, node, e.target); return; }
       openFull(fig);
     });
 
@@ -806,7 +869,7 @@
 
     /// For tests: how many figures are drawn, waiting, broken.
     /// Close the full size view (the app's Esc).
-    close: function () { closeFull(); closeCopyMenu(); },
+    close: function () { finishRename(false); closeFull(); closeCopyMenu(); },
 
     /// Plain pictures instead of figures; returns the body's HTML (export, print).
     freeze: freeze,

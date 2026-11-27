@@ -375,7 +375,12 @@ extension MainSplitViewController {
                 list.append(tagged("Diagram: Insert \(t.title)", "insertDiagramTemplate:", i,
                                    keywords: "mermaid template chart schema"))
             }
+            list.append(command("Diagram: Show Diagram List", "showDiagramList:", keywords: "mermaid outline sidebar"))
             if editor.currentDiagramRange != nil {
+                for (i, t) in ["Block", "Arrow", "Group"].enumerated() {
+                    list.append(tagged("Diagram: Add \(t)", "insertDiagramElement:", i,
+                                       keywords: "mermaid node edge link subgraph participant message loop"))
+                }
                 let dirs = ["Top to Bottom", "Left to Right", "Bottom to Top", "Right to Left"]
                 for (i, t) in dirs.enumerated() {
                     list.append(tagged("Diagram Direction: \(t)", "setDiagramDirection:", i,

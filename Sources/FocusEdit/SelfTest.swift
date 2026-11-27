@@ -863,6 +863,56 @@ enum SelfTest {
               MermaidEdit.insertion(MermaidEdit.templates[0], kind: .mermaid).hasPrefix("flowchart LR\n") ? "yes" : "no", "yes")
         check("ELK layout script is found", Diagrams.elkSource?.contains("registerLayoutLoaders") == true ? "yes" : "no", "yes")
 
+        // The Diagrams tab of the outline.
+        let several = "# A\n```mermaid\n---\ntitle: Net\n---\nflowchart LR\n  A --> B\n```\ntext\n```mermaid\nsequenceDiagram\n  A->>B: hi\n```\n" as NSString
+        let listed = MermaidEdit.diagrams(in: several, kind: .markdown)
+        check("diagram list titles", listed.map(\.title).joined(separator: "|"), "Net · flowchart LR|sequenceDiagram")
+        check("diagram list lines", listed.map { "\($0.line)" }.joined(separator: ","), "3,11")
+        check("diagram list range", listed.count == 2 ? several.substring(with: listed[1].range) : nil, "sequenceDiagram\n  A->>B: hi")
+        check("diagram file lists itself", MermaidEdit.diagrams(in: "graph TD\n  A" as NSString, kind: .mermaid).map(\.title).first, "graph TD")
+        check("empty diagram file lists nothing", "\(MermaidEdit.diagrams(in: "\n" as NSString, kind: .mermaid).count)", "0")
+        check("gantt title in the list", MermaidEdit.summary(MermaidEdit.templates[6].source), "Plan · gantt")
+
+        // Block / Arrow / Group.
+        check("diagram kind word", MermaidEdit.diagramType(hand), "flowchart")
+        check("flowchart ids", MermaidEdit.nodeIDs(MermaidEdit.templates[0].source).joined(separator: ","), "start,step,check,done")
+        check("flowchart ids with groups", MermaidEdit.nodeIDs(MermaidEdit.templates[1].source).joined(separator: ","),
+              "client,app,server,api,db")
+        func added(_ element: MermaidEdit.Element, _ source: String, _ line: Int) -> String? {
+            guard let r = MermaidEdit.inserting(element, in: source, afterLine: line) else { return nil }
+            return r.source + " <" + (r.source as NSString).substring(with: r.select) + ">"
+        }
+        check("add a block", added(.block, flow, 1), "flowchart LR\n  A --> B\n  n1[\"Block\"] <Block>")
+        check("add an arrow from the line's block", added(.arrow, flow, 1), "flowchart LR\n  A --> B\n  A --> n1[\"Next\"] <Next>")
+        check("add an arrow after the kind line", added(.arrow, flow, 0), "flowchart LR\n    B --> n1[\"Next\"]\n  A --> B <Next>")
+        check("add a group", added(.group, flow, 1), "flowchart LR\n  A --> B\n  subgraph g1[\"Group\"]\n      \n  end <Group>")
+        check("first arrow of an empty flowchart", added(.arrow, "flowchart LR", 0),
+              "flowchart LR\n    n1[\"Start\"] --> n2[\"Next\"] <Next>")
+        check("sequence participants", MermaidEdit.participants(seq).joined(separator: ","), "A,B")
+        check("add a message", added(.arrow, seq, 2), seq + "\n  A->>B: Message <Message>")
+        check("add a participant", added(.block, seq, 0),
+              "sequenceDiagram\n    participant P1 as Name\n  participant A as Alice\n  A->>B: hi <Name>")
+        check("add a loop", added(.group, seq, 2), seq + "\n  loop Every minute\n      \n  end <Every minute>")
+        check("class diagrams have no buttons", added(.block, "classDiagram\n  class A", 1), nil)
+        check("buttons know flowcharts", MermaidEdit.canInsertElements(flow) ? "yes" : "no", "yes")
+
+        // Renaming a block from the picture.
+        check("rename a quoted label", MermaidEdit.renaming("flowchart LR\n  A[\"Old\"] --> B", id: "A", to: "New"),
+              "flowchart LR\n  A[\"New\"] --> B")
+        check("rename a plain label", MermaidEdit.renaming("graph TD\n  A(Hi) --> B", id: "A", to: "New"),
+              "graph TD\n  A(\"New\") --> B")
+        check("rename a block without a label", MermaidEdit.renaming(flow, id: "B", to: "New"),
+              "flowchart LR\n  A --> B[\"New\"]")
+        check("rename where the label is", MermaidEdit.renaming("flowchart LR\n  A --> B\n  B{Ask}", id: "B", to: "New"),
+              "flowchart LR\n  A --> B\n  B{\"New\"}")
+        check("rename a group", MermaidEdit.renaming("flowchart TB\n  subgraph s1 [Old]\n  end", id: "s1", to: "New"),
+              "flowchart TB\n  subgraph s1 [\"New\"]\n  end")
+        check("rename with quotes", MermaidEdit.renaming("flowchart LR\n  A[x]", id: "A", to: "Say \"hi\""),
+              "flowchart LR\n  A[\"Say #quot;hi#quot;\"]")
+        check("rename skips labels", MermaidEdit.renaming("flowchart LR\n  X[\"A note\"] --> A", id: "A", to: "New"),
+              "flowchart LR\n  X[\"A note\"] --> A[\"New\"]")
+        check("rename an unknown block", MermaidEdit.renaming(flow, id: "Z", to: "New"), nil)
+
         // Regression: a document opening with a heading must not turn bold.
         tv = makeView("# Heading\nbody text")
         tv.editorFont = .systemFont(ofSize: 16)

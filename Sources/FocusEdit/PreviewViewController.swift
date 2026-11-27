@@ -6,18 +6,26 @@ import WebKit
 /// scroll position stays where it is.
 final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
-    /// Forwards `copyCode`, `diagramView`, `copyDiagram`, `diagramNode` and `diagramError` so the web view does not retain this controller.
+    /// Forwards `copyCode`, `diagramView`, `copyDiagram`, `diagramNode`, `diagramError` and `diagramRename` so the web view does not retain this controller.
     private final class CopyBridge: NSObject, WKScriptMessageHandler {
         weak var owner: PreviewViewController?
         func userContentController(_ userContentController: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
             if message.name == "diagramView" {
-                owner?.showsDiagram = (message.body as? Bool) ?? false
+                let open = (message.body as? Bool) ?? false
+                owner?.showsDiagram = open
+                // Full size view or a block being renamed: keys go to the page (a click on
+                // the block a moment before put the editor first).
+                if open, let web = owner?.webView { web.window?.makeFirstResponder(web) }
             } else if message.name == "copyDiagram" {
                 Diagrams.copy(message.body)
             } else if message.name == "diagramNode" {
                 guard let m = message.body as? [String: Any], let source = m["source"] as? String else { return }
                 owner?.onDiagramNode?(source, m["id"] as? String ?? "", m["label"] as? String ?? "")
+            } else if message.name == "diagramRename" {
+                guard let m = message.body as? [String: Any], let source = m["source"] as? String,
+                      let id = m["id"] as? String, let text = m["text"] as? String else { return }
+                owner?.onDiagramRename?(source, id, text)
             } else if message.name == "diagramError" {
                 guard let m = message.body as? [String: Any], let source = m["source"] as? String,
                       let line = (m["line"] as? NSNumber)?.intValue else { return }
@@ -75,6 +83,8 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     var onDiagramNode: ((String, String, String) -> Void)?
     /// A diagram Mermaid could not read: its source and the 1-based line of the error.
     var onDiagramError: ((String, Int) -> Void)?
+    /// A block renamed in the picture: its diagram's source, the block's id, the new label.
+    var onDiagramRename: ((String, String, String) -> Void)?
     private var lastRatio = 0.0
     /// Where the reader is (0 top, 1 bottom), as last read or set.
     var currentRatio: Double { lastRatio }
@@ -98,6 +108,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         config.userContentController.add(copyBridge, name: "copyDiagram")
         config.userContentController.add(copyBridge, name: "diagramNode")
         config.userContentController.add(copyBridge, name: "diagramError")
+        config.userContentController.add(copyBridge, name: "diagramRename")
         // Mermaid and the figure script: ```mermaid blocks are drawn as pictures (Diagrams).
         Diagrams.install(in: config.userContentController)
         let web = WKWebView(frame: .zero, configuration: config)
