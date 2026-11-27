@@ -120,8 +120,14 @@ final class BoardDocument: NSDocument {
         board.sceneJSON { [weak self] text in
             guard let self else { return }
             if let text { self.json = text }
-            super.save(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
+            self.superSave(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
         }
+    }
+
+    /// `super` can't be called from a closure that captures `self` explicitly.
+    private func superSave(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
+                           completionHandler: @escaping (Error?) -> Void) {
+        super.save(to: url, ofType: typeName, for: saveOperation, completionHandler: completionHandler)
     }
 
     /// What the page starts with.
