@@ -7,7 +7,8 @@ import {
   type FileFormat,
   joinPath,
   STEP_TITLES,
-  TEMPLATES,
+  firstTemplate,
+  templatesFor,
   type TemplateId,
 } from "./newfile";
 
@@ -134,14 +135,23 @@ export class NewFileWizard {
       this.advance();
     } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && this.step < 3) {
       e.preventDefault();
-      const ids = this.step === 1 ? FORMATS.map((f) => f.id as string) : TEMPLATES.map((t) => t.id as string);
+      const ids = this.step === 1 ? FORMATS.map((f) => f.id as string) : templatesFor(this.format).map((t) => t.id as string);
       const current = ids.indexOf(this.step === 1 ? this.format : this.template);
       const target = ids[(current + (e.key === "ArrowDown" ? 1 : ids.length - 1)) % ids.length];
-      if (this.step === 1) this.format = target as FileFormat;
+      if (this.step === 1) this.setFormat(target as FileFormat);
       else this.template = target as TemplateId;
       this.render();
     }
     e.stopPropagation(); // the editor behind must not see these keys
+  }
+
+  /** A diagram file starts from a diagram; the others from a text template. */
+  private setFormat(format: FileFormat): void {
+    if ((format === "mmd") !== (this.format === "mmd")) {
+      this.template = firstTemplate(format);
+      this.nameEdited = false;
+    }
+    this.format = format;
   }
 
   private render(): void {
@@ -152,8 +162,8 @@ export class NewFileWizard {
     this.back.hidden = this.step === 1;
     this.next.textContent = this.step === 3 ? "Create" : "Next";
     this.body.replaceChildren();
-    if (this.step === 1) this.renderChoices(FORMATS.map((f) => ({ id: f.id, title: `${f.title}  ${f.extension}`, description: f.description })), this.format, (id) => (this.format = id as FileFormat));
-    else if (this.step === 2) this.renderChoices(TEMPLATES, this.template, (id) => (this.template = id as TemplateId));
+    if (this.step === 1) this.renderChoices(FORMATS.map((f) => ({ id: f.id, title: `${f.title}  ${f.extension}`, description: f.description })), this.format, (id) => this.setFormat(id as FileFormat));
+    else if (this.step === 2) this.renderChoices(templatesFor(this.format), this.template, (id) => (this.template = id as TemplateId));
     else this.renderName();
   }
 

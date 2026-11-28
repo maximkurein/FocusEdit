@@ -3,7 +3,10 @@ name: Windows build (experimental)
 on:
   push:
     branches: [main]
-    paths: ["windows/**", ".github/workflows/windows.yml"]
+    paths: ["windows/**", "Resources/**", ".github/workflows/windows.yml"]
+  # The diagram scripts and the Excalidraw board come from Resources/ (scripts/copy-resources.mjs).
+  pull_request:
+    paths: ["windows/**", "Resources/**", ".github/workflows/windows.yml"]
   workflow_dispatch:
 
 jobs:

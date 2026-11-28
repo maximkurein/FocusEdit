@@ -371,6 +371,15 @@
     return parent.clientWidth || document.body.clientWidth;
   }
 
+  /// The area a wide figure may spread over: the window, or the pane marked
+  /// `data-fe-diagram-host` when the page has other panes (the Windows app's Split).
+  function viewArea() {
+    var host = document.querySelector('[data-fe-diagram-host]');
+    if (!host) return { left: 0, width: window.innerWidth };
+    var r = host.getBoundingClientRect();
+    return { left: r.left, width: host.clientWidth || r.width };
+  }
+
   /// Width the figure may take: the column, or more of the window for a wide picture.
   function layout(fig) {
     var d = fig.__drawing;
@@ -380,12 +389,13 @@
     fig.style.width = '';
     if (!d || !svg) return;
     var col = columnWidth(fig);
-    var room = Math.max(col, window.innerWidth - 2 * GUTTER);
+    var area = viewArea();
+    var room = Math.max(col, area.width - 2 * GUTTER);
     var want = Math.min(d.w, room);
     if (want > col) {
       var parent = fig.parentElement || document.body;
       var parentLeft = parent.getBoundingClientRect().left + (parseFloat(getComputedStyle(parent).paddingLeft) || 0);
-      var left = Math.max(GUTTER, (window.innerWidth - want) / 2);
+      var left = area.left + Math.max(GUTTER, (area.width - want) / 2);
       fig.style.width = want + 'px';
       fig.style.marginLeft = (left - parentLeft) + 'px';
     }

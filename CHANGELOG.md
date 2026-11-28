@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-11-28
+
+### Added
+- Windows: Mermaid diagrams in the preview, as on the Mac: ```` ```mermaid ```` blocks are drawn (zoom, full size view on double-click, copy as PNG, SVG or code from the ⧉ button or a right-click), and printing draws them too. Mermaid and the ELK layout load on first use, so documents without diagrams start as fast as before
+- Windows: `.mmd` / `.mermaid` diagram files open (Open, drop, "Open with") and show their picture in Split; File ▸ New file… has "Mermaid diagram .mmd" with the ten diagram templates
+- Windows: the Diagram button in the toolbar: insert a template, Block / Arrow / Group, and the direction, hand-drawn look, ELK layout and theme of the diagram under the cursor (written to its front matter; Ctrl+Z undoes each change). The same commands are in the palette
+- Windows: the outline has Headings / Diagrams tabs: every diagram of the document, Block / Arrow / Group, Template, and Properties (shape, color, arrow kind) of the block on the cursor's line
+- Windows: editing from the picture: a click on a block puts the cursor on its line (Split), a double-click renames it in place, a drag from block to block adds an arrow, the right-click menu adds a next block, duplicates or deletes it; a diagram Mermaid cannot read gets the wrong line underlined; the block on the cursor's line is outlined in orange; inside a diagram the suggestions are its block ids and Mermaid's words
+- Windows: Excalidraw boards (built in, offline): New Excalidraw Board (Diagram button, palette), `.excalidraw` files open like documents, Save / Save As (Ctrl+S), export to PNG and SVG, Copy PNG; the board covers the window and Close (or Esc when saved) goes back to the text. Open in Excalidraw (Diagram button, palette, the picture's right-click menu) turns the diagram into an editable drawing
+
 ## [1.9.1] - 2026-11-27
 
 ### Added

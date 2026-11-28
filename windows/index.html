@@ -39,6 +39,9 @@
         <button id="btn-outline" class="tool" title="Outline of headings (Ctrl+Shift+O)" aria-label="Outline">
           <svg viewBox="0 0 20 20"><path d="M7.5 5h9M7.5 10h9M7.5 15h9"/><circle cx="3.6" cy="5" r="0.9" class="fill"/><circle cx="3.6" cy="10" r="0.9" class="fill"/><circle cx="3.6" cy="15" r="0.9" class="fill"/></svg>
         </button>
+        <button id="btn-diagram" class="tool" title="Diagram: insert a Mermaid diagram, change the one under the cursor" aria-label="Diagram" aria-haspopup="menu">
+          <svg viewBox="0 0 20 20"><rect x="2.5" y="3" width="6" height="4.5" rx="1"/><rect x="11.5" y="12.5" width="6" height="4.5" rx="1"/><path d="M5.5 7.5v3.2a1.8 1.8 0 0 0 1.8 1.8h4.2M9.6 10.6l1.9 1.9-1.9 1.9"/></svg>
+        </button>
         <span class="sep" aria-hidden="true"></span>
         <button id="btn-focus" class="tool labelled" title="Focus highlighting" aria-label="Focus highlighting">
           <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6"/><circle cx="10" cy="10" r="1.6" class="fill"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3"/></svg>
@@ -72,10 +75,11 @@
       <main id="editor"></main>
       <div id="start" class="start" hidden></div>
       <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" title="Drag to resize · double-click for equal panes" hidden></div>
-      <section id="preview" class="preview" tabindex="0" aria-label="Markdown preview" hidden></section>
+      <section id="preview" class="preview" tabindex="0" aria-label="Markdown preview" data-fe-diagram-host hidden></section>
       <aside id="outline" class="outline" aria-label="Outline" hidden></aside>
     </div>
     <footer id="vim-coach" class="vim-coach" aria-label="Vim coach" hidden></footer>
+    <div id="board" class="board" aria-label="Excalidraw board" hidden></div>
     <div id="drop-overlay" class="drop-overlay" hidden><span>Drop a file to open it</span></div>
     <div id="print-root" class="preview print-root" aria-hidden="true"></div>
     <div id="palette" class="palette" role="dialog" aria-label="Command palette" hidden>

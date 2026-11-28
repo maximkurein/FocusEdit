@@ -1395,3 +1395,34 @@ body.resizing {
 .workspace:has(.start:not([hidden])) .cm-placeholder {
   opacity: 0;
 }
+
+/* Diagrams drawn for printing (diagrams.js draws the preview's own figures). */
+.fe-print-diagram { margin: 1em 0; text-align: center; break-inside: avoid; }
+.fe-print-diagram svg { max-width: 100%; height: auto; }
+
+/* A line of a diagram Mermaid could not read. */
+.cm-diagram-error { text-decoration: underline dotted #e5484d; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* Outline: Headings / Diagrams tabs, diagram buttons and Properties. */
+.outline-tabs { display: flex; gap: 2px; margin: 0 4px 12px; padding: 2px; border-radius: 7px; background: var(--hover); }
+.outline-tab { flex: 1; padding: 3px 6px; border: 0; border-radius: 5px; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: default; }
+.outline-tab.on { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.outline-buttons { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 4px 0; padding-top: 10px; border-top: 1px solid var(--border); }
+.outline-button, .outline-select { padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 12px; }
+.outline-button:disabled, .outline-select:disabled { opacity: 0.45; }
+.outline-button:not(:disabled):hover { background: var(--hover); }
+.outline-properties { margin: 14px 4px 0; padding-top: 10px; border-top: 1px solid var(--border); }
+.outline-properties .outline-title { padding: 0 6px 8px; }
+.outline-row { display: grid; grid-template-columns: 54px 1fr; align-items: center; gap: 6px; padding: 2px 6px; color: var(--muted); }
+.outline-row .outline-select { width: 100%; min-width: 0; }
+
+/* ---------------------------------------------------------- Excalidraw board */
+
+.board { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; background: var(--bg); }
+.board[hidden] { display: none; }
+.board-bar { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--border); background: var(--chrome); font: 13px var(--ui-font); }
+.board-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--fg); }
+.board-tools { display: flex; gap: 6px; }
+.board-button { padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 12.5px; }
+.board-button:hover { background: var(--hover); }
+.board-frame { flex: 1; width: 100%; border: 0; }
