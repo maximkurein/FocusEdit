@@ -18,6 +18,12 @@ fn write_text(path: String, text: String) -> Result<(), String> {
     std::fs::write(&path, text).map_err(|e| e.to_string())
 }
 
+/// Write bytes as they are (a picture exported from a board).
+#[tauri::command]
+fn write_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
 /// The first command-line argument that is an existing file, if any.
 #[tauri::command]
 fn startup_file() -> Option<String> {
@@ -47,7 +53,7 @@ fn open_url(url: String) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![read_text, write_text, startup_file, open_url])
+        .invoke_handler(tauri::generate_handler![read_text, write_text, write_bytes, startup_file, open_url])
         .run(tauri::generate_context!())
         .expect("error while running FocusEdit");
 }

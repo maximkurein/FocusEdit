@@ -125,6 +125,17 @@ export function hintSections(kind: DocKind, keys: HintKeys): { title: string; ro
       ],
     });
   }
+  if (kind !== "fountain") {
+    sections.push({
+      title: "Diagrams (Mermaid)",
+      rows: [
+        ["Diagram button", "Templates; direction, hand-drawn look, ELK layout, theme of the diagram under the cursor"],
+        ["Outline ▸ Diagrams", "Every diagram; Block · Arrow · Group; Shape, Color, Arrow of the cursor's block"],
+        ["In the picture", "Click a block: its line · double-click: rename · drag block to block: arrow · right-click: more"],
+        ["Open in Excalidraw", "The diagram as a hand-drawn board to move by mouse; .excalidraw, PNG, SVG"],
+      ],
+    });
+  }
   if (kind === "fountain") {
     sections.push({
       title: "Fountain",

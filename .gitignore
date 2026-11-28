@@ -20,3 +20,4 @@ windows/dist/
 windows/src-tauri/target/
 windows/src-tauri/gen/
 windows/*.png
+windows/public/fe/

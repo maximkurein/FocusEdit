@@ -3,13 +3,14 @@
 // documents also get scene-heading prefixes and known character cues.
 // The browser has no system dictionary API, so there is no dictionary fallback.
 
-export type DocKind = "plain" | "markdown" | "fountain";
+export type DocKind = "plain" | "markdown" | "fountain" | "mermaid";
 
 export function kindForPath(path: string | null): DocKind {
   const ext = (path ?? "").toLowerCase().split(".").pop() ?? "";
   // RTF is edited as Markdown (rtf.ts converts both ways).
   if (["md", "markdown", "mdown", "mkd", "mdwn", "rtf"].includes(ext)) return "markdown";
   if (ext === "fountain") return "fountain";
+  if (ext === "mmd" || ext === "mermaid") return "mermaid";
   return "plain";
 }
 

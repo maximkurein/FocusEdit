@@ -63,8 +63,13 @@ export async function copyAsHtml(markdown: string): Promise<boolean> {
 }
 
 /** Open the print dialog for the rendered document (everything else on the page is hidden while printing). */
-export function printMarkdown(root: HTMLElement, markdown: string): void {
+export async function printMarkdown(
+  root: HTMLElement,
+  markdown: string,
+  prepare?: (root: HTMLElement) => Promise<void>,
+): Promise<void> {
   root.innerHTML = renderMarkdown(markdown);
+  if (prepare) await prepare(root);
   document.body.classList.add("printing");
   const done = () => {
     document.body.classList.remove("printing");

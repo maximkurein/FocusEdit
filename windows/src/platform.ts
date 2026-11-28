@@ -25,12 +25,21 @@ export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.pl
 export const modKey = isMac ? "⌘" : "Ctrl+";
 
 const FILTERS = [
-  { name: "Documents", extensions: ["md", "markdown", "fountain", "txt", "rtf"] },
+  { name: "Documents", extensions: ["md", "markdown", "fountain", "txt", "rtf", "mmd", "mermaid", "excalidraw"] },
   { name: "Markdown", extensions: ["md", "markdown"] },
   { name: "Fountain", extensions: ["fountain"] },
+  { name: "Mermaid diagram", extensions: ["mmd", "mermaid"] },
   { name: "Plain Text", extensions: ["txt"] },
   { name: "Rich Text", extensions: ["rtf"] },
+  { name: "Excalidraw board", extensions: ["excalidraw"] },
 ];
+
+export const BOARD_FILTERS = [{ name: "Excalidraw board", extensions: ["excalidraw"] }];
+export const PNG_FILTERS = [{ name: "PNG image", extensions: ["png"] }];
+export const SVG_FILTERS = [{ name: "SVG image", extensions: ["svg"] }];
+
+/** An Excalidraw board, not a text document. */
+export const isBoard = (name: string) => /\.excalidraw$/i.test(name);
 
 export function baseName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
@@ -55,7 +64,7 @@ export async function openFile(): Promise<OpenedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".md,.markdown,.fountain,.txt,.rtf,text/plain";
+    input.accept = ".md,.markdown,.fountain,.txt,.rtf,.mmd,.mermaid,.excalidraw,text/plain";
     input.onchange = async () => {
       const file = input.files?.[0];
       resolve(file ? { path: null, name: file.name, ...decode(file.name, await file.text()) } : null);
@@ -76,6 +85,33 @@ export async function writeFile(path: string, text: string): Promise<boolean> {
 }
 
 export const HTML_FILTERS = [{ name: "HTML page", extensions: ["html"] }];
+
+/** Write bytes (an exported picture); false if the write failed (an error was shown). */
+export async function writeBytes(path: string, bytes: Uint8Array): Promise<boolean> {
+  try {
+    await invoke("write_bytes", { path, data: Array.from(bytes) });
+    return true;
+  } catch (error) {
+    await showError(`Could not save ${baseName(path)}: ${String(error)}`);
+    return false;
+  }
+}
+
+/** Save `data` under a name the user picks. In the browser it is downloaded. True when written. */
+export async function saveAs(suggestedName: string, data: string | Uint8Array, filters: { name: string; extensions: string[] }[], type: string): Promise<string | null> {
+  if (isTauri) {
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const path = (await save({ defaultPath: suggestedName, filters })) ?? null;
+    if (path === null) return null;
+    const ok = typeof data === "string" ? await writeFile(path, data) : await writeBytes(path, data);
+    return ok ? path : null;
+  }
+  const url = URL.createObjectURL(new Blob([data as BlobPart], { type }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: suggestedName });
+  a.click();
+  URL.revokeObjectURL(url);
+  return suggestedName;
+}
 
 /** Ask where to save. Browser fallback downloads the file and returns null. */
 export async function chooseSavePath(suggestedName: string, text: string, filters = FILTERS): Promise<string | null> {
@@ -171,7 +207,7 @@ export async function onCloseRequested(guard: () => Promise<boolean>): Promise<v
   }
 }
 
-const OPENABLE = /\.(md|markdown|fountain|txt|rtf)$/i;
+const OPENABLE = /\.(md|markdown|fountain|txt|rtf|mmd|mermaid|excalidraw)$/i;
 
 /**
  * Files dropped onto the window. `onFile` gets the first supported file (the
@@ -180,7 +216,7 @@ const OPENABLE = /\.(md|markdown|fountain|txt|rtf)$/i;
  * the HTML5 events carry the file itself.
  */
 export async function onFileDrop(onFile: (file: OpenedFile) => void, over: (hovering: boolean) => void): Promise<void> {
-  const reject = (name: string) => showError(`“${name}” is not a document FocusEdit opens (.md, .markdown, .fountain, .txt, .rtf).`);
+  const reject = (name: string) => showError(`“${name}” is not a document FocusEdit opens (.md, .markdown, .fountain, .txt, .rtf, .mmd, .excalidraw).`);
   if (isTauri) {
     const { getCurrentWebview } = await import("@tauri-apps/api/webview");
     await getCurrentWebview().onDragDropEvent(async ({ payload }) => {

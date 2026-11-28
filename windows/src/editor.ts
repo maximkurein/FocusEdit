@@ -7,8 +7,8 @@ import { defaultKeymap, history, historyKeymap, insertTab } from "@codemirror/co
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { search, searchKeymap } from "@codemirror/search";
-import { Compartment, EditorSelection, EditorState, type Extension, type StateCommand, type Text } from "@codemirror/state";
-import { drawSelection, dropCursor, EditorView, highlightSpecialChars, keymap, placeholder } from "@codemirror/view";
+import { Compartment, EditorSelection, EditorState, type Extension, type StateCommand, StateEffect, StateField, type Text } from "@codemirror/state";
+import { Decoration, type DecorationSet, drawSelection, dropCursor, EditorView, highlightSpecialChars, keymap, placeholder } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { CompletionEngine, type DocKind } from "./completion";
 import { focusHighlighting, typewriterScrolling } from "./focus";
@@ -71,10 +71,29 @@ const formatKeymap = [
   { key: "Mod-k", run: wrapWith("[", "](https://)") },
 ];
 
+// A line marked as wrong (a diagram Mermaid could not read): dotted red underline,
+// gone at the next edit.
+const setErrorLine = StateEffect.define<{ from: number; to: number } | null>();
+const errorMark = Decoration.mark({ class: "cm-diagram-error" });
+const errorLine = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(marks, tr) {
+    if (tr.docChanged) marks = Decoration.none;
+    for (const e of tr.effects) {
+      if (e.is(setErrorLine)) {
+        marks = e.value && e.value.to > e.value.from ? Decoration.set([errorMark.range(e.value.from, e.value.to)]) : Decoration.none;
+      }
+    }
+    return marks;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
 export function placeholderFor(kind: DocKind, hintsKey: string, commandsKey = ""): string {
   const hints = `   ·   ${hintsKey} hints` + (commandsKey ? `   ·   ${commandsKey} commands` : "");
   if (kind === "markdown") return `Start writing — # heading, **bold**, - list${hints}`;
   if (kind === "fountain") return `INT. LOCATION - DAY${hints}`;
+  if (kind === "mermaid") return `flowchart LR — A --> B${hints}`;
   return `Start writing…${hints}`;
 }
 
@@ -86,6 +105,8 @@ export interface EditorOptions {
   onChange: (doc: Text) => void;
   /** The cursor moved (or the text changed): its 1-based line, and how many words are selected. */
   onCursor: (line: number, selectedWords: number) => void;
+  /** Words to suggest instead of the document's own (inside a diagram); null = not there. */
+  diagramWords?: (state: EditorState, prefix: string, linePrefix: string) => string[] | null;
   /** Vim mode: the coach bar element and the app-level actions (:w, :q, …). */
   vim: { coach: HTMLElement; perform: (action: VimAction) => void };
 }
@@ -137,6 +158,8 @@ export class Editor {
       inlineCompletion({
         enabled: () => this.settings.autocomplete,
         provider: (prefix, linePrefix, state) => {
+          const words = this.options.diagramWords?.(state, prefix, linePrefix);
+          if (words) return words.find((w) => w.startsWith(prefix))?.slice(prefix.length) || null;
           this.syncEngine(state.doc);
           return this.engine.suffix(prefix, linePrefix);
         },
@@ -146,6 +169,7 @@ export class Editor {
       search({ top: true }),
       this.vimSlot.of(this.vim ? this.vim.extension() : []),
       this.live.of(s.liveMarkdown ? liveMarkdown() : []),
+      errorLine,
       keymap.of([
         ...closeBracketsKeymap,
         ...formatKeymap,
@@ -202,8 +226,13 @@ export class Editor {
   private wordCompletions(ctx: CompletionContext) {
     const word = ctx.matchBefore(/[\p{L}\p{N}'’-]+/u);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
-    this.syncEngine(ctx.state.doc);
     const line = ctx.state.doc.lineAt(ctx.pos);
+    const words = this.options.diagramWords?.(ctx.state, word.text, line.text.slice(0, ctx.pos - line.from));
+    if (words) {
+      const options = words.map((label) => ({ label, type: "keyword" }));
+      return options.length ? { from: word.from, options, validFor: /^[\p{L}\p{N}'’-]*$/u } : null;
+    }
+    this.syncEngine(ctx.state.doc);
     const options = this.engine
       .completions(word.text, line.text.slice(0, ctx.pos - line.from))
       .map((label) => ({ label, type: "text" }));
@@ -275,6 +304,29 @@ export class Editor {
   /** Vim is on and not in Insert mode: it takes every key, even Ctrl+R. */
   get vimOwnsKeys(): boolean {
     return this.vim !== null && this.vim.engine.mode !== "INSERT";
+  }
+
+  /** Replace `from`–`to` with `insert` as one undoable edit, then select `select` (or put the cursor after it). */
+  replace(from: number, to: number, insert: string, select?: { from: number; to: number }, userEvent = "input.diagram"): void {
+    this.view.dispatch({
+      changes: { from, to, insert },
+      selection: select ? EditorSelection.range(select.from, select.to) : { anchor: from + insert.length },
+      userEvent,
+      scrollIntoView: true,
+    });
+  }
+
+  /** Underline `from`–`to` as wrong until the next edit (null clears it). */
+  markError(span: { from: number; to: number } | null): void {
+    this.view.dispatch({ effects: setErrorLine.of(span) });
+  }
+
+  /** Select `from`–`to` and bring it into view. */
+  select(from: number, to: number): void {
+    this.view.dispatch({
+      selection: EditorSelection.range(from, to),
+      effects: EditorView.scrollIntoView(from, { y: "center" }),
+    });
   }
 
   get text(): string {

@@ -10,6 +10,11 @@ import { Editor, type LineSeparator, wrapWith } from "./editor";
 import { copyAsHtml, htmlDocument, printMarkdown, titleOf } from "./export";
 import { appendAbout, hintKeys, renderHints } from "./hints";
 import { copyableFence, renderMarkdown } from "./markdown-html";
+import { diagramFileMarkdown, drawStatic, loadedDiagrams, onDiagramMessage, refreshDiagrams } from "./diagrams";
+import { DiagramCommands, directions, layouts, looks, themes as diagramThemes } from "./diagram-commands";
+import * as Mermaid from "./mermaid-edit";
+import { BoardLayer, boardName } from "./board";
+import { colorsOf } from "./diagrams";
 import { closeMenu, type MenuItem, showMenu } from "./menu";
 import { fileContents, fileName, freeName, isoDate, joinPath, startingText } from "./newfile";
 import { type Command, filterCommands, Palette } from "./palette";
@@ -68,7 +73,7 @@ let selectedWords = 0;
 let notice = "";
 const session = new Session();
 
-const editor = new Editor($("editor"), {
+const editor: Editor = new Editor($("editor"), {
   settings,
   hintsKey: platform.isMac ? "⌘?" : "F1",
   commandsKey: `${mod}Shift+P`,
@@ -86,12 +91,14 @@ const editor = new Editor($("editor"), {
   onCursor: (line, words) => {
     cursorLine = line;
     if (settings.outline) outline.setCursor(line);
+    scheduleDiagramCursor();
     if (words !== selectedWords) {
       selectedWords = words;
       renderStats();
     }
   },
   vim: { coach: $("vim-coach"), perform: (action) => void performVim(action) },
+  diagramWords: (state, prefix, linePrefix): string[] | null => diagrams.completions(state, prefix, linePrefix),
 });
 
 // ---------------------------------------------------------------- appearance
@@ -118,6 +125,8 @@ function applyAppearance(): void {
   $("outline").hidden = !settings.outline;
   $("btn-outline").classList.toggle("on", settings.outline);
   if (settings.outline) refreshOutline();
+  if (view !== "edit") void refreshDiagrams(previewEl);
+  board.setTheme(colorsOf($("editor")).dark);
   $("btn-size").title = `Column width: ${settings.size} — click to change`;
   $("btn-font").title = `Font: ${settings.font} — click to change`;
 }
@@ -206,7 +215,7 @@ function setGoal(words: number): void {
 
 // --------------------------------------------------------------- documents
 
-const EXTENSION: Record<DocKind, string> = { markdown: ".md", fountain: ".fountain", plain: ".txt" };
+const EXTENSION: Record<DocKind, string> = { markdown: ".md", fountain: ".fountain", plain: ".txt", mermaid: ".mmd" };
 
 function load(text: string, path: string | null, name: string, keepDraft = false): void {
   const bom = text.startsWith("﻿");
@@ -280,20 +289,27 @@ async function newFile(): Promise<void> {
 }
 
 async function openDocument(): Promise<void> {
-  if (!(await canDiscard())) return;
   const file = await platform.openFile();
-  if (file) loadFile(file);
+  if (file) await openDropped(file);
 }
 
-/** A file dropped on the window: ask before discarding unsaved changes, then open it. */
+/** A file dropped on the window: ask before discarding unsaved changes, then open it.
+ *  A board opens over the text, which stays as it is. */
 async function openDropped(file: platform.OpenedFile): Promise<void> {
+  if (platform.isBoard(file.name)) {
+    if (await board.open(file.text, file.path, file.name)) {
+      if (file.path) remember(file.path, file.name);
+    }
+    return;
+  }
+  if ((await board.close()) === false) return;
   if (await canDiscard()) loadFile(file);
 }
 
 async function openPath(path: string): Promise<void> {
   try {
     const file = await platform.readFile(path);
-    loadFile(file);
+    await openDropped(file);
   } catch (error) {
     await platform.showError(`Could not open ${platform.baseName(path)}: ${String(error)}`);
   }
@@ -366,10 +382,9 @@ function remember(path: string, name: string): void {
 }
 
 async function openRecent(path: string): Promise<void> {
-  if (!(await canDiscard())) return;
   try {
     const file = await platform.readFile(path);
-    loadFile(file);
+    await openDropped(file);
   } catch {
     removeRecent(path);
     await platform.showError(`Could not open ${platform.baseName(path)}. It was moved or deleted, so it was removed from the recent list.`);
@@ -378,14 +393,169 @@ async function openRecent(path: string): Promise<void> {
 
 // ----------------------------------------------------------------- outline
 
-const outline = new OutlinePanel($("outline"), (line) => editor.goToLine(line));
+const diagrams: DiagramCommands = new DiagramCommands({ editor, kind: () => doc.kind, notify: (m) => notify(m, 4000) });
+
+// Excalidraw boards, over the text.
+const board = new BoardLayer($("board"), {
+  notify: (m) => notify(m),
+  dark: () => colorsOf($("editor")).dark,
+  closed: () => editor.focusEditor(),
+});
+
+/** Open in Excalidraw: the diagram under the cursor as a drawing to move by hand. */
+function openDiagramInExcalidraw(source = diagrams.currentSource()): void {
+  if (source === null) {
+    notify("Put the cursor in a Mermaid diagram first", 4000);
+    return;
+  }
+  void board.openMermaid(source, boardName(doc.name));
+}
+onDiagramMessage("openBoard", (m: { source: string }) => openDiagramInExcalidraw(m.source));
+
+const outline = new OutlinePanel($("outline"), (line) => editor.goToLine(line), {
+  pick: (line) => editor.goToLine(line),
+  insert: (element) => {
+    diagrams.insertElement(element);
+    editor.focusEditor();
+  },
+  template: (i) => {
+    diagrams.insertTemplate(i);
+    editor.focusEditor();
+  },
+  shape: (i) => diagrams.setShape(i),
+  color: (i) => diagrams.setColor(i),
+  arrow: (i) => diagrams.setArrow(i),
+  templates: Mermaid.templates.map((t) => t.title),
+  shapes: Mermaid.shapes.map((s) => s.title),
+  colors: Mermaid.colors.map((c) => c.title),
+  arrows: Mermaid.arrows.map((a) => a.title),
+});
 let outlineTimer = 0;
+
+/** What the Diagrams tab shows (null where there can be no diagrams). */
+function diagramTab() {
+  if (!diagrams.allowed) return null;
+  const text = editor.text;
+  const list = Mermaid.diagrams(text, doc.kind);
+  const here = diagrams.currentRange();
+  return {
+    items: list.map((d) => ({ title: d.title, line: d.line })),
+    current: here ? list.findIndex((d) => d.body.from === here.from) : -1,
+    only: doc.kind === "mermaid",
+    properties: diagrams.properties(),
+  };
+}
 
 function refreshOutline(line = cursorLine): void {
   if (!settings.outline) return;
   window.clearTimeout(outlineTimer);
-  outline.update(extractHeadings(editor.text, doc.kind), line);
+  outline.update(extractHeadings(editor.text, doc.kind), line, diagramTab());
 }
+
+/** The cursor moved: the Diagrams tab's selection and Properties, the block outlined in the picture. */
+let diagramCursorTimer = 0;
+function scheduleDiagramCursor(): void {
+  window.clearTimeout(diagramCursorTimer);
+  diagramCursorTimer = window.setTimeout(() => {
+    if (settings.outline && outline.showing === "diagrams") refreshOutline();
+    if (view === "split") {
+      const at = diagrams.cursorBlock();
+      loadedDiagrams()?.highlight(at?.source ?? "", at?.id ?? null);
+    }
+  }, 120);
+}
+
+/** Show the Diagrams tab of the outline. */
+function showDiagramList(): void {
+  outline.tab = "diagrams";
+  if (!settings.outline) actions["btn-outline"]();
+  else refreshOutline();
+}
+
+// ------------------------------------------------------------ diagram menu
+
+/** The Diagram button: templates, Block / Arrow / Group, and the look of the diagram under the cursor. */
+function openDiagramMenu(): void {
+  if (closeMenu()) return;
+  const mark = (on: boolean) => (on ? "✓" : "");
+  const run = (f: () => void) => () => {
+    f();
+    editor.focusEditor();
+  };
+  const now = diagrams.current();
+  const items: MenuItem[] = [{ label: "Insert Template", heading: true }];
+  Mermaid.templates.forEach((t, i) => items.push({ label: t.title, run: run(() => diagrams.insertTemplate(i)) }));
+  items.push({ label: "", separator: true }, { label: "Insert", heading: true });
+  for (const [element, label] of [["block", "Block"], ["arrow", "Arrow"], ["group", "Group"]] as const) {
+    items.push({ label, disabled: !now, run: run(() => diagrams.insertElement(element)) });
+  }
+  items.push({ label: "Show Diagram List", run: showDiagramList });
+  items.push({ label: "", separator: true }, { label: "Excalidraw", heading: true });
+  items.push({ label: "Open in Excalidraw", disabled: !now, run: () => openDiagramInExcalidraw() });
+  items.push({ label: "New Excalidraw Board", run: () => void board.open() });
+  if (now) {
+    if (now.direction !== null) {
+      items.push({ label: "", separator: true }, { label: "Direction", heading: true });
+      for (const d of directions) items.push({ label: d.title, detail: mark(now.direction === d.value), run: run(() => diagrams.setDirection(d.value)) });
+    }
+    items.push({ label: "", separator: true }, { label: "Look", heading: true });
+    for (const l of looks) items.push({ label: l.title, detail: mark((now.look ?? null) === l.value || (l.value === null && now.look === "classic")), run: run(() => diagrams.setConfig("look", l.value)) });
+    items.push({ label: "", separator: true }, { label: "Layout", heading: true });
+    for (const l of layouts) items.push({ label: l.title, detail: mark((now.layout ?? null) === l.value), run: run(() => diagrams.setConfig("layout", l.value)) });
+    items.push({ label: "", separator: true }, { label: "Diagram Theme", heading: true });
+    for (const t of diagramThemes) items.push({ label: t.title, detail: mark((now.theme ?? null) === t.value), run: run(() => diagrams.setConfig("theme", t.value)) });
+  } else {
+    items.push({ label: "", separator: true }, { label: "Put the cursor in a diagram to change it", disabled: true });
+  }
+  showMenu($("btn-diagram"), items);
+}
+
+/** Palette commands for diagrams. */
+function diagramCommands(): Command[] {
+  const boardCommand: Command = { title: "New Excalidraw Board", keywords: "draw sketch whiteboard excalidraw", run: () => void board.open() };
+  if (!diagrams.allowed) return [boardCommand];
+  const list: Command[] = [boardCommand];
+  list.push(...Mermaid.templates.map((t, i) => ({
+    title: `Diagram: Insert ${t.title}`,
+    keywords: "mermaid template chart",
+    run: () => diagrams.insertTemplate(i),
+  })));
+  list.push({ title: "Diagram: Show Diagram List", keywords: "mermaid outline sidebar", run: showDiagramList });
+  const now = diagrams.current();
+  if (!now) return list;
+  list.push({ title: "Diagram: Open in Excalidraw", keywords: "mermaid draw board sketch hand drawn", run: () => openDiagramInExcalidraw() });
+  for (const [element, label] of [["block", "Block"], ["arrow", "Arrow"], ["group", "Group"]] as const) {
+    list.push({ title: `Diagram: Insert ${label}`, keywords: "mermaid add node edge subgraph", run: () => diagrams.insertElement(element) });
+  }
+  if (now.direction !== null) {
+    for (const d of directions) list.push({ title: `Diagram Direction: ${d.title}`, keywords: "mermaid flowchart " + d.value, run: () => diagrams.setDirection(d.value) });
+  }
+  for (const l of looks) list.push({ title: `Diagram Look: ${l.title}`, keywords: "mermaid sketch hand drawn", run: () => diagrams.setConfig("look", l.value) });
+  for (const l of layouts) list.push({ title: `Diagram Layout: ${l.title}`, keywords: "mermaid elk dagre", run: () => diagrams.setConfig("layout", l.value) });
+  for (const t of diagramThemes) list.push({ title: `Diagram Theme: ${t.title}`, keywords: "mermaid colours colors", run: () => diagrams.setConfig("theme", t.value) });
+  const p = diagrams.properties();
+  if (p?.block) {
+    Mermaid.shapes.forEach((sh, i) => list.push({ title: `Block Shape: ${sh.title}`, keywords: "mermaid node " + p.block, run: () => diagrams.setShape(i) }));
+    list.push({ title: "Block Color: None", keywords: "mermaid fill style", run: () => diagrams.setColor(null) });
+    Mermaid.colors.forEach((c, i) => list.push({ title: `Block Color: ${c.title}`, keywords: "mermaid fill style", run: () => diagrams.setColor(i) }));
+  }
+  if (p?.arrow !== null && p?.arrow !== undefined) {
+    Mermaid.arrows.forEach((a, i) => list.push({ title: `Arrow: ${a.title.replace(/\s+/g, " ")}`, keywords: "mermaid link edge", run: () => diagrams.setArrow(i) }));
+  }
+  return list;
+}
+
+// Messages from the picture in the preview.
+onDiagramMessage("diagramNode", (m: { source: string; id: string; label: string }) => {
+  if (view === "split") diagrams.reveal(m.source, m.id, m.label ?? "");
+});
+onDiagramMessage("diagramError", (m: { source: string; line: number | null }) => diagrams.markError(m.source, m.line));
+onDiagramMessage("diagramRename", (m: { source: string; id: string; text: string }) => diagrams.rename(m.source, m.id, m.text));
+onDiagramMessage("diagramConnect", (m: { source: string; from: string; to: string }) => diagrams.connect(m.source, m.from, m.to));
+onDiagramMessage("diagramNodeAction", (m: { source: string; id: string; action: string }) => {
+  diagrams.nodeAction(m.source, m.id, m.action);
+  if (m.action === "next") editor.focusEditor();
+});
 
 function scheduleOutline(): void {
   if (!settings.outline) return;
@@ -416,7 +586,7 @@ async function copyHtml(): Promise<void> {
 }
 
 function printDocument(): void {
-  printMarkdown($("print-root"), editor.text);
+  void printMarkdown($("print-root"), previewText(), drawStatic);
 }
 
 /** The theme button, as on the Mac: the editor's theme, then the preview's own ("Same" follows the editor). */
@@ -495,12 +665,31 @@ let previewTimer = 0;
 /** Fountain scripts are not Markdown; everything else can be previewed. */
 const previewable = () => doc.kind !== "fountain";
 
+/** What the preview shows: the Markdown, or a diagram file as one ```mermaid block. */
+const previewText = () => (doc.kind === "mermaid" ? diagramFileMarkdown(editor.text) : editor.text);
+
 function renderPreview(): void {
-  previewEl.innerHTML = renderMarkdown(editor.text);
+  previewEl.innerHTML = renderMarkdown(previewText());
   for (const pre of previewEl.querySelectorAll("pre:not(.raw)")) {
-    (pre as HTMLElement).title = "Click to copy";
+    if (!pre.querySelector("code.language-mermaid")) (pre as HTMLElement).title = "Click to copy";
   }
+  void refreshDiagrams(previewEl);
 }
+
+// ---------------------------------------------------------------- diagrams
+
+/** The full size view (or a rename field) is open: Esc closes it, not the preview. */
+let diagramOpen = false;
+onDiagramMessage("diagramView", (open) => (diagramOpen = open === true));
+onDiagramMessage("copyDiagram", (message: { type: string; data: string }) => {
+  if (message.type === "png") {
+    const bytes = Uint8Array.from(atob(message.data), (c) => c.charCodeAt(0));
+    const item = new ClipboardItem({ "image/png": new Blob([bytes], { type: "image/png" }) });
+    void navigator.clipboard.write([item]).catch(() => notify("Could not copy the picture"));
+  } else {
+    void navigator.clipboard.writeText(message.data);
+  }
+});
 
 function schedulePreview(): void {
   if (view === "edit") return;
@@ -556,7 +745,11 @@ function setShare(value: number, persist = true): void {
 
 /** A file that was opened before comes back as it was left; a new one starts in Edit with equal panes. */
 function restoreAppearance(path: string): void {
-  const look: Appearance = loadAppearance(path) ?? { view: "edit", outline: settings.outline, share: DEFAULT_SHARE };
+  const look: Appearance = loadAppearance(path) ?? {
+    view: kindForPath(path) === "mermaid" ? "split" : "edit", // a diagram file shows its picture
+    outline: settings.outline,
+    share: DEFAULT_SHARE,
+  };
   view = look.view;
   setShare(look.share, false);
   if (settings.outline !== look.outline) {
@@ -636,7 +829,7 @@ previewEl.addEventListener("click", (e) => {
     return;
   }
   const pre = target.closest("pre");
-  if (!pre || pre.classList.contains("raw")) return;
+  if (!pre || pre.classList.contains("raw") || target.closest(".fe-diagram")) return;
   const selected = (window.getSelection()?.toString() ?? "") !== "";
   const text = copyableFence(pre.textContent ?? "", selected);
   if (!text) return;
@@ -738,6 +931,7 @@ function allCommands(): Command[] {
     { title: "Hints and shortcuts", shortcut: platform.isMac ? "⌘?" : "F1", run: () => toggleHints(true) },
     { title: "About FocusEdit", keywords: "version developer github", run: () => toggleHints(true) },
     { title: "Open the welcome tour", keywords: "introduction help start", run: () => void showWelcome() },
+    ...diagramCommands(),
   ];
   if (platform.isTauri) {
     for (const file of loadRecent()) {
@@ -782,6 +976,7 @@ const actions: Record<string, () => void> = {
   "btn-typewriter": () => changeSettings(() => (settings.typewriter = !settings.typewriter)),
   "btn-vim": () => changeSettings(() => (settings.vim = !settings.vim)),
   "btn-theme": openThemeMenu,
+  "btn-diagram": openDiagramMenu,
   "btn-size": () => changeSettings(() => (settings.size = next(sizes, settings.size))),
   "btn-font": () => changeSettings(() => (settings.font = next(fonts, settings.font))),
   "btn-fullscreen": () => void platform.toggleFullscreen(),
@@ -797,7 +992,7 @@ for (const [id, run] of Object.entries(actions)) {
   const button = $(id);
   button.addEventListener("click", () => {
     run();
-    if (id !== "btn-hints" && id !== "btn-file" && id !== "btn-theme") editor.focusEditor();
+    if (id !== "btn-hints" && id !== "btn-file" && id !== "btn-theme" && id !== "btn-diagram") editor.focusEditor();
   });
   // Show the platform's modifier in tooltips (⌘ on macOS test builds).
   button.title = button.title.replaceAll("Ctrl+", mod);
@@ -828,7 +1023,9 @@ window.addEventListener(
     const cmd = platform.isMac ? e.metaKey : e.ctrlKey;
     const key = e.key.toLowerCase();
     let handled = true;
-    if (cmd && e.shiftKey && key === "s") void saveAs();
+    if (board.isOpen && cmd && key === "s") void board.save(e.shiftKey);
+    else if (board.isOpen && e.key === "Escape") void board.run("escape");
+    else if (cmd && e.shiftKey && key === "s") void saveAs();
     else if (cmd && key === "s") void save();
     else if (cmd && e.shiftKey && key === "o") actions["btn-outline"]();
     else if (cmd && key === "o") void openDocument();
@@ -845,7 +1042,10 @@ window.addEventListener(
     else if (e.key === "F1" || (cmd && e.key === "?")) toggleHints();
     else if (e.key === "F11" || (platform.isMac && e.metaKey && e.ctrlKey && key === "f")) void platform.toggleFullscreen();
     else if (e.key === "Escape" && !hintsEl.hidden) toggleHints(false);
-    else if (e.key === "Escape" && view === "preview") setView("edit");
+    else if (e.key === "Escape" && diagramOpen) {
+      loadedDiagrams()?.close();
+      diagramOpen = false;
+    } else if (e.key === "Escape" && view === "preview") setView("edit");
     // A reload would throw away the document: swallow the WebView's refresh keys.
     // Ctrl+R is Vim's redo: outside Insert mode Vim itself cancels the reload (a handler that
     // already called preventDefault would stop the editor from seeing the key).
@@ -880,7 +1080,7 @@ void platform.onFileDrop(
 );
 
 void platform.onCloseRequested(async () => {
-  const leave = await canDiscard();
+  const leave = (await board.canDiscard()) && (await canDiscard());
   if (leave) dropDraft(); // a clean exit leaves nothing to recover
   return leave;
 });

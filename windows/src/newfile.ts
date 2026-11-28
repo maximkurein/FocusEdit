@@ -2,10 +2,12 @@
 // Step 1 picks the format, step 2 what to start from, step 3 the name and the folder.
 // Pure functions only (no DOM, no files), so the rules are easy to test.
 
+import { templates as diagramTemplates } from "./mermaid-edit";
 import { markdownToRtf } from "./rtf";
 
-export type FileFormat = "txt" | "md" | "rtf";
-export type TemplateId = "blank" | "note" | "todo" | "meeting";
+export type FileFormat = "txt" | "md" | "rtf" | "mmd";
+/** A text template, or `diagram-N`: Mermaid template N (mermaid-edit.ts) for a .mmd file. */
+export type TemplateId = "blank" | "note" | "todo" | "meeting" | `diagram-${number}`;
 
 export interface FormatInfo {
   id: FileFormat;
@@ -24,7 +26,21 @@ export const FORMATS: FormatInfo[] = [
   { id: "txt", extension: ".txt", title: "Plain text", description: "Just words, no formatting. Opens in any program." },
   { id: "md", extension: ".md", title: "Markdown", description: "Headings, lists and links written with simple marks. Has a live preview." },
   { id: "rtf", extension: ".rtf", title: "Rich text", description: "Bold, italic and headings that Word, WordPad and TextEdit show formatted." },
+  { id: "mmd", extension: ".mmd", title: "Mermaid diagram", description: "A flowchart, sequence or other diagram written as text, drawn beside it." },
 ];
+
+/** What step 2 offers for a format: the Mermaid templates for a diagram file. */
+export function templatesFor(format: FileFormat): TemplateInfo[] {
+  if (format !== "mmd") return TEMPLATES;
+  return diagramTemplates.map((t, i) => ({
+    id: `diagram-${i}` as TemplateId,
+    title: t.title,
+    description: t.source.split("\n")[0],
+  }));
+}
+
+/** The template a format starts with in step 2. */
+export const firstTemplate = (format: FileFormat): TemplateId => (format === "mmd" ? "diagram-0" : "blank");
 
 export const TEMPLATES: TemplateInfo[] = [
   { id: "blank", title: "Blank", description: "An empty file." },
@@ -43,14 +59,16 @@ export function isoDate(now: Date = new Date()): string {
 
 /** The name offered in step 3 for a template. */
 export function defaultName(template: TemplateId, date: string): string {
-  return { blank: "Untitled", note: `Note ${date}`, todo: `To-do ${date}`, meeting: `Meeting ${date}` }[template];
+  if (template.startsWith("diagram-")) return "Diagram";
+  const names: Record<string, string> = { blank: "Untitled", note: `Note ${date}`, todo: `To-do ${date}`, meeting: `Meeting ${date}` };
+  return names[template] ?? "Untitled";
 }
 
 /** The characters Windows does not allow in a file name, and those no one wants. */
 // eslint-disable-next-line no-control-regex
 const FORBIDDEN = /[<>:"/\\|?*\u0000-\u001f]/g;
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
-const KNOWN_EXTENSION = /\.(txt|md|markdown|rtf)$/i;
+const KNOWN_EXTENSION = /\.(txt|md|markdown|rtf|mmd|mermaid)$/i;
 
 /** A name typed by the user, cleaned up for a file name (without the extension). */
 export function cleanName(input: string): string {
@@ -85,6 +103,8 @@ type Block = { heading: string } | { text: string } | { list: string[] } | { tod
 
 function blocks(template: TemplateId, title: string, date: string): Block[] {
   switch (template) {
+    default:
+      return [];
     case "blank":
       return [];
     case "note":
@@ -108,6 +128,10 @@ function blocks(template: TemplateId, title: string, date: string): Block[] {
 
 /** The text a new file starts with, as the editor shows it: Markdown for md and rtf, plain text for txt. */
 export function startingText(template: TemplateId, format: FileFormat, title: string, date: string): string {
+  if (format === "mmd") {
+    const i = Number(/^diagram-(\d+)$/.exec(template)?.[1] ?? 0);
+    return (diagramTemplates[i] ?? diagramTemplates[0]).source + "\n";
+  }
   const plain = format === "txt";
   const out: string[] = [];
   for (const block of blocks(template, cleanName(title), date)) {

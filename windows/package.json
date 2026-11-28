@@ -1,12 +1,14 @@
 {
   "name": "focusedit-windows",
   "private": true,
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "FocusEdit for Windows (experimental): Tauri 2 + CodeMirror 6",
   "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-resources.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/copy-resources.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 1421 --strictPort",
     "test": "vitest run",

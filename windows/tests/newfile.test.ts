@@ -103,3 +103,18 @@ describe("file contents", () => {
     expect(back).toContain("Date: 2026-10-21");
   });
 });
+
+describe("Mermaid diagram files", () => {
+  it("makes .mmd files from the diagram templates", async () => {
+    const { templatesFor, firstTemplate } = await import("../src/newfile");
+    const { templates } = await import("../src/mermaid-edit");
+    expect(fileName("Diagram", "mmd")).toBe("Diagram.mmd");
+    expect(fileName("net.mmd", "mmd")).toBe("net.mmd");
+    expect(templatesFor("mmd").length).toBe(10);
+    expect(templatesFor("md").map((t) => t.id)).toEqual(["blank", "note", "todo", "meeting"]);
+    expect(firstTemplate("mmd")).toBe("diagram-0");
+    expect(startingText("diagram-2", "mmd", "x", "2026-11-28")).toBe(templates[2].source + "\n");
+    expect(startingText("diagram-99", "mmd", "x", "2026-11-28")).toBe(templates[0].source + "\n");
+    expect(defaultName("diagram-1", "2026-11-28")).toBe("Diagram");
+  });
+});
